@@ -27,6 +27,7 @@
               pkgs.haskellPackages.cabal-install
               pkgs.haskellPackages.fourmolu
               pkgs.haskellPackages.hoogle
+              pkgs.haskellPackages.BNFC
               pkgs.llvmPackages_latest.llvm
               pkgs.zlib
             ];
