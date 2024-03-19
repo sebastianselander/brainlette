@@ -1,0 +1,39 @@
+cabal-version:   3.0
+name:            brainlette
+version:         0.1.0.0
+
+-- synopsis:
+-- description:
+license:         MIT
+license-file:    LICENSE
+author:          sebastianselander
+maintainer:      sebastian.selander@gmail.com
+
+-- copyright:
+category:        Language
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+-- extra-source-files:
+
+common warnings
+  ghc-options: -Wall -Wextra
+
+executable brainlette
+  import:           warnings
+  main-is:          Main.hs
+
+  -- other-modules:
+  other-extensions: LambdaCase
+  build-depends:
+    , base
+    , containers
+    , directory
+    , filepath
+    , llvm-hs-pure
+    , mtl
+    , process
+    , x86-64bit
+
+  hs-source-dirs:   app
+  default-language: GHC2021
