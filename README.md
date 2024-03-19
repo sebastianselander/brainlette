@@ -1,3 +1,10 @@
+# Brainlette
+A language for the brainletts.
+
+![icon](icon.png)
+
+
+
 TDA283 / DIT300 Compiler Construction
 =====================================
 
@@ -13,3 +20,7 @@ Project resources; source code and a BNFC grammar.
 
 [tester/](tester/):
 Test suite for the Javalette compiler.
+
+
+## Attribution
+Icon: [https://emoji.gg/emoji/9591_smoothbraintext](https://emoji.gg/emoji/9591_smoothbrain)
