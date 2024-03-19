@@ -20,12 +20,20 @@ common warnings
   ghc-options: -Wall -Wextra
 
 executable brainlette
-  import:           warnings
-  main-is:          Main.hs
+  import:             warnings
+  main-is:            Main.hs
+  extra-source-files: Brainlette.cf
+  build-tool-depends:
+    , alex:alex
+    , happy:happy
 
-  -- other-modules:
-  other-extensions: LambdaCase
+  other-extensions:   LambdaCase
+  other-modules:
+    Brainlette.Lex
+    Brainlette.Par
+
   build-depends:
+    , array
     , base
     , containers
     , directory
@@ -35,5 +43,5 @@ executable brainlette
     , process
     , x86-64bit
 
-  hs-source-dirs:   app
-  default-language: GHC2021
+  hs-source-dirs:     app
+  default-language:   GHC2021
