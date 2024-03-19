@@ -4,12 +4,9 @@ entrypoints Prog ;
 
 Program.   Prog ::= [TopDef] ;
 
-FnDef.	   TopDef ::= Type Ident "(" [Arg] ")" Blk ;
-
-separator nonempty TopDef "" ;
+FnDef.     TopDef ::= Type Ident "(" [Arg] ")" Blk ;
 
 Argument.  Arg ::= Type Ident;
-separator  Arg "," ;
 
 -- statements ----------------------------------------------
 
@@ -18,9 +15,7 @@ Block.     Blk ::= "{" [Stmt] "}" ;
 NoInit.    Item ::= Ident ;
 Init.      Item ::= Ident "=" Expr ;
 
-separator nonempty Item "," ;
 
-separator  Stmt "" ;
 Empty.     Stmt ::= ";" ;
 BStmt.     Stmt ::= Blk ;
 Decl.      Stmt ::= Type [Item] ";" ;
@@ -42,7 +37,6 @@ SExp.      Stmt ::= Expr  ";" ;
          Void. Type ::= "void" ;
 internal Fun.  Type ::= Type "(" [Type] ")" ;
 
-separator  Type "," ;
 
 -- Expressions ---------------------------------------------
 
@@ -60,9 +54,6 @@ EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
 ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
 EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
 EOr.       Expr  ::= Expr1 "||" Expr ;
-
-coercions  Expr 6 ;
-separator  Expr "," ;
 
 -- operators -----------------------------------------------
 
@@ -84,3 +75,13 @@ comment    "#" ;
 comment    "//" ;
 comment    "/*" "*/" ;
 
+
+-- specifications ------------------------------------------
+
+separator nonempty TopDef "" ;
+separator  Arg "," ;
+separator nonempty Item "," ;
+separator  Expr "," ;
+separator  Type "," ;
+separator  Stmt "" ;
+coercions  Expr 6 ;
