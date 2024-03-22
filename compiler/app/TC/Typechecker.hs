@@ -1,6 +1,10 @@
+{-# LANGUAGE LambdaCase #-}
+
 module TC.Typechecker where
 
 import Brainlette.Abs qualified as Par
+import Data.Map (Map)
+import Data.Map qualified as Map
 import TC.Types qualified as Tc
 import Utils
 
