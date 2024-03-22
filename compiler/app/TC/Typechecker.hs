@@ -44,3 +44,6 @@ instance Convert Par.Type Tc.Type where
         Par.Bool -> Tc.Bool
         Par.Void -> Tc.Void
         Par.Fun rt args -> Tc.Fun (convert rt) (convert args)
+
+instance Convert Par.Ident Tc.Ident where
+    convert (Par.Ident s) = Tc.Ident s
