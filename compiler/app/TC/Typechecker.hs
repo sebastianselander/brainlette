@@ -28,7 +28,7 @@ getDefs (Par.Program prog) =
      in Map.fromList . for prog $ \(Par.FnDef rt ident args _) ->
             (ident, (convert rt, convert . argTypes $ args))
 
-{-| Type class to help converting from the old parser types
+{-| Type class to help converting from the parser types
   to the type checker type
 -}
 class Convert a b where
