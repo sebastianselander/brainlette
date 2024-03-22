@@ -33,6 +33,7 @@ executable brainlette
     Brainlette.Par
     TC.Typechecker
     TC.Types
+    Utils
 
   build-depends:
     , array

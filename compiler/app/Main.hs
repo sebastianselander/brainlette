@@ -1,8 +1,10 @@
 module Main where
 
-import Brainlette.Par (pProg, myLexer)
 import System.Environment
 import System.Exit
+
+import Brainlette.Par (pProg, myLexer)
+import TC.Typechecker
 
 main :: IO ()
 main = do

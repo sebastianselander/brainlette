@@ -1,4 +1,4 @@
-module TTypes where
+module TC.Types where
 
 import Data.String (IsString)
 
