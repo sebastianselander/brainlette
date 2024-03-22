@@ -25,7 +25,7 @@ newtype TC a = TC {runTC :: Reader Env a}
 getDefs :: Par.Prog -> Map Par.Ident (Tc.Type, [Tc.Type])
 getDefs (Par.Program prog) =
     let argTypes args = for args (\(Par.Argument t _) -> t)
-     in Map.fromList . flip map prog $ \(Par.FnDef rt ident args _) ->
+     in Map.fromList . for prog $ \(Par.FnDef rt ident args _) ->
             (ident, (convert rt, convert . argTypes $ args))
 
 {-| Type class to help converting from the old parser types
@@ -40,7 +40,7 @@ instance (Convert a b) => Convert [a] [b] where
 instance Convert Par.Type Tc.Type where
     convert = \case
         Par.Int -> Tc.Int
-        Par.Doub -> Tc.Doub
+        Par.Doub -> Tc.Double
         Par.Bool -> Tc.Bool
         Par.Void -> Tc.Void
         Par.Fun rt args -> Tc.Fun (convert rt) (convert args)
