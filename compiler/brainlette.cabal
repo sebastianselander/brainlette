@@ -31,6 +31,8 @@ executable brainlette
   other-modules:
     Brainlette.Lex
     Brainlette.Par
+    TC.Typechecker
+    TC.Types
 
   build-depends:
     , array
