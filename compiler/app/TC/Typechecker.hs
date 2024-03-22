@@ -13,3 +13,9 @@ tc = TODO
 
 tcExpr :: Par.Expr -> Tc.Expr
 tcExpr = TODO
+
+newtype Env = Env { runEnv :: Map Par.Ident (Type, [Type]) }
+    deriving (Show, Eq, Ord)
+
+newtype TC a = TC { runTC :: Reader Env a }
+    deriving (Functor, Applicative, Monad, MonadReader Env)
