@@ -18,7 +18,7 @@ data Stmt
     = Empty
     | BStmt Blk
     | Decl Type [Item]
-    | Ass Ident Expr
+    | Ass Type Ident Expr
     | Incr Ident
     | Decr Ident
     | Ret Expr
@@ -36,17 +36,17 @@ data Type = Int | Doub | Bool | Void | Fun Type [Type]
   deriving (Eq, Ord, Show, Read)
 
 data Expr
-    = EVar Ident
+    = EVar Type Ident
     | ELitInt Integer
     | ELitDoub Double
     | ELitTrue
     | ELitFalse
-    | EApp Ident [Expr]
+    | EApp Type Ident [Expr]
     | EString String
-    | Neg Expr
+    | Neg Type Expr
     | Not Expr
-    | EMul Expr MulOp Expr
-    | EAdd Expr AddOp Expr
+    | EMul Type Expr MulOp Expr
+    | EAdd Type Expr AddOp Expr
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
