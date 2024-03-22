@@ -32,7 +32,7 @@ data Stmt
 data Item = NoInit Ident | Init Ident Expr
   deriving (Eq, Ord, Show, Read)
 
-data Type = Int | Doub | Bool | Void | Fun Type [Type]
+data Type = Int | Double | Bool | Void | Fun Type [Type]
   deriving (Eq, Ord, Show, Read)
 
 data Expr
@@ -63,4 +63,3 @@ data RelOp = LTH | LE | GTH | GE | EQU | NE
 
 newtype Ident = Ident String
   deriving (Eq, Ord, Show, Read, IsString)
-
