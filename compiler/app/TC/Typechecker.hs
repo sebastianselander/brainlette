@@ -12,13 +12,27 @@ import Utils
 tc :: Par.Prog -> Either String Tc.Prog
 tc = TODO
 
-tcExpr :: Par.Expr -> Tc.Expr
-tcExpr = TODO
+tcExpr :: Par.Expr -> Tc Tc.Expr
+tcExpr = \case
+   Par.EVar i -> TODO
+   Par.ELitInt _ -> TODO
+   Par.ELitDoub _ -> TODO
+   Par.ELitTrue -> TODO
+   Par.ELitFalse -> TODO
+   Par.EApp _ _ -> TODO
+   Par.EString _ -> TODO
+   Par.Neg _ -> TODO
+   Par.Not _ -> TODO
+   Par.EMul {} -> TODO
+   Par.EAdd {} -> TODO
+   Par.ERel {} -> TODO
+   Par.EAnd _ _ -> TODO
+   Par.EOr _ _ -> TODO
 
-newtype Env = Env {runEnv :: Map Par.Ident (Tc.Type, [Tc.Type])}
+newtype Env = Env {variables :: Map Par.Ident (Tc.Type, [Tc.Type])}
     deriving (Show, Eq, Ord)
 
-newtype TC a = TC {runTC :: Reader Env a}
+newtype Tc a = TC {runTC :: Reader Env a}
     deriving (Functor, Applicative, Monad, MonadReader Env)
 
 -- | Extract the types from all top level definitions '⌣'
