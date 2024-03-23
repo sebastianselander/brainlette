@@ -35,6 +35,11 @@ transBlk :: Brainlette.Abs.Blk -> Result
 transBlk x = case x of
   Brainlette.Abs.Block stmts -> failure x
 
+transItem :: Brainlette.Abs.Item -> Result
+transItem x = case x of
+  Brainlette.Abs.NoInit ident -> failure x
+  Brainlette.Abs.Init ident expr -> failure x
+
 transStmt :: Brainlette.Abs.Stmt -> Result
 transStmt x = case x of
   Brainlette.Abs.Empty -> failure x
@@ -49,11 +54,6 @@ transStmt x = case x of
   Brainlette.Abs.CondElse expr stmt1 stmt2 -> failure x
   Brainlette.Abs.While expr stmt -> failure x
   Brainlette.Abs.SExp expr -> failure x
-
-transItem :: Brainlette.Abs.Item -> Result
-transItem x = case x of
-  Brainlette.Abs.NoInit ident -> failure x
-  Brainlette.Abs.Init ident expr -> failure x
 
 transType :: Brainlette.Abs.Type -> Result
 transType x = case x of

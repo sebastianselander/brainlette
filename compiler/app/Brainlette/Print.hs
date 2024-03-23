@@ -147,27 +147,18 @@ instance Print Brainlette.Abs.TopDef where
   prt i = \case
     Brainlette.Abs.FnDef type_ id_ args blk -> prPrec i 0 (concatD [prt 0 type_, prt 0 id_, doc (showString "("), prt 0 args, doc (showString ")"), prt 0 blk])
 
-instance Print [Brainlette.Abs.TopDef] where
-  prt _ [] = concatD []
-  prt _ [x] = concatD [prt 0 x]
-  prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]
-
 instance Print Brainlette.Abs.Arg where
   prt i = \case
     Brainlette.Abs.Argument type_ id_ -> prPrec i 0 (concatD [prt 0 type_, prt 0 id_])
-
-instance Print [Brainlette.Abs.Arg] where
-  prt _ [] = concatD []
-  prt _ [x] = concatD [prt 0 x]
-  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
 instance Print Brainlette.Abs.Blk where
   prt i = \case
     Brainlette.Abs.Block stmts -> prPrec i 0 (concatD [doc (showString "{"), prt 0 stmts, doc (showString "}")])
 
-instance Print [Brainlette.Abs.Stmt] where
-  prt _ [] = concatD []
-  prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]
+instance Print Brainlette.Abs.Item where
+  prt i = \case
+    Brainlette.Abs.NoInit id_ -> prPrec i 0 (concatD [prt 0 id_])
+    Brainlette.Abs.Init id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr])
 
 instance Print Brainlette.Abs.Stmt where
   prt i = \case
@@ -184,16 +175,6 @@ instance Print Brainlette.Abs.Stmt where
     Brainlette.Abs.While expr stmt -> prPrec i 0 (concatD [doc (showString "while"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
     Brainlette.Abs.SExp expr -> prPrec i 0 (concatD [prt 0 expr, doc (showString ";")])
 
-instance Print Brainlette.Abs.Item where
-  prt i = \case
-    Brainlette.Abs.NoInit id_ -> prPrec i 0 (concatD [prt 0 id_])
-    Brainlette.Abs.Init id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr])
-
-instance Print [Brainlette.Abs.Item] where
-  prt _ [] = concatD []
-  prt _ [x] = concatD [prt 0 x]
-  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
-
 instance Print Brainlette.Abs.Type where
   prt i = \case
     Brainlette.Abs.Int -> prPrec i 0 (concatD [doc (showString "int")])
@@ -201,11 +182,6 @@ instance Print Brainlette.Abs.Type where
     Brainlette.Abs.Bool -> prPrec i 0 (concatD [doc (showString "boolean")])
     Brainlette.Abs.Void -> prPrec i 0 (concatD [doc (showString "void")])
     Brainlette.Abs.Fun type_ types -> prPrec i 0 (concatD [prt 0 type_, doc (showString "("), prt 0 types, doc (showString ")")])
-
-instance Print [Brainlette.Abs.Type] where
-  prt _ [] = concatD []
-  prt _ [x] = concatD [prt 0 x]
-  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
 instance Print Brainlette.Abs.Expr where
   prt i = \case
@@ -223,11 +199,6 @@ instance Print Brainlette.Abs.Expr where
     Brainlette.Abs.ERel expr1 relop expr2 -> prPrec i 2 (concatD [prt 2 expr1, prt 0 relop, prt 3 expr2])
     Brainlette.Abs.EAnd expr1 expr2 -> prPrec i 1 (concatD [prt 2 expr1, doc (showString "&&"), prt 1 expr2])
     Brainlette.Abs.EOr expr1 expr2 -> prPrec i 0 (concatD [prt 1 expr1, doc (showString "||"), prt 0 expr2])
-
-instance Print [Brainlette.Abs.Expr] where
-  prt _ [] = concatD []
-  prt _ [x] = concatD [prt 0 x]
-  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
 instance Print Brainlette.Abs.AddOp where
   prt i = \case
@@ -248,3 +219,32 @@ instance Print Brainlette.Abs.RelOp where
     Brainlette.Abs.GE -> prPrec i 0 (concatD [doc (showString ">=")])
     Brainlette.Abs.EQU -> prPrec i 0 (concatD [doc (showString "==")])
     Brainlette.Abs.NE -> prPrec i 0 (concatD [doc (showString "!=")])
+
+instance Print [Brainlette.Abs.TopDef] where
+  prt _ [] = concatD []
+  prt _ [x] = concatD [prt 0 x]
+  prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]
+
+instance Print [Brainlette.Abs.Arg] where
+  prt _ [] = concatD []
+  prt _ [x] = concatD [prt 0 x]
+  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
+
+instance Print [Brainlette.Abs.Item] where
+  prt _ [] = concatD []
+  prt _ [x] = concatD [prt 0 x]
+  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
+
+instance Print [Brainlette.Abs.Expr] where
+  prt _ [] = concatD []
+  prt _ [x] = concatD [prt 0 x]
+  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
+
+instance Print [Brainlette.Abs.Type] where
+  prt _ [] = concatD []
+  prt _ [x] = concatD [prt 0 x]
+  prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
+
+instance Print [Brainlette.Abs.Stmt] where
+  prt _ [] = concatD []
+  prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]

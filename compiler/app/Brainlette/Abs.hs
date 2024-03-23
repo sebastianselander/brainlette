@@ -22,6 +22,9 @@ data Arg = Argument Type Ident
 data Blk = Block [Stmt]
   deriving (C.Eq, C.Ord, C.Show, C.Read)
 
+data Item = NoInit Ident | Init Ident Expr
+  deriving (C.Eq, C.Ord, C.Show, C.Read)
+
 data Stmt
     = Empty
     | BStmt Blk
@@ -35,9 +38,6 @@ data Stmt
     | CondElse Expr Stmt Stmt
     | While Expr Stmt
     | SExp Expr
-  deriving (C.Eq, C.Ord, C.Show, C.Read)
-
-data Item = NoInit Ident | Init Ident Expr
   deriving (C.Eq, C.Ord, C.Show, C.Read)
 
 data Type = Int | Doub | Bool | Void | Fun Type [Type]

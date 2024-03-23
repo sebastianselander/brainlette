@@ -82,23 +82,16 @@ TopDef :: { Brainlette.Abs.TopDef }
 TopDef
   : Type Ident '(' ListArg ')' Blk { Brainlette.Abs.FnDef $1 $2 $4 $6 }
 
-ListTopDef :: { [Brainlette.Abs.TopDef] }
-ListTopDef : TopDef { (:[]) $1 } | TopDef ListTopDef { (:) $1 $2 }
-
 Arg :: { Brainlette.Abs.Arg }
 Arg : Type Ident { Brainlette.Abs.Argument $1 $2 }
-
-ListArg :: { [Brainlette.Abs.Arg] }
-ListArg
-  : {- empty -} { [] }
-  | Arg { (:[]) $1 }
-  | Arg ',' ListArg { (:) $1 $3 }
 
 Blk :: { Brainlette.Abs.Blk }
 Blk : '{' ListStmt '}' { Brainlette.Abs.Block $2 }
 
-ListStmt :: { [Brainlette.Abs.Stmt] }
-ListStmt : {- empty -} { [] } | Stmt ListStmt { (:) $1 $2 }
+Item :: { Brainlette.Abs.Item }
+Item
+  : Ident { Brainlette.Abs.NoInit $1 }
+  | Ident '=' Expr { Brainlette.Abs.Init $1 $3 }
 
 Stmt :: { Brainlette.Abs.Stmt }
 Stmt
@@ -115,26 +108,12 @@ Stmt
   | 'while' '(' Expr ')' Stmt { Brainlette.Abs.While $3 $5 }
   | Expr ';' { Brainlette.Abs.SExp $1 }
 
-Item :: { Brainlette.Abs.Item }
-Item
-  : Ident { Brainlette.Abs.NoInit $1 }
-  | Ident '=' Expr { Brainlette.Abs.Init $1 $3 }
-
-ListItem :: { [Brainlette.Abs.Item] }
-ListItem : Item { (:[]) $1 } | Item ',' ListItem { (:) $1 $3 }
-
 Type :: { Brainlette.Abs.Type }
 Type
   : 'int' { Brainlette.Abs.Int }
   | 'double' { Brainlette.Abs.Doub }
   | 'boolean' { Brainlette.Abs.Bool }
   | 'void' { Brainlette.Abs.Void }
-
-ListType :: { [Brainlette.Abs.Type] }
-ListType
-  : {- empty -} { [] }
-  | Type { (:[]) $1 }
-  | Type ',' ListType { (:) $1 $3 }
 
 Expr6 :: { Brainlette.Abs.Expr }
 Expr6
@@ -172,12 +151,6 @@ Expr1
 Expr :: { Brainlette.Abs.Expr }
 Expr : Expr1 '||' Expr { Brainlette.Abs.EOr $1 $3 } | Expr1 { $1 }
 
-ListExpr :: { [Brainlette.Abs.Expr] }
-ListExpr
-  : {- empty -} { [] }
-  | Expr { (:[]) $1 }
-  | Expr ',' ListExpr { (:) $1 $3 }
-
 AddOp :: { Brainlette.Abs.AddOp }
 AddOp : '+' { Brainlette.Abs.Plus } | '-' { Brainlette.Abs.Minus }
 
@@ -195,6 +168,33 @@ RelOp
   | '>=' { Brainlette.Abs.GE }
   | '==' { Brainlette.Abs.EQU }
   | '!=' { Brainlette.Abs.NE }
+
+ListTopDef :: { [Brainlette.Abs.TopDef] }
+ListTopDef : TopDef { (:[]) $1 } | TopDef ListTopDef { (:) $1 $2 }
+
+ListArg :: { [Brainlette.Abs.Arg] }
+ListArg
+  : {- empty -} { [] }
+  | Arg { (:[]) $1 }
+  | Arg ',' ListArg { (:) $1 $3 }
+
+ListItem :: { [Brainlette.Abs.Item] }
+ListItem : Item { (:[]) $1 } | Item ',' ListItem { (:) $1 $3 }
+
+ListExpr :: { [Brainlette.Abs.Expr] }
+ListExpr
+  : {- empty -} { [] }
+  | Expr { (:[]) $1 }
+  | Expr ',' ListExpr { (:) $1 $3 }
+
+ListType :: { [Brainlette.Abs.Type] }
+ListType
+  : {- empty -} { [] }
+  | Type { (:[]) $1 }
+  | Type ',' ListType { (:) $1 $3 }
+
+ListStmt :: { [Brainlette.Abs.Stmt] }
+ListStmt : {- empty -} { [] } | Stmt ListStmt { (:) $1 $2 }
 
 {
 

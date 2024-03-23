@@ -41,12 +41,12 @@ The reserved words used in Brainlette are the following:
   | ``void`` | ``while`` |  |
 
 The symbols used in Brainlette are the following:
-  | ( | ) | , | {
-  | } | ; | = | ++
-  | -- | - | ! | &&
-  | || | + | * | /
-  | % | < | <= | >
-  | >= | == | != |
+  | ( | ) | { | }
+  | = | ; | ++ | --
+  | - | ! | && | ||
+  | + | * | / | %
+  | < | <= | > | >=
+  | == | != | , |
 
 ===Comments===
 Single-line comments begin with #, //.Multiple-line comments are  enclosed with /* and */.
@@ -59,15 +59,10 @@ All other symbols are terminals.
 
   | //Prog// | -> | //[TopDef]//
   | //TopDef// | -> | //Type// //Ident// ``(`` //[Arg]// ``)`` //Blk//
-  | //[TopDef]// | -> | //TopDef//
-  |  |  **|**  | //TopDef// //[TopDef]//
   | //Arg// | -> | //Type// //Ident//
-  | //[Arg]// | -> | **eps**
-  |  |  **|**  | //Arg//
-  |  |  **|**  | //Arg// ``,`` //[Arg]//
   | //Blk// | -> | ``{`` //[Stmt]// ``}``
-  | //[Stmt]// | -> | **eps**
-  |  |  **|**  | //Stmt// //[Stmt]//
+  | //Item// | -> | //Ident//
+  |  |  **|**  | //Ident// ``=`` //Expr//
   | //Stmt// | -> | ``;``
   |  |  **|**  | //Blk//
   |  |  **|**  | //Type// //[Item]// ``;``
@@ -80,17 +75,10 @@ All other symbols are terminals.
   |  |  **|**  | ``if`` ``(`` //Expr// ``)`` //Stmt// ``else`` //Stmt//
   |  |  **|**  | ``while`` ``(`` //Expr// ``)`` //Stmt//
   |  |  **|**  | //Expr// ``;``
-  | //Item// | -> | //Ident//
-  |  |  **|**  | //Ident// ``=`` //Expr//
-  | //[Item]// | -> | //Item//
-  |  |  **|**  | //Item// ``,`` //[Item]//
   | //Type// | -> | ``int``
   |  |  **|**  | ``double``
   |  |  **|**  | ``boolean``
   |  |  **|**  | ``void``
-  | //[Type]// | -> | **eps**
-  |  |  **|**  | //Type//
-  |  |  **|**  | //Type// ``,`` //[Type]//
   | //Expr6// | -> | //Ident//
   |  |  **|**  | //Integer//
   |  |  **|**  | //Double//
@@ -112,9 +100,6 @@ All other symbols are terminals.
   |  |  **|**  | //Expr2//
   | //Expr// | -> | //Expr1// ``||`` //Expr//
   |  |  **|**  | //Expr1//
-  | //[Expr]// | -> | **eps**
-  |  |  **|**  | //Expr//
-  |  |  **|**  | //Expr// ``,`` //[Expr]//
   | //AddOp// | -> | ``+``
   |  |  **|**  | ``-``
   | //MulOp// | -> | ``*``
@@ -126,6 +111,21 @@ All other symbols are terminals.
   |  |  **|**  | ``>=``
   |  |  **|**  | ``==``
   |  |  **|**  | ``!=``
+  | //[TopDef]// | -> | //TopDef//
+  |  |  **|**  | //TopDef// //[TopDef]//
+  | //[Arg]// | -> | **eps**
+  |  |  **|**  | //Arg//
+  |  |  **|**  | //Arg// ``,`` //[Arg]//
+  | //[Item]// | -> | //Item//
+  |  |  **|**  | //Item// ``,`` //[Item]//
+  | //[Expr]// | -> | **eps**
+  |  |  **|**  | //Expr//
+  |  |  **|**  | //Expr// ``,`` //[Expr]//
+  | //[Type]// | -> | **eps**
+  |  |  **|**  | //Type//
+  |  |  **|**  | //Type// ``,`` //[Type]//
+  | //[Stmt]// | -> | **eps**
+  |  |  **|**  | //Stmt// //[Stmt]//
 
 
 
