@@ -28,6 +28,8 @@
               pkgs.haskellPackages.fourmolu
               pkgs.haskellPackages.hoogle
               pkgs.haskellPackages.BNFC
+              pkgs.haskellPackages.alex
+              pkgs.haskellPackages.happy
               pkgs.llvmPackages_latest.llvm
               pkgs.zlib
             ];
