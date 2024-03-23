@@ -31,6 +31,10 @@ executable brainlette
   other-modules:
     Brainlette.Lex
     Brainlette.Par
+    Brainlette.Abs
+    Brainlette.ErrM
+    Brainlette.Print
+    Brainlette.Skel
     TC.Typechecker
     TC.Types
     Utils
@@ -41,10 +45,10 @@ executable brainlette
     , containers
     , directory
     , filepath
-    --, llvm-hs-pure
+    , llvm-hs-pure
     , mtl
     , process
-    --, x86-64bit
+    , x86-64bit
 
   hs-source-dirs:     app
   default-language:   GHC2021
