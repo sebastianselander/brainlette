@@ -3,9 +3,11 @@
 module TC.Typechecker where
 
 import Brainlette.Abs qualified as Par
+import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Map (Map)
 import Data.Map qualified as Map
+import TC.Error
 import TC.Types qualified as Tc
 import Utils
 
@@ -32,8 +34,8 @@ tcExpr = \case
 newtype Env = Env {variables :: Map Par.Ident (Tc.Type, [Tc.Type])}
     deriving (Show, Eq, Ord)
 
-newtype Tc a = TC {runTC :: Reader Env a}
-    deriving (Functor, Applicative, Monad, MonadReader Env)
+newtype Check a = TC {runTC :: ReaderT Env (Except TcError) a}
+    deriving (Functor, Applicative, Monad, MonadReader Env, MonadError TcError)
 
 -- | Extract the types from all top level definitions '⌣'
 getDefs :: Par.Prog -> Map Par.Ident (Tc.Type, [Tc.Type])
