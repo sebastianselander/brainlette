@@ -1,59 +1,71 @@
 module TC.Types where
 
-import Data.String (IsString)
+import Data.String (IsString (fromString))
 
-newtype Prog = Program [TopDef]
-    deriving (Eq, Ord, Show, Read)
+type Position = Maybe (Int, Int)
 
-data TopDef = FnDef Type Ident [Arg] Blk
-    deriving (Eq, Ord, Show, Read)
+type Prog = Prog' Position
+type TopDef = TopDef' Position
+type Arg = Arg' Position
+type Blk = Blk' Position
+type Stmt = Stmt' Position
+type Item = Item' Position
+type Expr = Expr' Position
+type Lit = Lit' Position
+type Ident = Ident' Position
 
-data Arg = Argument Type Ident
-    deriving (Eq, Ord, Show, Read)
+newtype Prog' a = Program [TopDef' a]
+    deriving (Eq, Ord, Show, Read, Functor)
 
-newtype Blk = Block [Stmt]
-    deriving (Eq, Ord, Show, Read)
+data TopDef' a = FnDef Type Ident [Arg' a] (Blk' a)
+    deriving (Eq, Ord, Show, Read, Functor)
 
-data Stmt
+data Arg' a = Argument Type Ident
+    deriving (Eq, Ord, Show, Read, Functor)
+
+newtype Blk' a = Block [Stmt' a]
+    deriving (Eq, Ord, Show, Read, Functor)
+
+data Stmt' a
     = Empty
-    | BStmt Blk
-    | Decl Type [Item]
-    | Ass Type Ident Expr
-    | Incr Ident
-    | Decr Ident
-    | Ret Expr
-    | VRet
-    | Cond Expr Stmt
-    | CondElse Expr Stmt Stmt
-    | While Expr Stmt
-    | SExp Expr
-    deriving (Eq, Ord, Show, Read)
+    | BStmt a (Blk' a)
+    | Decl a Type [Item' a]
+    | Ass a Type Ident (Expr' a)
+    | Incr a Ident
+    | Decr a Ident
+    | Ret a (Expr' a)
+    | VRet a
+    | Cond a (Expr' a) (Stmt' a)
+    | CondElse a (Expr' a) (Stmt' a) (Stmt' a)
+    | While a (Expr' a) (Stmt' a)
+    | SExp a (Expr' a)
+    deriving (Eq, Ord, Show, Read, Functor)
 
-data Item = NoInit Ident | Init Ident Expr
-    deriving (Eq, Ord, Show, Read)
+data Item' a = NoInit a Ident | Init a Ident (Expr' a)
+    deriving (Eq, Ord, Show, Read,Functor)
 
 data Type = Int | Double | Bool | String | Void | Fun Type [Type]
     deriving (Eq, Ord, Show, Read)
 
-data Expr
-    = EVar Type Ident
-    | ELit Type Lit
-    | EApp Type Ident [Expr]
-    | Neg Type Expr
-    | Not Expr
-    | EMul Type Expr MulOp Expr
-    | EAdd Type Expr AddOp Expr
-    | ERel Expr RelOp Expr
-    | EAnd Expr Expr
-    | EOr Expr Expr
-    deriving (Eq, Ord, Show, Read)
+data Expr' a
+    = EVar a Type (Ident' a)
+    | ELit a Type (Lit' a)
+    | EApp a Type (Ident' a) [Expr' a]
+    | Neg a Type (Expr' a)
+    | Not a (Expr' a)
+    | EMul a Type (Expr' a) MulOp (Expr' a)
+    | EAdd a Type (Expr' a) AddOp (Expr' a)
+    | ERel a (Expr' a) RelOp (Expr' a)
+    | EAnd a (Expr' a) (Expr' a)
+    | EOr a (Expr' a) (Expr' a)
+    deriving (Eq, Ord, Show, Read,Functor)
 
-data Lit
-    = LitInt Integer
-    | LitDouble Double
-    | LitBool Bool
-    | LitString String
-    deriving (Eq, Ord, Show, Read)
+data Lit' a
+    = LitInt a Integer
+    | LitDouble a Double
+    | LitBool a Bool
+    | LitString a String
+    deriving (Eq, Ord, Show, Read,Functor)
 
 data AddOp = Plus | Minus
     deriving (Eq, Ord, Show, Read)
@@ -64,5 +76,8 @@ data MulOp = Times | Div | Mod
 data RelOp = LTH | LE | GTH | GE | EQU | NE
     deriving (Eq, Ord, Show, Read)
 
-newtype Ident = Ident String
-    deriving (Eq, Ord, Show, Read, IsString)
+data Ident' a = Ident a String
+    deriving (Eq, Ord, Show, Read, Functor)
+
+instance IsString Ident where
+    fromString = Ident Nothing
