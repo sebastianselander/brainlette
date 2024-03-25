@@ -33,10 +33,18 @@ infExpr = \case
     Par.ELitTrue p -> return (Tc.ELit p Tc.Double (Tc.LitBool True))
     Par.ELitFalse p -> return (Tc.ELit p Tc.Double (Tc.LitBool False))
     Par.EString p str -> return (Tc.ELit p Tc.String (Tc.LitString str))
-    Par.Neg _ expr -> TODO
-    Par.Not _ expr -> TODO
+    Par.Neg pos expr -> do
+        infexpr <- infExpr expr
+        let typ = typeOf infexpr
+        typesMatch pos typ isNumber
+        return (Tc.Neg pos typ infexpr)
+    Par.Not pos expr -> do
+        infexpr <- infExpr expr
+        let typ = typeOf infexpr
+        typesMatch pos typ [Tc.Bool]
+        return (Tc.Neg pos typ infexpr)
     Par.EApp _ ident exprs -> TODO
-    Par.EMul {} -> TODO
+    Par.EMul p l op r -> TODO
     Par.EAdd {} -> TODO
     Par.ERel {} -> TODO
     Par.EAnd _ _ _ -> TODO
