@@ -10,7 +10,6 @@ type Blk = Blk' Position
 type Stmt = Stmt' Position
 type Item = Item' Position
 type Expr = Expr' Position
-type Lit = Lit' Position
 
 newtype Prog' a = Program [TopDef' a]
     deriving (Eq, Ord, Show, Read, Functor)
@@ -47,7 +46,7 @@ data Type = Int | Double | Bool | String | Void | Fun Type [Type]
 
 data Expr' a
     = EVar a Type Ident
-    | ELit a Type (Lit' a)
+    | ELit a Type Lit
     | EApp a Type Ident [Expr' a]
     | Neg a Type (Expr' a)
     | Not a (Expr' a)
@@ -58,12 +57,12 @@ data Expr' a
     | EOr a (Expr' a) (Expr' a)
     deriving (Eq, Ord, Show, Read,Functor)
 
-data Lit' a
-    = LitInt a Integer
-    | LitDouble a Double
-    | LitBool a Bool
-    | LitString a String
-    deriving (Eq, Ord, Show, Read,Functor)
+data Lit
+    = LitInt Integer
+    | LitDouble Double
+    | LitBool Bool
+    | LitString String
+    deriving (Eq, Ord, Show, Read)
 
 data AddOp = Plus | Minus
     deriving (Eq, Ord, Show, Read)
