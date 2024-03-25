@@ -17,7 +17,7 @@ newtype Prog' a = Program [TopDef' a]
 data TopDef' a = FnDef Type Ident [Arg' a] (Blk' a)
     deriving (Eq, Ord, Show, Read, Functor)
 
-data Arg' a = Argument Type Ident
+data Arg' a = Argument a Type Ident
     deriving (Eq, Ord, Show, Read, Functor)
 
 newtype Blk' a = Block [Stmt' a]
