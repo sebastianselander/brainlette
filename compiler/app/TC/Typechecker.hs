@@ -35,7 +35,7 @@ infExpr = \case
 tcExpr :: Tc.Type -> Par.Expr -> Check ()
 tcExpr typ expr = case expr of
     Par.EVar p _ -> infExpr expr >>= typesMatch p typ . (: []) . typeOf
-    Par.ELitInt p _ -> typesMatch p typ [Tc.Int, Tc.Double]
+    Par.ELitInt p _ -> typesMatch p typ isNumber
     Par.ELitDoub p _ -> typesMatch p typ [Tc.Double]
     Par.ELitTrue p -> typesMatch p typ [Tc.Bool]
     Par.ELitFalse p -> typesMatch p typ [Tc.Bool]
@@ -115,3 +115,5 @@ instance TypeOf Tc.Expr where
 typesMatch :: (MonadError TcError m) => Position -> Tc.Type -> [Tc.Type] -> m ()
 typesMatch p expected givens =
     unless (expected `elem` givens) (throwError (TypeMismatch p expected givens))
+isNumber :: [Tc.Type]
+isNumber = [Tc.Double, Tc.Int]
