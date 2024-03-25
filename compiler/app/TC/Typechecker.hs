@@ -3,7 +3,7 @@
 module TC.Typechecker where
 
 import Brainlette.Abs qualified as Par
-import Control.Monad (unless)
+import Control.Monad (unless, void)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Functor.Identity (runIdentity)
@@ -45,29 +45,33 @@ infExpr = \case
     Par.EString p str -> return (Tc.ELit p Tc.String (Tc.LitString str))
     Par.Neg pos expr -> do
         infexpr <- infExpr expr
-        let typ = typeOf infexpr
-        typesMatch pos typ isNumber
-        return (Tc.Neg pos typ infexpr)
+        general <- typesMatch pos (typeOf infexpr) isNumber
+        return (Tc.Neg pos general infexpr)
     Par.Not pos expr -> do
         infexpr <- infExpr expr
-        let typ = typeOf infexpr
-        typesMatch pos typ [Tc.Bool]
-        return (Tc.Neg pos typ infexpr)
-    Par.EApp _ ident exprs -> TODO
-    Par.EMul p l op r -> TODO
+        general <- typesMatch pos (typeOf infexpr) [Tc.Bool]
+        return (Tc.Neg pos general infexpr)
+    Par.EMul p l op r -> do
+        l' <- infExpr l
+        r' <- infExpr r
+        let typeleft = typeOf l'
+        let typeright = typeOf r'
+        general <- typesMatch p typeleft [typeright] 
+        return (Tc.EMul p general l' (convert op) r')
     Par.EAdd {} -> TODO
     Par.ERel {} -> TODO
     Par.EAnd _ _ _ -> TODO
     Par.EOr _ _ _ -> TODO
+    Par.EApp _ ident exprs -> TODO
 
 tcExpr :: Tc.Type -> Par.Expr -> Check ()
 tcExpr typ expr = case expr of
-    Par.EVar p _ -> infExpr expr >>= typesMatch p typ . (: []) . typeOf
-    Par.ELitInt p _ -> typesMatch p typ isNumber
-    Par.ELitDoub p _ -> typesMatch p typ [Tc.Double]
-    Par.ELitTrue p -> typesMatch p typ [Tc.Bool]
-    Par.ELitFalse p -> typesMatch p typ [Tc.Bool]
-    Par.EString p _ -> typesMatch p typ [Tc.String]
+    Par.EVar p _ -> infExpr expr >>= void . typesMatch p typ . (: []) . typeOf
+    Par.ELitInt p _ -> void $ typesMatch p typ isNumber
+    Par.ELitDoub p _ -> void $ typesMatch p typ [Tc.Double]
+    Par.ELitTrue p -> void $ typesMatch p typ [Tc.Bool]
+    Par.ELitFalse p -> void $ typesMatch p typ [Tc.Bool]
+    Par.EString p _ -> void $ typesMatch p typ [Tc.String]
     Par.Neg _ expr -> tcExpr typ expr
     Par.Not _ expr -> tcExpr Tc.Bool expr
     Par.EApp _ ident exprs -> TODO
@@ -124,6 +128,13 @@ instance Convert Par.Type Tc.Type where
 instance Convert Par.Ident Tc.Ident where
     convert (Par.Ident s) = Tc.Ident s
 
+instance Convert Par.MulOp Tc.MulOp where
+    convert = \case
+           Par.Times p -> TODO
+           Par.Div p -> TODO
+           Par.Mod p -> TODO
+        
+
 class TypeOf a where
     typeOf :: a -> Tc.Type
 
@@ -140,9 +151,12 @@ instance TypeOf Tc.Expr where
         Tc.EAnd _ _ _ -> Tc.Bool
         Tc.EOr _ _ _ -> Tc.Bool
 
-typesMatch :: (MonadError TcError m) => Tc.Position -> Tc.Type -> [Tc.Type] -> m ()
-typesMatch p expected givens =
+typesMatch :: (MonadError TcError m) => Tc.Position -> Tc.Type -> [Tc.Type] -> m Tc.Type
+typesMatch p expected givens = do
     unless (expected `elem` givens) (throwError (TypeMismatch p expected givens))
+    case givens of
+        [Tc.Double] -> return Tc.Double
+        _           -> return expected
 
 isNumber :: [Tc.Type]
 isNumber = [Tc.Double, Tc.Int]
