@@ -18,7 +18,7 @@ import Brainlette.Lex
 
 }
 
-%name pProg Prog
+%name pProg_internal Prog
 -- no lexer declaration
 %monad { Err } { (>>=) } { return }
 %tokentype {Token}
@@ -56,145 +56,162 @@ import Brainlette.Lex
   '{'       { PT _ (TS _ 31) }
   '||'      { PT _ (TS _ 32) }
   '}'       { PT _ (TS _ 33) }
-  L_Ident   { PT _ (TV $$)   }
-  L_doubl   { PT _ (TD $$)   }
-  L_integ   { PT _ (TI $$)   }
-  L_quoted  { PT _ (TL $$)   }
+  L_Ident   { PT _ (TV _)    }
+  L_doubl   { PT _ (TD _)    }
+  L_integ   { PT _ (TI _)    }
+  L_quoted  { PT _ (TL _)    }
 
 %%
 
-Ident :: { Brainlette.Abs.Ident }
-Ident  : L_Ident { Brainlette.Abs.Ident $1 }
+Ident :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Ident) }
+Ident  : L_Ident { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Ident (tokenText $1)) }
 
-Double  :: { Double }
-Double   : L_doubl  { (read $1) :: Double }
+Double  :: { (Brainlette.Abs.BNFC'Position, Double) }
+Double   : L_doubl  { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), (read (tokenText $1)) :: Double) }
 
-Integer :: { Integer }
-Integer  : L_integ  { (read $1) :: Integer }
+Integer :: { (Brainlette.Abs.BNFC'Position, Integer) }
+Integer  : L_integ  { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), (read (tokenText $1)) :: Integer) }
 
-String  :: { String }
-String   : L_quoted { $1 }
+String  :: { (Brainlette.Abs.BNFC'Position, String) }
+String   : L_quoted { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), ((\(PT _ (TL s)) -> s) $1)) }
 
-Prog :: { Brainlette.Abs.Prog }
-Prog : ListTopDef { Brainlette.Abs.Program $1 }
+Prog :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Prog) }
+Prog
+  : ListTopDef { (fst $1, Brainlette.Abs.Program (fst $1) (snd $1)) }
 
-TopDef :: { Brainlette.Abs.TopDef }
+TopDef :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.TopDef) }
 TopDef
-  : Type Ident '(' ListArg ')' Blk { Brainlette.Abs.FnDef $1 $2 $4 $6 }
+  : Type Ident '(' ListArg ')' Blk { (fst $1, Brainlette.Abs.FnDef (fst $1) (snd $1) (snd $2) (snd $4) (snd $6)) }
 
-Arg :: { Brainlette.Abs.Arg }
-Arg : Type Ident { Brainlette.Abs.Argument $1 $2 }
+Arg :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Arg) }
+Arg
+  : Type Ident { (fst $1, Brainlette.Abs.Argument (fst $1) (snd $1) (snd $2)) }
 
-Blk :: { Brainlette.Abs.Blk }
-Blk : '{' ListStmt '}' { Brainlette.Abs.Block $2 }
+Blk :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Blk) }
+Blk
+  : '{' ListStmt '}' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Block (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
 
-Item :: { Brainlette.Abs.Item }
+Item :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Item) }
 Item
-  : Ident { Brainlette.Abs.NoInit $1 }
-  | Ident '=' Expr { Brainlette.Abs.Init $1 $3 }
+  : Ident { (fst $1, Brainlette.Abs.NoInit (fst $1) (snd $1)) }
+  | Ident '=' Expr { (fst $1, Brainlette.Abs.Init (fst $1) (snd $1) (snd $3)) }
 
-Stmt :: { Brainlette.Abs.Stmt }
+Stmt :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Stmt) }
 Stmt
-  : ';' { Brainlette.Abs.Empty }
-  | Blk { Brainlette.Abs.BStmt $1 }
-  | Type ListItem ';' { Brainlette.Abs.Decl $1 $2 }
-  | Ident '=' Expr ';' { Brainlette.Abs.Ass $1 $3 }
-  | Ident '++' ';' { Brainlette.Abs.Incr $1 }
-  | Ident '--' ';' { Brainlette.Abs.Decr $1 }
-  | 'return' Expr ';' { Brainlette.Abs.Ret $2 }
-  | 'return' ';' { Brainlette.Abs.VRet }
-  | 'if' '(' Expr ')' Stmt { Brainlette.Abs.Cond $3 $5 }
-  | 'if' '(' Expr ')' Stmt 'else' Stmt { Brainlette.Abs.CondElse $3 $5 $7 }
-  | 'while' '(' Expr ')' Stmt { Brainlette.Abs.While $3 $5 }
-  | Expr ';' { Brainlette.Abs.SExp $1 }
+  : ';' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Empty (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | Blk { (fst $1, Brainlette.Abs.BStmt (fst $1) (snd $1)) }
+  | Type ListItem ';' { (fst $1, Brainlette.Abs.Decl (fst $1) (snd $1) (snd $2)) }
+  | Ident '=' Expr ';' { (fst $1, Brainlette.Abs.Ass (fst $1) (snd $1) (snd $3)) }
+  | Ident '++' ';' { (fst $1, Brainlette.Abs.Incr (fst $1) (snd $1)) }
+  | Ident '--' ';' { (fst $1, Brainlette.Abs.Decr (fst $1) (snd $1)) }
+  | 'return' Expr ';' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Ret (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
+  | 'return' ';' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.VRet (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | 'if' '(' Expr ')' Stmt { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Cond (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $3) (snd $5)) }
+  | 'if' '(' Expr ')' Stmt 'else' Stmt { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.CondElse (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $3) (snd $5) (snd $7)) }
+  | 'while' '(' Expr ')' Stmt { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.While (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $3) (snd $5)) }
+  | Expr ';' { (fst $1, Brainlette.Abs.SExp (fst $1) (snd $1)) }
 
-Type :: { Brainlette.Abs.Type }
+Type :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Type) }
 Type
-  : 'int' { Brainlette.Abs.Int }
-  | 'double' { Brainlette.Abs.Doub }
-  | 'boolean' { Brainlette.Abs.Bool }
-  | 'void' { Brainlette.Abs.Void }
+  : 'int' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Int (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | 'double' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Doub (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | 'boolean' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Bool (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | 'void' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Void (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
 
-Expr6 :: { Brainlette.Abs.Expr }
+Expr6 :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
 Expr6
-  : Ident { Brainlette.Abs.EVar $1 }
-  | Integer { Brainlette.Abs.ELitInt $1 }
-  | Double { Brainlette.Abs.ELitDoub $1 }
-  | 'true' { Brainlette.Abs.ELitTrue }
-  | 'false' { Brainlette.Abs.ELitFalse }
-  | Ident '(' ListExpr ')' { Brainlette.Abs.EApp $1 $3 }
-  | String { Brainlette.Abs.EString $1 }
-  | '(' Expr ')' { $2 }
+  : Ident { (fst $1, Brainlette.Abs.EVar (fst $1) (snd $1)) }
+  | Integer { (fst $1, Brainlette.Abs.ELitInt (fst $1) (snd $1)) }
+  | Double { (fst $1, Brainlette.Abs.ELitDoub (fst $1) (snd $1)) }
+  | 'true' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.ELitTrue (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | 'false' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.ELitFalse (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | Ident '(' ListExpr ')' { (fst $1, Brainlette.Abs.EApp (fst $1) (snd $1) (snd $3)) }
+  | String { (fst $1, Brainlette.Abs.EString (fst $1) (snd $1)) }
+  | '(' Expr ')' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), (snd $2)) }
 
-Expr5 :: { Brainlette.Abs.Expr }
+Expr5 :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
 Expr5
-  : '-' Expr6 { Brainlette.Abs.Neg $2 }
-  | '!' Expr6 { Brainlette.Abs.Not $2 }
-  | Expr6 { $1 }
+  : '-' Expr6 { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Neg (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
+  | '!' Expr6 { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Not (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
+  | Expr6 { (fst $1, (snd $1)) }
 
-Expr4 :: { Brainlette.Abs.Expr }
+Expr4 :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
 Expr4
-  : Expr4 MulOp Expr5 { Brainlette.Abs.EMul $1 $2 $3 } | Expr5 { $1 }
+  : Expr4 MulOp Expr5 { (fst $1, Brainlette.Abs.EMul (fst $1) (snd $1) (snd $2) (snd $3)) }
+  | Expr5 { (fst $1, (snd $1)) }
 
-Expr3 :: { Brainlette.Abs.Expr }
+Expr3 :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
 Expr3
-  : Expr3 AddOp Expr4 { Brainlette.Abs.EAdd $1 $2 $3 } | Expr4 { $1 }
+  : Expr3 AddOp Expr4 { (fst $1, Brainlette.Abs.EAdd (fst $1) (snd $1) (snd $2) (snd $3)) }
+  | Expr4 { (fst $1, (snd $1)) }
 
-Expr2 :: { Brainlette.Abs.Expr }
+Expr2 :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
 Expr2
-  : Expr2 RelOp Expr3 { Brainlette.Abs.ERel $1 $2 $3 } | Expr3 { $1 }
+  : Expr2 RelOp Expr3 { (fst $1, Brainlette.Abs.ERel (fst $1) (snd $1) (snd $2) (snd $3)) }
+  | Expr3 { (fst $1, (snd $1)) }
 
-Expr1 :: { Brainlette.Abs.Expr }
+Expr1 :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
 Expr1
-  : Expr2 '&&' Expr1 { Brainlette.Abs.EAnd $1 $3 } | Expr2 { $1 }
+  : Expr2 '&&' Expr1 { (fst $1, Brainlette.Abs.EAnd (fst $1) (snd $1) (snd $3)) }
+  | Expr2 { (fst $1, (snd $1)) }
 
-Expr :: { Brainlette.Abs.Expr }
-Expr : Expr1 '||' Expr { Brainlette.Abs.EOr $1 $3 } | Expr1 { $1 }
+Expr :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.Expr) }
+Expr
+  : Expr1 '||' Expr { (fst $1, Brainlette.Abs.EOr (fst $1) (snd $1) (snd $3)) }
+  | Expr1 { (fst $1, (snd $1)) }
 
-AddOp :: { Brainlette.Abs.AddOp }
-AddOp : '+' { Brainlette.Abs.Plus } | '-' { Brainlette.Abs.Minus }
+AddOp :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.AddOp) }
+AddOp
+  : '+' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Plus (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '-' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Minus (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
 
-MulOp :: { Brainlette.Abs.MulOp }
+MulOp :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.MulOp) }
 MulOp
-  : '*' { Brainlette.Abs.Times }
-  | '/' { Brainlette.Abs.Div }
-  | '%' { Brainlette.Abs.Mod }
+  : '*' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Times (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '/' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Div (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '%' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.Mod (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
 
-RelOp :: { Brainlette.Abs.RelOp }
+RelOp :: { (Brainlette.Abs.BNFC'Position, Brainlette.Abs.RelOp) }
 RelOp
-  : '<' { Brainlette.Abs.LTH }
-  | '<=' { Brainlette.Abs.LE }
-  | '>' { Brainlette.Abs.GTH }
-  | '>=' { Brainlette.Abs.GE }
-  | '==' { Brainlette.Abs.EQU }
-  | '!=' { Brainlette.Abs.NE }
+  : '<' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.LTH (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '<=' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.LE (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '>' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.GTH (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '>=' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.GE (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '==' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.EQU (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
+  | '!=' { (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1), Brainlette.Abs.NE (uncurry Brainlette.Abs.BNFC'Position (tokenLineCol $1))) }
 
-ListTopDef :: { [Brainlette.Abs.TopDef] }
-ListTopDef : TopDef { (:[]) $1 } | TopDef ListTopDef { (:) $1 $2 }
+ListTopDef :: { (Brainlette.Abs.BNFC'Position, [Brainlette.Abs.TopDef]) }
+ListTopDef
+  : TopDef { (fst $1, (:[]) (snd $1)) }
+  | TopDef ListTopDef { (fst $1, (:) (snd $1) (snd $2)) }
 
-ListArg :: { [Brainlette.Abs.Arg] }
+ListArg :: { (Brainlette.Abs.BNFC'Position, [Brainlette.Abs.Arg]) }
 ListArg
-  : {- empty -} { [] }
-  | Arg { (:[]) $1 }
-  | Arg ',' ListArg { (:) $1 $3 }
+  : {- empty -} { (Brainlette.Abs.BNFC'NoPosition, []) }
+  | Arg { (fst $1, (:[]) (snd $1)) }
+  | Arg ',' ListArg { (fst $1, (:) (snd $1) (snd $3)) }
 
-ListItem :: { [Brainlette.Abs.Item] }
-ListItem : Item { (:[]) $1 } | Item ',' ListItem { (:) $1 $3 }
+ListItem :: { (Brainlette.Abs.BNFC'Position, [Brainlette.Abs.Item]) }
+ListItem
+  : Item { (fst $1, (:[]) (snd $1)) }
+  | Item ',' ListItem { (fst $1, (:) (snd $1) (snd $3)) }
 
-ListExpr :: { [Brainlette.Abs.Expr] }
+ListExpr :: { (Brainlette.Abs.BNFC'Position, [Brainlette.Abs.Expr]) }
 ListExpr
-  : {- empty -} { [] }
-  | Expr { (:[]) $1 }
-  | Expr ',' ListExpr { (:) $1 $3 }
+  : {- empty -} { (Brainlette.Abs.BNFC'NoPosition, []) }
+  | Expr { (fst $1, (:[]) (snd $1)) }
+  | Expr ',' ListExpr { (fst $1, (:) (snd $1) (snd $3)) }
 
-ListType :: { [Brainlette.Abs.Type] }
+ListType :: { (Brainlette.Abs.BNFC'Position, [Brainlette.Abs.Type]) }
 ListType
-  : {- empty -} { [] }
-  | Type { (:[]) $1 }
-  | Type ',' ListType { (:) $1 $3 }
+  : {- empty -} { (Brainlette.Abs.BNFC'NoPosition, []) }
+  | Type { (fst $1, (:[]) (snd $1)) }
+  | Type ',' ListType { (fst $1, (:) (snd $1) (snd $3)) }
 
-ListStmt :: { [Brainlette.Abs.Stmt] }
-ListStmt : {- empty -} { [] } | Stmt ListStmt { (:) $1 $2 }
+ListStmt :: { (Brainlette.Abs.BNFC'Position, [Brainlette.Abs.Stmt]) }
+ListStmt
+  : {- empty -} { (Brainlette.Abs.BNFC'NoPosition, []) }
+  | Stmt ListStmt { (fst $1, (:) (snd $1) (snd $2)) }
 
 {
 
@@ -211,5 +228,9 @@ happyError ts = Left $
 myLexer :: String -> [Token]
 myLexer = tokens
 
+-- Entrypoints
+
+pProg :: [Token] -> Err Brainlette.Abs.Prog
+pProg = fmap snd . pProg_internal
 }
 

@@ -19,83 +19,83 @@ transIdent :: Brainlette.Abs.Ident -> Result
 transIdent x = case x of
   Brainlette.Abs.Ident string -> failure x
 
-transProg :: Brainlette.Abs.Prog -> Result
+transProg :: Show a => Brainlette.Abs.Prog' a -> Result
 transProg x = case x of
-  Brainlette.Abs.Program topdefs -> failure x
+  Brainlette.Abs.Program _ topdefs -> failure x
 
-transTopDef :: Brainlette.Abs.TopDef -> Result
+transTopDef :: Show a => Brainlette.Abs.TopDef' a -> Result
 transTopDef x = case x of
-  Brainlette.Abs.FnDef type_ ident args blk -> failure x
+  Brainlette.Abs.FnDef _ type_ ident args blk -> failure x
 
-transArg :: Brainlette.Abs.Arg -> Result
+transArg :: Show a => Brainlette.Abs.Arg' a -> Result
 transArg x = case x of
-  Brainlette.Abs.Argument type_ ident -> failure x
+  Brainlette.Abs.Argument _ type_ ident -> failure x
 
-transBlk :: Brainlette.Abs.Blk -> Result
+transBlk :: Show a => Brainlette.Abs.Blk' a -> Result
 transBlk x = case x of
-  Brainlette.Abs.Block stmts -> failure x
+  Brainlette.Abs.Block _ stmts -> failure x
 
-transItem :: Brainlette.Abs.Item -> Result
+transItem :: Show a => Brainlette.Abs.Item' a -> Result
 transItem x = case x of
-  Brainlette.Abs.NoInit ident -> failure x
-  Brainlette.Abs.Init ident expr -> failure x
+  Brainlette.Abs.NoInit _ ident -> failure x
+  Brainlette.Abs.Init _ ident expr -> failure x
 
-transStmt :: Brainlette.Abs.Stmt -> Result
+transStmt :: Show a => Brainlette.Abs.Stmt' a -> Result
 transStmt x = case x of
-  Brainlette.Abs.Empty -> failure x
-  Brainlette.Abs.BStmt blk -> failure x
-  Brainlette.Abs.Decl type_ items -> failure x
-  Brainlette.Abs.Ass ident expr -> failure x
-  Brainlette.Abs.Incr ident -> failure x
-  Brainlette.Abs.Decr ident -> failure x
-  Brainlette.Abs.Ret expr -> failure x
-  Brainlette.Abs.VRet -> failure x
-  Brainlette.Abs.Cond expr stmt -> failure x
-  Brainlette.Abs.CondElse expr stmt1 stmt2 -> failure x
-  Brainlette.Abs.While expr stmt -> failure x
-  Brainlette.Abs.SExp expr -> failure x
+  Brainlette.Abs.Empty _ -> failure x
+  Brainlette.Abs.BStmt _ blk -> failure x
+  Brainlette.Abs.Decl _ type_ items -> failure x
+  Brainlette.Abs.Ass _ ident expr -> failure x
+  Brainlette.Abs.Incr _ ident -> failure x
+  Brainlette.Abs.Decr _ ident -> failure x
+  Brainlette.Abs.Ret _ expr -> failure x
+  Brainlette.Abs.VRet _ -> failure x
+  Brainlette.Abs.Cond _ expr stmt -> failure x
+  Brainlette.Abs.CondElse _ expr stmt1 stmt2 -> failure x
+  Brainlette.Abs.While _ expr stmt -> failure x
+  Brainlette.Abs.SExp _ expr -> failure x
 
-transType :: Brainlette.Abs.Type -> Result
+transType :: Show a => Brainlette.Abs.Type' a -> Result
 transType x = case x of
-  Brainlette.Abs.Int -> failure x
-  Brainlette.Abs.Doub -> failure x
-  Brainlette.Abs.Bool -> failure x
-  Brainlette.Abs.Void -> failure x
-  Brainlette.Abs.Fun type_ types -> failure x
+  Brainlette.Abs.Int _ -> failure x
+  Brainlette.Abs.Doub _ -> failure x
+  Brainlette.Abs.Bool _ -> failure x
+  Brainlette.Abs.Void _ -> failure x
+  Brainlette.Abs.Fun _ type_ types -> failure x
 
-transExpr :: Brainlette.Abs.Expr -> Result
+transExpr :: Show a => Brainlette.Abs.Expr' a -> Result
 transExpr x = case x of
-  Brainlette.Abs.EVar ident -> failure x
-  Brainlette.Abs.ELitInt integer -> failure x
-  Brainlette.Abs.ELitDoub double -> failure x
-  Brainlette.Abs.ELitTrue -> failure x
-  Brainlette.Abs.ELitFalse -> failure x
-  Brainlette.Abs.EApp ident exprs -> failure x
-  Brainlette.Abs.EString string -> failure x
-  Brainlette.Abs.Neg expr -> failure x
-  Brainlette.Abs.Not expr -> failure x
-  Brainlette.Abs.EMul expr1 mulop expr2 -> failure x
-  Brainlette.Abs.EAdd expr1 addop expr2 -> failure x
-  Brainlette.Abs.ERel expr1 relop expr2 -> failure x
-  Brainlette.Abs.EAnd expr1 expr2 -> failure x
-  Brainlette.Abs.EOr expr1 expr2 -> failure x
+  Brainlette.Abs.EVar _ ident -> failure x
+  Brainlette.Abs.ELitInt _ integer -> failure x
+  Brainlette.Abs.ELitDoub _ double -> failure x
+  Brainlette.Abs.ELitTrue _ -> failure x
+  Brainlette.Abs.ELitFalse _ -> failure x
+  Brainlette.Abs.EApp _ ident exprs -> failure x
+  Brainlette.Abs.EString _ string -> failure x
+  Brainlette.Abs.Neg _ expr -> failure x
+  Brainlette.Abs.Not _ expr -> failure x
+  Brainlette.Abs.EMul _ expr1 mulop expr2 -> failure x
+  Brainlette.Abs.EAdd _ expr1 addop expr2 -> failure x
+  Brainlette.Abs.ERel _ expr1 relop expr2 -> failure x
+  Brainlette.Abs.EAnd _ expr1 expr2 -> failure x
+  Brainlette.Abs.EOr _ expr1 expr2 -> failure x
 
-transAddOp :: Brainlette.Abs.AddOp -> Result
+transAddOp :: Show a => Brainlette.Abs.AddOp' a -> Result
 transAddOp x = case x of
-  Brainlette.Abs.Plus -> failure x
-  Brainlette.Abs.Minus -> failure x
+  Brainlette.Abs.Plus _ -> failure x
+  Brainlette.Abs.Minus _ -> failure x
 
-transMulOp :: Brainlette.Abs.MulOp -> Result
+transMulOp :: Show a => Brainlette.Abs.MulOp' a -> Result
 transMulOp x = case x of
-  Brainlette.Abs.Times -> failure x
-  Brainlette.Abs.Div -> failure x
-  Brainlette.Abs.Mod -> failure x
+  Brainlette.Abs.Times _ -> failure x
+  Brainlette.Abs.Div _ -> failure x
+  Brainlette.Abs.Mod _ -> failure x
 
-transRelOp :: Brainlette.Abs.RelOp -> Result
+transRelOp :: Show a => Brainlette.Abs.RelOp' a -> Result
 transRelOp x = case x of
-  Brainlette.Abs.LTH -> failure x
-  Brainlette.Abs.LE -> failure x
-  Brainlette.Abs.GTH -> failure x
-  Brainlette.Abs.GE -> failure x
-  Brainlette.Abs.EQU -> failure x
-  Brainlette.Abs.NE -> failure x
+  Brainlette.Abs.LTH _ -> failure x
+  Brainlette.Abs.LE _ -> failure x
+  Brainlette.Abs.GTH _ -> failure x
+  Brainlette.Abs.GE _ -> failure x
+  Brainlette.Abs.EQU _ -> failure x
+  Brainlette.Abs.NE _ -> failure x

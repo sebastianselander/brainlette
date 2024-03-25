@@ -139,112 +139,112 @@ instance Print Double where
 
 instance Print Brainlette.Abs.Ident where
   prt _ (Brainlette.Abs.Ident i) = doc $ showString i
-instance Print Brainlette.Abs.Prog where
+instance Print (Brainlette.Abs.Prog' a) where
   prt i = \case
-    Brainlette.Abs.Program topdefs -> prPrec i 0 (concatD [prt 0 topdefs])
+    Brainlette.Abs.Program _ topdefs -> prPrec i 0 (concatD [prt 0 topdefs])
 
-instance Print Brainlette.Abs.TopDef where
+instance Print (Brainlette.Abs.TopDef' a) where
   prt i = \case
-    Brainlette.Abs.FnDef type_ id_ args blk -> prPrec i 0 (concatD [prt 0 type_, prt 0 id_, doc (showString "("), prt 0 args, doc (showString ")"), prt 0 blk])
+    Brainlette.Abs.FnDef _ type_ id_ args blk -> prPrec i 0 (concatD [prt 0 type_, prt 0 id_, doc (showString "("), prt 0 args, doc (showString ")"), prt 0 blk])
 
-instance Print Brainlette.Abs.Arg where
+instance Print (Brainlette.Abs.Arg' a) where
   prt i = \case
-    Brainlette.Abs.Argument type_ id_ -> prPrec i 0 (concatD [prt 0 type_, prt 0 id_])
+    Brainlette.Abs.Argument _ type_ id_ -> prPrec i 0 (concatD [prt 0 type_, prt 0 id_])
 
-instance Print Brainlette.Abs.Blk where
+instance Print (Brainlette.Abs.Blk' a) where
   prt i = \case
-    Brainlette.Abs.Block stmts -> prPrec i 0 (concatD [doc (showString "{"), prt 0 stmts, doc (showString "}")])
+    Brainlette.Abs.Block _ stmts -> prPrec i 0 (concatD [doc (showString "{"), prt 0 stmts, doc (showString "}")])
 
-instance Print Brainlette.Abs.Item where
+instance Print (Brainlette.Abs.Item' a) where
   prt i = \case
-    Brainlette.Abs.NoInit id_ -> prPrec i 0 (concatD [prt 0 id_])
-    Brainlette.Abs.Init id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr])
+    Brainlette.Abs.NoInit _ id_ -> prPrec i 0 (concatD [prt 0 id_])
+    Brainlette.Abs.Init _ id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr])
 
-instance Print Brainlette.Abs.Stmt where
+instance Print (Brainlette.Abs.Stmt' a) where
   prt i = \case
-    Brainlette.Abs.Empty -> prPrec i 0 (concatD [doc (showString ";")])
-    Brainlette.Abs.BStmt blk -> prPrec i 0 (concatD [prt 0 blk])
-    Brainlette.Abs.Decl type_ items -> prPrec i 0 (concatD [prt 0 type_, prt 0 items, doc (showString ";")])
-    Brainlette.Abs.Ass id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr, doc (showString ";")])
-    Brainlette.Abs.Incr id_ -> prPrec i 0 (concatD [prt 0 id_, doc (showString "++"), doc (showString ";")])
-    Brainlette.Abs.Decr id_ -> prPrec i 0 (concatD [prt 0 id_, doc (showString "--"), doc (showString ";")])
-    Brainlette.Abs.Ret expr -> prPrec i 0 (concatD [doc (showString "return"), prt 0 expr, doc (showString ";")])
-    Brainlette.Abs.VRet -> prPrec i 0 (concatD [doc (showString "return"), doc (showString ";")])
-    Brainlette.Abs.Cond expr stmt -> prPrec i 0 (concatD [doc (showString "if"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
-    Brainlette.Abs.CondElse expr stmt1 stmt2 -> prPrec i 0 (concatD [doc (showString "if"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt1, doc (showString "else"), prt 0 stmt2])
-    Brainlette.Abs.While expr stmt -> prPrec i 0 (concatD [doc (showString "while"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
-    Brainlette.Abs.SExp expr -> prPrec i 0 (concatD [prt 0 expr, doc (showString ";")])
+    Brainlette.Abs.Empty _ -> prPrec i 0 (concatD [doc (showString ";")])
+    Brainlette.Abs.BStmt _ blk -> prPrec i 0 (concatD [prt 0 blk])
+    Brainlette.Abs.Decl _ type_ items -> prPrec i 0 (concatD [prt 0 type_, prt 0 items, doc (showString ";")])
+    Brainlette.Abs.Ass _ id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr, doc (showString ";")])
+    Brainlette.Abs.Incr _ id_ -> prPrec i 0 (concatD [prt 0 id_, doc (showString "++"), doc (showString ";")])
+    Brainlette.Abs.Decr _ id_ -> prPrec i 0 (concatD [prt 0 id_, doc (showString "--"), doc (showString ";")])
+    Brainlette.Abs.Ret _ expr -> prPrec i 0 (concatD [doc (showString "return"), prt 0 expr, doc (showString ";")])
+    Brainlette.Abs.VRet _ -> prPrec i 0 (concatD [doc (showString "return"), doc (showString ";")])
+    Brainlette.Abs.Cond _ expr stmt -> prPrec i 0 (concatD [doc (showString "if"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
+    Brainlette.Abs.CondElse _ expr stmt1 stmt2 -> prPrec i 0 (concatD [doc (showString "if"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt1, doc (showString "else"), prt 0 stmt2])
+    Brainlette.Abs.While _ expr stmt -> prPrec i 0 (concatD [doc (showString "while"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
+    Brainlette.Abs.SExp _ expr -> prPrec i 0 (concatD [prt 0 expr, doc (showString ";")])
 
-instance Print Brainlette.Abs.Type where
+instance Print (Brainlette.Abs.Type' a) where
   prt i = \case
-    Brainlette.Abs.Int -> prPrec i 0 (concatD [doc (showString "int")])
-    Brainlette.Abs.Doub -> prPrec i 0 (concatD [doc (showString "double")])
-    Brainlette.Abs.Bool -> prPrec i 0 (concatD [doc (showString "boolean")])
-    Brainlette.Abs.Void -> prPrec i 0 (concatD [doc (showString "void")])
-    Brainlette.Abs.Fun type_ types -> prPrec i 0 (concatD [prt 0 type_, doc (showString "("), prt 0 types, doc (showString ")")])
+    Brainlette.Abs.Int _ -> prPrec i 0 (concatD [doc (showString "int")])
+    Brainlette.Abs.Doub _ -> prPrec i 0 (concatD [doc (showString "double")])
+    Brainlette.Abs.Bool _ -> prPrec i 0 (concatD [doc (showString "boolean")])
+    Brainlette.Abs.Void _ -> prPrec i 0 (concatD [doc (showString "void")])
+    Brainlette.Abs.Fun _ type_ types -> prPrec i 0 (concatD [prt 0 type_, doc (showString "("), prt 0 types, doc (showString ")")])
 
-instance Print Brainlette.Abs.Expr where
+instance Print (Brainlette.Abs.Expr' a) where
   prt i = \case
-    Brainlette.Abs.EVar id_ -> prPrec i 6 (concatD [prt 0 id_])
-    Brainlette.Abs.ELitInt n -> prPrec i 6 (concatD [prt 0 n])
-    Brainlette.Abs.ELitDoub d -> prPrec i 6 (concatD [prt 0 d])
-    Brainlette.Abs.ELitTrue -> prPrec i 6 (concatD [doc (showString "true")])
-    Brainlette.Abs.ELitFalse -> prPrec i 6 (concatD [doc (showString "false")])
-    Brainlette.Abs.EApp id_ exprs -> prPrec i 6 (concatD [prt 0 id_, doc (showString "("), prt 0 exprs, doc (showString ")")])
-    Brainlette.Abs.EString str -> prPrec i 6 (concatD [printString str])
-    Brainlette.Abs.Neg expr -> prPrec i 5 (concatD [doc (showString "-"), prt 6 expr])
-    Brainlette.Abs.Not expr -> prPrec i 5 (concatD [doc (showString "!"), prt 6 expr])
-    Brainlette.Abs.EMul expr1 mulop expr2 -> prPrec i 4 (concatD [prt 4 expr1, prt 0 mulop, prt 5 expr2])
-    Brainlette.Abs.EAdd expr1 addop expr2 -> prPrec i 3 (concatD [prt 3 expr1, prt 0 addop, prt 4 expr2])
-    Brainlette.Abs.ERel expr1 relop expr2 -> prPrec i 2 (concatD [prt 2 expr1, prt 0 relop, prt 3 expr2])
-    Brainlette.Abs.EAnd expr1 expr2 -> prPrec i 1 (concatD [prt 2 expr1, doc (showString "&&"), prt 1 expr2])
-    Brainlette.Abs.EOr expr1 expr2 -> prPrec i 0 (concatD [prt 1 expr1, doc (showString "||"), prt 0 expr2])
+    Brainlette.Abs.EVar _ id_ -> prPrec i 6 (concatD [prt 0 id_])
+    Brainlette.Abs.ELitInt _ n -> prPrec i 6 (concatD [prt 0 n])
+    Brainlette.Abs.ELitDoub _ d -> prPrec i 6 (concatD [prt 0 d])
+    Brainlette.Abs.ELitTrue _ -> prPrec i 6 (concatD [doc (showString "true")])
+    Brainlette.Abs.ELitFalse _ -> prPrec i 6 (concatD [doc (showString "false")])
+    Brainlette.Abs.EApp _ id_ exprs -> prPrec i 6 (concatD [prt 0 id_, doc (showString "("), prt 0 exprs, doc (showString ")")])
+    Brainlette.Abs.EString _ str -> prPrec i 6 (concatD [printString str])
+    Brainlette.Abs.Neg _ expr -> prPrec i 5 (concatD [doc (showString "-"), prt 6 expr])
+    Brainlette.Abs.Not _ expr -> prPrec i 5 (concatD [doc (showString "!"), prt 6 expr])
+    Brainlette.Abs.EMul _ expr1 mulop expr2 -> prPrec i 4 (concatD [prt 4 expr1, prt 0 mulop, prt 5 expr2])
+    Brainlette.Abs.EAdd _ expr1 addop expr2 -> prPrec i 3 (concatD [prt 3 expr1, prt 0 addop, prt 4 expr2])
+    Brainlette.Abs.ERel _ expr1 relop expr2 -> prPrec i 2 (concatD [prt 2 expr1, prt 0 relop, prt 3 expr2])
+    Brainlette.Abs.EAnd _ expr1 expr2 -> prPrec i 1 (concatD [prt 2 expr1, doc (showString "&&"), prt 1 expr2])
+    Brainlette.Abs.EOr _ expr1 expr2 -> prPrec i 0 (concatD [prt 1 expr1, doc (showString "||"), prt 0 expr2])
 
-instance Print Brainlette.Abs.AddOp where
+instance Print (Brainlette.Abs.AddOp' a) where
   prt i = \case
-    Brainlette.Abs.Plus -> prPrec i 0 (concatD [doc (showString "+")])
-    Brainlette.Abs.Minus -> prPrec i 0 (concatD [doc (showString "-")])
+    Brainlette.Abs.Plus _ -> prPrec i 0 (concatD [doc (showString "+")])
+    Brainlette.Abs.Minus _ -> prPrec i 0 (concatD [doc (showString "-")])
 
-instance Print Brainlette.Abs.MulOp where
+instance Print (Brainlette.Abs.MulOp' a) where
   prt i = \case
-    Brainlette.Abs.Times -> prPrec i 0 (concatD [doc (showString "*")])
-    Brainlette.Abs.Div -> prPrec i 0 (concatD [doc (showString "/")])
-    Brainlette.Abs.Mod -> prPrec i 0 (concatD [doc (showString "%")])
+    Brainlette.Abs.Times _ -> prPrec i 0 (concatD [doc (showString "*")])
+    Brainlette.Abs.Div _ -> prPrec i 0 (concatD [doc (showString "/")])
+    Brainlette.Abs.Mod _ -> prPrec i 0 (concatD [doc (showString "%")])
 
-instance Print Brainlette.Abs.RelOp where
+instance Print (Brainlette.Abs.RelOp' a) where
   prt i = \case
-    Brainlette.Abs.LTH -> prPrec i 0 (concatD [doc (showString "<")])
-    Brainlette.Abs.LE -> prPrec i 0 (concatD [doc (showString "<=")])
-    Brainlette.Abs.GTH -> prPrec i 0 (concatD [doc (showString ">")])
-    Brainlette.Abs.GE -> prPrec i 0 (concatD [doc (showString ">=")])
-    Brainlette.Abs.EQU -> prPrec i 0 (concatD [doc (showString "==")])
-    Brainlette.Abs.NE -> prPrec i 0 (concatD [doc (showString "!=")])
+    Brainlette.Abs.LTH _ -> prPrec i 0 (concatD [doc (showString "<")])
+    Brainlette.Abs.LE _ -> prPrec i 0 (concatD [doc (showString "<=")])
+    Brainlette.Abs.GTH _ -> prPrec i 0 (concatD [doc (showString ">")])
+    Brainlette.Abs.GE _ -> prPrec i 0 (concatD [doc (showString ">=")])
+    Brainlette.Abs.EQU _ -> prPrec i 0 (concatD [doc (showString "==")])
+    Brainlette.Abs.NE _ -> prPrec i 0 (concatD [doc (showString "!=")])
 
-instance Print [Brainlette.Abs.TopDef] where
+instance Print [Brainlette.Abs.TopDef' a] where
   prt _ [] = concatD []
   prt _ [x] = concatD [prt 0 x]
   prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]
 
-instance Print [Brainlette.Abs.Arg] where
+instance Print [Brainlette.Abs.Arg' a] where
   prt _ [] = concatD []
   prt _ [x] = concatD [prt 0 x]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
-instance Print [Brainlette.Abs.Item] where
+instance Print [Brainlette.Abs.Item' a] where
   prt _ [] = concatD []
   prt _ [x] = concatD [prt 0 x]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
-instance Print [Brainlette.Abs.Expr] where
+instance Print [Brainlette.Abs.Expr' a] where
   prt _ [] = concatD []
   prt _ [x] = concatD [prt 0 x]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
-instance Print [Brainlette.Abs.Type] where
+instance Print [Brainlette.Abs.Type' a] where
   prt _ [] = concatD []
   prt _ [x] = concatD [prt 0 x]
   prt _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
-instance Print [Brainlette.Abs.Stmt] where
+instance Print [Brainlette.Abs.Stmt' a] where
   prt _ [] = concatD []
   prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]
