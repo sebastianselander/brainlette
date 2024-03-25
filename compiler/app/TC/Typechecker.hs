@@ -23,10 +23,12 @@ tc =
 
 tcProg :: Par.Prog -> Check Tc.Prog
 tcProg = TODO
+
 infDef :: Par.TopDef -> Check Tc.TopDef
 infDef (Par.FnDef p o'rt name o'args (Par.Block bp o'block)) = do
     let rt = convert o'rt :: Tc.Type
-    let args = for o'args $ \(Par.Argument p t i) -> Tc.Argument p (convert t) (convert i)
+    let args = for o'args $ \(Par.Argument p t i) ->
+            Tc.Argument p (convert t) (convert i)
     block <- infStmt o'block
     pure $ Tc.FnDef p rt (convert name) args (Tc.Block bp block)
 
