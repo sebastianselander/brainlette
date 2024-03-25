@@ -50,9 +50,9 @@ data Expr' a
     | EApp a Type Ident [Expr' a]
     | Neg a Type (Expr' a)
     | Not a (Expr' a)
-    | EMul a Type (Expr' a) MulOp (Expr' a)
-    | EAdd a Type (Expr' a) AddOp (Expr' a)
-    | ERel a (Expr' a) RelOp (Expr' a)
+    | EMul a Type (Expr' a) (MulOp' a) (Expr' a)
+    | EAdd a Type (Expr' a) (AddOp' a) (Expr' a)
+    | ERel a (Expr' a) (RelOp' a) (Expr' a)
     | EAnd a (Expr' a) (Expr' a)
     | EOr a (Expr' a) (Expr' a)
     deriving (Eq, Ord, Show, Read,Functor)
@@ -64,14 +64,14 @@ data Lit
     | LitString String
     deriving (Eq, Ord, Show, Read)
 
-data AddOp = Plus | Minus
-    deriving (Eq, Ord, Show, Read)
+data AddOp' a = Plus a | Minus a
+    deriving (Eq, Ord, Show, Read, Functor)
 
-data MulOp = Times | Div | Mod
-    deriving (Eq, Ord, Show, Read)
+data MulOp' a = Times a | Div a | Mod a
+    deriving (Eq, Ord, Show, Read, Functor)
 
-data RelOp = LTH | LE | GTH | GE | EQU | NE
-    deriving (Eq, Ord, Show, Read)
+data RelOp' a = LTH a | LE a | GTH a | GE a | EQU a | NE a
+    deriving (Eq, Ord, Show, Read, Functor)
 
 newtype Ident = Ident String
     deriving (Eq, Ord, Show, Read, IsString)
