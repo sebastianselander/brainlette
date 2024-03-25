@@ -3,7 +3,7 @@
 module TC.Typechecker where
 
 import Brainlette.Abs qualified as Par
-import Control.Monad (unless, void)
+import Control.Monad (unless, void, zipWithM_)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Functor.Identity (runIdentity)
@@ -35,6 +35,9 @@ infDef (Par.FnDef p o'rt name o'args (Par.Block bp o'block)) = do
 infStmt :: [Par.Stmt] -> Check [Tc.Stmt]
 infStmt = undefined
 
+{- TODO: Type casting int to double is possible both ways I think, this should not be possible.
+    And if it should be possible then the value needs to be floored.
+-}
 infExpr :: Par.Expr -> Check Tc.Expr
 infExpr = \case
     Par.EVar p i -> flip (Tc.EVar p) (convert i) <$> lookupVar p i
@@ -54,16 +57,42 @@ infExpr = \case
     Par.EMul p l op r -> do
         l' <- infExpr l
         r' <- infExpr r
-        let typeleft = typeOf l'
-        let typeright = typeOf r'
-        general <- typesMatch p typeleft [typeright] 
-        return (Tc.EMul p general l' (convert op) r')
-    Par.EAdd {} -> TODO
-    Par.ERel {} -> TODO
-    Par.EAnd _ _ _ -> TODO
-    Par.EOr _ _ _ -> TODO
-    Par.EApp _ ident exprs -> TODO
-
+        typleft <- typesMatch p (typeOf l') [Tc.Double, Tc.Int]
+        typright <- typesMatch p (typeOf r') [Tc.Double, Tc.Int]
+        typ <- unify p typleft typright
+        return (Tc.EMul p typ l' (convert op) r')
+    Par.EAdd p l op r -> do
+        l' <- infExpr l
+        r' <- infExpr r
+        typleft <- typesMatch p (typeOf l') [Tc.Double, Tc.Int]
+        typright <- typesMatch p (typeOf r') [Tc.Double, Tc.Int]
+        typ <- unify p typleft typright
+        return (Tc.EAdd p typ l' (convert op) r')
+    Par.EAnd p l r -> do
+        l' <- infExpr l
+        r' <- infExpr r
+        void $ typesMatch p (typeOf l') [Tc.Bool]
+        void $ typesMatch p (typeOf r') [Tc.Bool]
+        return (Tc.EAnd p l' r')
+    Par.EOr p l r -> do
+        l' <- infExpr l
+        r' <- infExpr r
+        void $ typesMatch p (typeOf l') [Tc.Bool]
+        void $ typesMatch p (typeOf r') [Tc.Bool]
+        return (Tc.EOr p l' r')
+    Par.ERel p l op r -> do
+        l' <- infExpr l
+        r' <- infExpr r
+        let equalityTypes = [Tc.String, Tc.Bool, Tc.Int, Tc.Double]
+        tl <- typesMatch p (typeOf l') equalityTypes
+        tr <- typesMatch p (typeOf r') equalityTypes
+        void $ unify p tl tr
+        return (Tc.ERel p l' (convert op) r')
+    Par.EApp p ident exprs -> do
+        (rt, argTypes) <- lookupFn p ident
+        exprs' <- mapM infExpr exprs
+        zipWithM_ (unify p) (fmap typeOf exprs') argTypes
+        return (Tc.EApp p rt (convert ident) exprs')
 
 newtype Env = Env {variables :: Map Par.Ident (Tc.Type, [Tc.Type])}
     deriving (Show, Eq, Ord)
@@ -73,7 +102,7 @@ newtype Check a = TC {runTC :: ReaderT Env (Except TcError) a}
 
 -- | Extract the types from all top level definitions '⌣'
 getDefs :: Par.Prog -> Map Par.Ident (Tc.Type, [Tc.Type])
-getDefs (Par.Program p prog) =
+getDefs (Par.Program _ prog) =
     let argTypes = map (\(Par.Argument _ t _) -> t)
      in Map.fromList . for prog $ \(Par.FnDef _ rt ident args _) ->
             (ident, (convert rt, convert . argTypes $ args))
@@ -114,10 +143,23 @@ instance Convert Par.Ident Tc.Ident where
 
 instance Convert Par.MulOp Tc.MulOp where
     convert = \case
-           Par.Times p -> TODO
-           Par.Div p -> TODO
-           Par.Mod p -> TODO
-        
+           Par.Times p -> Tc.Times p
+           Par.Div p -> Tc.Div p
+           Par.Mod p -> Tc.Mod p
+
+instance Convert Par.AddOp Tc.AddOp where
+    convert = \case
+       Par.Plus p -> Tc.Plus p
+       Par.Minus p -> Tc.Minus p
+
+instance Convert Par.RelOp Tc.RelOp where
+    convert = \case
+       Par.LTH p -> Tc.LTH p
+       Par.LE p -> Tc.LE p
+       Par.GTH p -> Tc.GTH p
+       Par.GE p -> Tc.GE p
+       Par.EQU p -> Tc.EQU p
+       Par.NE p -> Tc.NE p
 
 class TypeOf a where
     typeOf :: a -> Tc.Type
@@ -132,15 +174,21 @@ instance TypeOf Tc.Expr where
         Tc.EMul _ t _ _ _ -> t
         Tc.EAdd _ t _ _ _ -> t
         Tc.ERel {} -> Tc.Bool
-        Tc.EAnd _ _ _ -> Tc.Bool
-        Tc.EOr _ _ _ -> Tc.Bool
+        Tc.EAnd {} -> Tc.Bool
+        Tc.EOr {} -> Tc.Bool
 
 typesMatch :: (MonadError TcError m) => Tc.Position -> Tc.Type -> [Tc.Type] -> m Tc.Type
 typesMatch p expected givens = do
     unless (expected `elem` givens) (throwError (TypeMismatch p expected givens))
-    case givens of
-        [Tc.Double] -> return Tc.Double
-        _           -> return expected
+    return expected
+
+unify :: (MonadError TcError m) => Tc.Position -> Tc.Type -> Tc.Type -> m Tc.Type
+unify pos l r
+  | l == r = return l
+  | otherwise = case (l, r) of
+    (Tc.Int, Tc.Double) -> return Tc.Double
+    (Tc.Double, Tc.Int) -> return Tc.Double
+    _                   -> throwError (TypeMismatch pos l [r])
 
 isNumber :: [Tc.Type]
 isNumber = [Tc.Double, Tc.Int]
