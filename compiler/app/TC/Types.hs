@@ -1,6 +1,5 @@
 module TC.Types where
-
-import Data.String (IsString (fromString))
+import Data.String (IsString)
 
 type Position = Maybe (Int, Int)
 
@@ -12,7 +11,6 @@ type Stmt = Stmt' Position
 type Item = Item' Position
 type Expr = Expr' Position
 type Lit = Lit' Position
-type Ident = Ident' Position
 
 newtype Prog' a = Program [TopDef' a]
     deriving (Eq, Ord, Show, Read, Functor)
@@ -48,9 +46,9 @@ data Type = Int | Double | Bool | String | Void | Fun Type [Type]
     deriving (Eq, Ord, Show, Read)
 
 data Expr' a
-    = EVar a Type (Ident' a)
+    = EVar a Type Ident
     | ELit a Type (Lit' a)
-    | EApp a Type (Ident' a) [Expr' a]
+    | EApp a Type Ident [Expr' a]
     | Neg a Type (Expr' a)
     | Not a (Expr' a)
     | EMul a Type (Expr' a) MulOp (Expr' a)
@@ -76,8 +74,5 @@ data MulOp = Times | Div | Mod
 data RelOp = LTH | LE | GTH | GE | EQU | NE
     deriving (Eq, Ord, Show, Read)
 
-data Ident' a = Ident a String
-    deriving (Eq, Ord, Show, Read, Functor)
-
-instance IsString Ident where
-    fromString = Ident Nothing
+newtype Ident = Ident String
+    deriving (Eq, Ord, Show, Read, IsString)
