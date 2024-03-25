@@ -11,7 +11,8 @@
         haskell-packages = nixpkgs.legacyPackages.${system}.haskell.packages;
         ghcVersion = "ghc948";
         pkgs = import nixpkgs { inherit system; };
-      in {
+      in
+      {
         packages = {
           default = haskell-packages.${ghcVersion}.developPackage {
             root = ./.;
@@ -21,17 +22,18 @@
         };
         devShells = {
           default = pkgs.mkShell {
-            nativeBuildInputs = [
-              pkgs.ghc
-              pkgs.haskell-language-server
-              pkgs.haskellPackages.cabal-install
-              pkgs.haskellPackages.fourmolu
-              pkgs.haskellPackages.hoogle
-              pkgs.haskellPackages.BNFC
-              pkgs.haskellPackages.alex
-              pkgs.haskellPackages.happy
-              pkgs.llvmPackages_latest.llvm
-              pkgs.zlib
+            nativeBuildInputs = with pkgs; [
+              just
+              ghc
+              haskell-language-server
+              haskellPackages.cabal-install
+              haskellPackages.fourmolu
+              haskellPackages.hoogle
+              haskellPackages.BNFC
+              haskellPackages.alex
+              haskellPackages.happy
+              llvmPackages_latest.llvm
+              zlib
             ];
           };
         };
