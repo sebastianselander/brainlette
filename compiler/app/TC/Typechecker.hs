@@ -64,22 +64,6 @@ infExpr = \case
     Par.EOr _ _ _ -> TODO
     Par.EApp _ ident exprs -> TODO
 
-tcExpr :: Tc.Type -> Par.Expr -> Check ()
-tcExpr typ expr = case expr of
-    Par.EVar p _ -> infExpr expr >>= void . typesMatch p typ . (: []) . typeOf
-    Par.ELitInt p _ -> void $ typesMatch p typ isNumber
-    Par.ELitDoub p _ -> void $ typesMatch p typ [Tc.Double]
-    Par.ELitTrue p -> void $ typesMatch p typ [Tc.Bool]
-    Par.ELitFalse p -> void $ typesMatch p typ [Tc.Bool]
-    Par.EString p _ -> void $ typesMatch p typ [Tc.String]
-    Par.Neg _ expr -> tcExpr typ expr
-    Par.Not _ expr -> tcExpr Tc.Bool expr
-    Par.EApp _ ident exprs -> TODO
-    Par.EMul _ l _ r -> TODO
-    Par.EAdd {} -> TODO
-    Par.ERel {} -> TODO
-    Par.EAnd _ _ _ -> TODO
-    Par.EOr _ _ _ -> TODO
 
 newtype Env = Env {variables :: Map Par.Ident (Tc.Type, [Tc.Type])}
     deriving (Show, Eq, Ord)
