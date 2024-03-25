@@ -6,12 +6,23 @@ import Brainlette.Abs qualified as Par
 import Control.Monad (unless)
 import Control.Monad.Except
 import Control.Monad.Reader
+import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import TC.Error
 import TC.Types qualified as Tc
 import Utils
 
+tc :: Par.Prog -> Either TcError Tc.Prog
+tc =
+    runIdentity
+        . runExceptT
+        . flip runReaderT (Env mempty)
+        . runTC
+        . tcProg
+
+tcProg :: Par.Prog -> Check Tc.Prog
+tcProg = TODO
 infDef :: Par.TopDef -> Check Tc.TopDef
 infDef (Par.FnDef p o'rt name o'args (Par.Block bp o'block)) = do
     let rt = convert o'rt :: Tc.Type
@@ -21,9 +32,6 @@ infDef (Par.FnDef p o'rt name o'args (Par.Block bp o'block)) = do
 
 infStmt :: [Par.Stmt] -> Check [Tc.Stmt]
 infStmt = undefined
-
-tc :: Par.Prog -> Check Tc.Prog
-tc = TODO
 
 infExpr :: Par.Expr -> Check Tc.Expr
 infExpr = \case
