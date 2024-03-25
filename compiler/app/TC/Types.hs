@@ -11,6 +11,10 @@ type Stmt = Stmt' Position
 type Item = Item' Position
 type Expr = Expr' Position
 
+type AddOp = AddOp' Position
+type MulOp = MulOp' Position
+type RelOp = RelOp' Position
+
 newtype Prog' a = Program [TopDef' a]
     deriving (Eq, Ord, Show, Read, Functor)
 
