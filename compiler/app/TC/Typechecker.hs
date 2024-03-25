@@ -12,17 +12,27 @@ import TC.Error
 import TC.Types qualified as Tc
 import Utils
 
-tc :: Par.Prog -> Either String Tc.Prog
+infDef :: Par.TopDef -> Check Tc.TopDef
+infDef (Par.FnDef p o'rt name o'args (Par.Block _ o'block)) = do
+    let rt = convert o'rt :: Tc.Type
+    let args = for o'args $ \(Par.Argument p t i) -> Tc.Argument p (convert t) (convert i)
+    block <- infStmt o'block
+    pure $ Tc.FnDef rt (convert name) args (Tc.Block block)
+
+infStmt :: [Par.Stmt] -> Check [Tc.Stmt]
+infStmt = undefined
+
+tc :: Par.Prog -> Check Tc.Prog
 tc = TODO
 
 infExpr :: Par.Expr -> Check Tc.Expr
 infExpr = \case
-    Par.EVar p i -> flip Tc.EVar (convert i) <$> lookupVar p i
-    Par.ELitInt _ n -> return (Tc.ELit Tc.Int (Tc.LitInt n))
-    Par.ELitDoub _ n -> return (Tc.ELit Tc.Double (Tc.LitDouble n))
-    Par.ELitTrue _ -> return (Tc.ELit Tc.Double (Tc.LitBool True))
-    Par.ELitFalse _ -> return (Tc.ELit Tc.Double (Tc.LitBool False))
-    Par.EString _ str -> return (Tc.ELit Tc.String (Tc.LitString str))
+    Par.EVar p i -> flip (Tc.EVar p) (convert i) <$> lookupVar p i
+    Par.ELitInt p n -> return (Tc.ELit p Tc.Int (Tc.LitInt n))
+    Par.ELitDoub p n -> return (Tc.ELit p Tc.Double (Tc.LitDouble n))
+    Par.ELitTrue p -> return (Tc.ELit p Tc.Double (Tc.LitBool True))
+    Par.ELitFalse p -> return (Tc.ELit p Tc.Double (Tc.LitBool False))
+    Par.EString p str -> return (Tc.ELit p Tc.String (Tc.LitString str))
     Par.Neg _ expr -> TODO
     Par.Not _ expr -> TODO
     Par.EApp _ ident exprs -> TODO
@@ -62,14 +72,14 @@ getDefs (Par.Program p prog) =
      in Map.fromList . for prog $ \(Par.FnDef _ rt ident args _) ->
             (ident, (convert rt, convert . argTypes $ args))
 
-lookupVar :: Position -> Par.Ident -> Check Tc.Type
+lookupVar :: Tc.Position -> Par.Ident -> Check Tc.Type
 lookupVar p i = do
     typ <- asks (Map.lookup i . variables)
     case typ of
         Just (rt, []) -> return rt
         _ -> throwError (UnboundVariable p (convert i))
 
-lookupFn :: Position -> Par.Ident -> Check (Tc.Type, [Tc.Type])
+lookupFn :: Tc.Position -> Par.Ident -> Check (Tc.Type, [Tc.Type])
 lookupFn p i = do
     typ <- asks (Map.lookup i . variables)
     case typ of
@@ -101,19 +111,20 @@ class TypeOf a where
 
 instance TypeOf Tc.Expr where
     typeOf = \case
-        Tc.EVar t _ -> t
-        Tc.ELit t _ -> t
-        Tc.Neg t _ -> t
-        Tc.Not _ -> Tc.Bool
-        Tc.EApp rt _ _ -> rt
-        Tc.EMul t _ _ _ -> t
-        Tc.EAdd t _ _ _ -> t
+        Tc.EVar _ t _ -> t
+        Tc.ELit _ t _ -> t
+        Tc.Neg _ t _ -> t
+        Tc.Not _ _ -> Tc.Bool
+        Tc.EApp _ rt _ _ -> rt
+        Tc.EMul _ t _ _ _ -> t
+        Tc.EAdd _ t _ _ _ -> t
         Tc.ERel {} -> Tc.Bool
-        Tc.EAnd _ _ -> Tc.Bool
-        Tc.EOr _ _ -> Tc.Bool
+        Tc.EAnd _ _ _ -> Tc.Bool
+        Tc.EOr _ _ _ -> Tc.Bool
 
-typesMatch :: (MonadError TcError m) => Position -> Tc.Type -> [Tc.Type] -> m ()
+typesMatch :: (MonadError TcError m) => Tc.Position -> Tc.Type -> [Tc.Type] -> m ()
 typesMatch p expected givens =
     unless (expected `elem` givens) (throwError (TypeMismatch p expected givens))
+
 isNumber :: [Tc.Type]
 isNumber = [Tc.Double, Tc.Int]
