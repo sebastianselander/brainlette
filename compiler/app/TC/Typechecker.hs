@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module TC.Typechecker where
 
@@ -22,18 +23,37 @@ tc =
         . tcProg
 
 tcProg :: Par.Prog -> Check Tc.Prog
-tcProg = TODO
+tcProg (Par.Program _ topdefs) = Tc.Program <$> mapM infDef topdefs
 
 infDef :: Par.TopDef -> Check Tc.TopDef
 infDef (Par.FnDef p o'rt name o'args (Par.Block bp o'block)) = do
     let rt = convert o'rt :: Tc.Type
     let args = for o'args $ \(Par.Argument p t i) ->
             Tc.Argument p (convert t) (convert i)
-    block <- infStmt o'block
+    block <- withArgs args $ mapM infStmt o'block
     pure $ Tc.FnDef p rt (convert name) args (Tc.Block bp block)
 
-infStmt :: [Par.Stmt] -> Check [Tc.Stmt]
-infStmt = undefined
+withArgs :: [Tc.Arg] -> Check a -> Check a
+withArgs args = local (\s -> s {variables = foldr insertArg s.variables args})
+  where
+    insertArg (Tc.Argument _ typ name) = Map.insert name (typ, [])
+
+-- TODO: We need a state...
+infStmt :: Par.Stmt -> Check Tc.Stmt
+infStmt = \case
+    Par.Empty _ -> return Tc.Empty
+    Par.BStmt pos (Par.Block bpos stmts) ->
+        Tc.BStmt pos . Tc.Block bpos <$> mapM infStmt stmts
+    Par.Decl pos typ items -> undefined
+    Par.Ass pos ident expr -> undefined
+    Par.Incr _ _ -> undefined
+    Par.Decr _ _ -> undefined
+    Par.Ret _ _ -> undefined
+    Par.VRet _ -> undefined
+    Par.Cond {} -> undefined
+    Par.CondElse {} -> undefined
+    Par.While {} -> undefined
+    Par.SExp _ _ -> undefined
 
 {- TODO: Type casting int to double is possible both ways I think, this should not be possible.
     And if it should be possible then the value needs to be floored.
@@ -94,7 +114,7 @@ infExpr = \case
         zipWithM_ (unify p) (fmap typeOf exprs') argTypes
         return (Tc.EApp p rt (convert ident) exprs')
 
-newtype Env = Env {variables :: Map Par.Ident (Tc.Type, [Tc.Type])}
+newtype Env = Env {variables :: Map Tc.Ident (Tc.Type, [Tc.Type])}
     deriving (Show, Eq, Ord)
 
 newtype Check a = TC {runTC :: ReaderT Env (Except TcError) a}
@@ -109,14 +129,14 @@ getDefs (Par.Program _ prog) =
 
 lookupVar :: Tc.Position -> Par.Ident -> Check Tc.Type
 lookupVar p i = do
-    typ <- asks (Map.lookup i . variables)
+    typ <- asks (Map.lookup (convert i) . variables)
     case typ of
         Just (rt, []) -> return rt
         _ -> throwError (UnboundVariable p (convert i))
 
 lookupFn :: Tc.Position -> Par.Ident -> Check (Tc.Type, [Tc.Type])
 lookupFn p i = do
-    typ <- asks (Map.lookup i . variables)
+    typ <- asks (Map.lookup (convert i) . variables)
     case typ of
         Just t -> return t
         _ -> throwError (UnboundVariable p (convert i))
@@ -143,23 +163,23 @@ instance Convert Par.Ident Tc.Ident where
 
 instance Convert Par.MulOp Tc.MulOp where
     convert = \case
-           Par.Times p -> Tc.Times p
-           Par.Div p -> Tc.Div p
-           Par.Mod p -> Tc.Mod p
+        Par.Times p -> Tc.Times p
+        Par.Div p -> Tc.Div p
+        Par.Mod p -> Tc.Mod p
 
 instance Convert Par.AddOp Tc.AddOp where
     convert = \case
-       Par.Plus p -> Tc.Plus p
-       Par.Minus p -> Tc.Minus p
+        Par.Plus p -> Tc.Plus p
+        Par.Minus p -> Tc.Minus p
 
 instance Convert Par.RelOp Tc.RelOp where
     convert = \case
-       Par.LTH p -> Tc.LTH p
-       Par.LE p -> Tc.LE p
-       Par.GTH p -> Tc.GTH p
-       Par.GE p -> Tc.GE p
-       Par.EQU p -> Tc.EQU p
-       Par.NE p -> Tc.NE p
+        Par.LTH p -> Tc.LTH p
+        Par.LE p -> Tc.LE p
+        Par.GTH p -> Tc.GTH p
+        Par.GE p -> Tc.GE p
+        Par.EQU p -> Tc.EQU p
+        Par.NE p -> Tc.NE p
 
 class TypeOf a where
     typeOf :: a -> Tc.Type
@@ -184,11 +204,11 @@ typesMatch p expected givens = do
 
 unify :: (MonadError TcError m) => Tc.Position -> Tc.Type -> Tc.Type -> m Tc.Type
 unify pos l r
-  | l == r = return l
-  | otherwise = case (l, r) of
-    (Tc.Int, Tc.Double) -> return Tc.Double
-    (Tc.Double, Tc.Int) -> return Tc.Double
-    _                   -> throwError (TypeMismatch pos l [r])
+    | l == r = return l
+    | otherwise = case (l, r) of
+        (Tc.Int, Tc.Double) -> return Tc.Double
+        (Tc.Double, Tc.Int) -> return Tc.Double
+        _ -> throwError (TypeMismatch pos l [r])
 
 isNumber :: [Tc.Type]
 isNumber = [Tc.Double, Tc.Int]
