@@ -14,13 +14,13 @@ type Expr = Expr' Position
 newtype Prog' a = Program [TopDef' a]
     deriving (Eq, Ord, Show, Read, Functor)
 
-data TopDef' a = FnDef Type Ident [Arg' a] (Blk' a)
+data TopDef' a = FnDef a Type Ident [Arg' a] (Blk' a)
     deriving (Eq, Ord, Show, Read, Functor)
 
 data Arg' a = Argument a Type Ident
     deriving (Eq, Ord, Show, Read, Functor)
 
-newtype Blk' a = Block [Stmt' a]
+data Blk' a = Block a [Stmt' a]
     deriving (Eq, Ord, Show, Read, Functor)
 
 data Stmt' a
