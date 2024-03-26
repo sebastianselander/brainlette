@@ -1,24 +1,23 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 
 module TC.Typechecker where
 
 import Brainlette.Abs qualified as Par
 import Control.Monad (unless, void, zipWithM_)
 import Control.Monad.Except
-import Control.Monad.Reader
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import TC.Error
 import TC.Types qualified as Tc
 import Utils
+import Control.Monad.State (StateT, MonadState, evalStateT, gets)
 
 tc :: Par.Prog -> Either TcError Tc.Prog
 tc =
     runIdentity
         . runExceptT
-        . flip runReaderT (Env mempty)
+        . flip evalStateT (Env mempty)
         . runTC
         . tcProg
 
@@ -30,13 +29,8 @@ infDef (Par.FnDef p o'rt name o'args (Par.Block bp o'block)) = do
     let rt = convert o'rt :: Tc.Type
     let args = for o'args $ \(Par.Argument p t i) ->
             Tc.Argument p (convert t) (convert i)
-    block <- withArgs args $ mapM infStmt o'block
+    block <- TODO
     pure $ Tc.FnDef p rt (convert name) args (Tc.Block bp block)
-
-withArgs :: [Tc.Arg] -> Check a -> Check a
-withArgs args = local (\s -> s {variables = foldr insertArg s.variables args})
-  where
-    insertArg (Tc.Argument _ typ name) = Map.insert name (typ, [])
 
 -- TODO: We need a state...
 infStmt :: Par.Stmt -> Check Tc.Stmt
@@ -117,8 +111,8 @@ infExpr = \case
 newtype Env = Env {variables :: Map Tc.Ident (Tc.Type, [Tc.Type])}
     deriving (Show, Eq, Ord)
 
-newtype Check a = TC {runTC :: ReaderT Env (Except TcError) a}
-    deriving (Functor, Applicative, Monad, MonadReader Env, MonadError TcError)
+newtype Check a = TC {runTC :: StateT Env (Except TcError) a}
+    deriving (Functor, Applicative, Monad, MonadState Env, MonadError TcError)
 
 -- | Extract the types from all top level definitions '⌣'
 getDefs :: Par.Prog -> Map Par.Ident (Tc.Type, [Tc.Type])
@@ -129,14 +123,14 @@ getDefs (Par.Program _ prog) =
 
 lookupVar :: Tc.Position -> Par.Ident -> Check Tc.Type
 lookupVar p i = do
-    typ <- asks (Map.lookup (convert i) . variables)
+    typ <- gets (Map.lookup (convert i) . variables)
     case typ of
         Just (rt, []) -> return rt
         _ -> throwError (UnboundVariable p (convert i))
 
 lookupFn :: Tc.Position -> Par.Ident -> Check (Tc.Type, [Tc.Type])
 lookupFn p i = do
-    typ <- asks (Map.lookup (convert i) . variables)
+    typ <- gets (Map.lookup (convert i) . variables)
     case typ of
         Just t -> return t
         _ -> throwError (UnboundVariable p (convert i))
