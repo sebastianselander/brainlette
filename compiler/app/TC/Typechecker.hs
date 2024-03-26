@@ -15,6 +15,16 @@ import Data.Map qualified as Map
 import TC.Error
 import TC.Types qualified as Tc
 import Utils
+import Debug.Trace (traceShowId, traceShowM)
+
+
+{-
+TODO:
+    - All calls to unify are potentially problematic.
+        `int x = 5.5;` may perhaps type check because the order of the arguments matter, but we don't care atm
+        fix this
+    - Should probably create a tcExpr function again...
+-}
 
 tc :: Par.Prog -> Either TcError Tc.Prog
 tc =
@@ -57,6 +67,7 @@ infStmt = \case
                 return $ Tc.NoInit pos name'
             Par.Init pos name expr -> do
                 expr' <- infExpr expr
+                traceShowM expr'
                 void $ unify pos (typeOf expr') expected
                 let name' = convert name
                 insertVar name' expected
@@ -64,7 +75,8 @@ infStmt = \case
     Par.Ass pos ident expr -> do
         typ <- lookupVar pos ident
         expr' <- infExpr expr
-        undefined
+        void $ unify pos typ (typeOf expr')
+        return $ Tc.Ass pos typ (convert ident) expr'
     Par.Incr pos var -> do
         typ <- lookupVar pos var
         unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
@@ -73,12 +85,28 @@ infStmt = \case
         typ <- lookupVar pos var
         unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
         return (Tc.Incr pos (convert var))
-    Par.Ret _ _ -> undefined
-    Par.VRet _ -> undefined
-    Par.Cond {} -> undefined
-    Par.CondElse {} -> undefined
-    Par.While {} -> undefined
-    Par.SExp _ _ -> undefined
+    Par.Ret pos expr -> undefined
+    Par.VRet pos -> undefined
+    Par.Cond pos cond stmt -> do
+        cond' <- infExpr cond
+        let condType = typeOf cond'
+        unless (isBool condType) $ throwError (TypeMismatch pos condType [bool])
+        stmt' <- infStmt stmt
+        return $ Tc.Cond pos cond' stmt'
+    Par.CondElse pos cond stmt1 stmt2 -> do
+        cond' <- infExpr cond
+        let condType = typeOf cond'
+        unless (isBool condType) $ throwError (TypeMismatch pos condType [bool])
+        stmt1' <- infStmt stmt1
+        stmt2' <- infStmt stmt2
+        return $ Tc.CondElse pos cond' stmt1' stmt2'
+    Par.While pos cond stmt -> do
+        cond' <- infExpr cond
+        let condType = typeOf cond'
+        unless (isBool condType) $ throwError (TypeMismatch pos condType [bool])
+        stmt' <- infStmt stmt
+        return $ Tc.While pos cond' stmt'
+    Par.SExp pos expr -> Tc.SExp pos <$> infExpr expr
 
 {- TODO: Type casting int to double is possible both ways I think, this should not be possible.
     And if it should be possible then the value needs to be floored.
@@ -88,8 +116,8 @@ infExpr = \case
     Par.EVar p i -> flip (Tc.EVar p) (convert i) <$> lookupVar p i
     Par.ELitInt p n -> return (Tc.ELit p int (Tc.LitInt n))
     Par.ELitDoub p n -> return (Tc.ELit p double (Tc.LitDouble n))
-    Par.ELitTrue p -> return (Tc.ELit p double (Tc.LitBool True))
-    Par.ELitFalse p -> return (Tc.ELit p double (Tc.LitBool False))
+    Par.ELitTrue p -> return (Tc.ELit p bool (Tc.LitBool True))
+    Par.ELitFalse p -> return (Tc.ELit p bool (Tc.LitBool False))
     Par.EString p str -> return (Tc.ELit p string (Tc.LitString str))
     Par.Neg pos expr -> do
         infexpr <- infExpr expr
@@ -249,9 +277,12 @@ instance TypeOf Tc.Expr where
 instance TypeOf Par.Arg where
     typeOf (Par.Argument _ typ _) = convert typ
 
+delPos :: Functor f => f Tc.Position -> f ()
+delPos = void
+
 unify :: (MonadError TcError m) => Tc.Position -> Tc.Type -> Tc.Type -> m Tc.Type
 unify pos l r
-    | l == r = return l
+    | delPos l == delPos r = return l
     | otherwise = case (l, r) of
         (Tc.Int _, Tc.Double _) -> return $ Tc.Double Nothing
         (Tc.Double _, Tc.Int _) -> return $ Tc.Double Nothing

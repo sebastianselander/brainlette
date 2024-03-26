@@ -47,7 +47,7 @@ data Item' a = NoInit a Ident | Init a Ident (Expr' a)
     deriving (Eq, Ord, Show, Read,Functor)
 
 data Type' a = Int a | Double a | Bool a | String a | Void a | Fun a (Type' a) [Type' a]
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Functor)
 
 data Expr' a
     = EVar a Type Ident
