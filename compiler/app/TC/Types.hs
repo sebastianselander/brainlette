@@ -10,6 +10,7 @@ type Blk = Blk' Position
 type Stmt = Stmt' Position
 type Item = Item' Position
 type Expr = Expr' Position
+type Type = Type' Position
 
 type AddOp = AddOp' Position
 type MulOp = MulOp' Position
@@ -45,7 +46,7 @@ data Stmt' a
 data Item' a = NoInit a Ident | Init a Ident (Expr' a)
     deriving (Eq, Ord, Show, Read,Functor)
 
-data Type = Int | Double | Bool | String | Void | Fun Type [Type]
+data Type' a = Int a | Double a | Bool a | String a | Void a | Fun a (Type' a) (Type' a)
     deriving (Eq, Ord, Show, Read)
 
 data Expr' a
