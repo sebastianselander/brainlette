@@ -150,7 +150,7 @@ instance Convert Par.Type Tc.Type where
         Par.Doub pos -> Tc.Double pos
         Par.Bool pos -> Tc.Bool pos
         Par.Void pos -> Tc.Void pos
-        Par.Fun pos rt args -> foldr @[] (Tc.Fun pos) (convert rt) (convert args)
+        Par.Fun pos rt args -> Tc.Fun pos (convert rt) (convert args)
 
 instance Convert Par.Ident Tc.Ident where
     convert (Par.Ident s) = Tc.Ident s
