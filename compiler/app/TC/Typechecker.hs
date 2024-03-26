@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module TC.Typechecker where
 
@@ -26,7 +27,15 @@ tcProg (Par.Program _ topdefs) = Tc.Program <$> mapM infDef topdefs
 
 infDef :: Par.TopDef -> TcM Tc.TopDef
 infDef (Par.FnDef p returnType name args block) = do
-    TODO
+    let fnType = Tc.Fun Nothing (convert returnType) (map typeOf args)
+    insertVar (convert name) fnType
+    blk <- inBlk $ do
+        mapM_ insertArg args
+        infBlk block
+    return (Tc.FnDef p (convert returnType) (convert name) (convert args) blk)
+
+infBlk :: Par.Blk -> TcM Tc.Blk
+infBlk = undefined
 
 -- TODO: We need a state...
 infStmt :: Par.Stmt -> TcM Tc.Stmt
@@ -101,10 +110,12 @@ infExpr = \case
         return (Tc.ERel p l' (convert op) r')
     Par.EApp p ident exprs -> do
         rt <- lookupVar p ident
-        let argTypes = TODO
-        exprs' <- mapM infExpr exprs
-        zipWithM_ (unify p) (fmap typeOf exprs') argTypes
-        return (Tc.EApp p rt (convert ident) exprs')
+        case rt of
+            Tc.Fun _ rt argTypes -> do
+                exprs' <- mapM infExpr exprs
+                zipWithM_ (unify p) (fmap typeOf exprs') argTypes
+                return (Tc.EApp p rt (convert ident) exprs')
+            _ -> throwError (ExpectedFn p rt)
 
 newtype Env = Env {variables :: [Map Tc.Ident Tc.Type]}
     deriving (Show, Eq, Ord)
@@ -176,6 +187,10 @@ instance Convert Par.RelOp Tc.RelOp where
         Par.EQU p -> Tc.EQU p
         Par.NE p -> Tc.NE p
 
+instance Convert Par.Arg Tc.Arg where
+    convert = \case
+        Par.Argument pos typ name -> Tc.Argument pos (convert typ) (convert name)
+
 class TypeOf a where
     typeOf :: a -> Tc.Type
 
@@ -191,6 +206,9 @@ instance TypeOf Tc.Expr where
         Tc.ERel {} -> Tc.Bool Nothing
         Tc.EAnd {} -> Tc.Bool Nothing
         Tc.EOr {} -> Tc.Bool Nothing
+
+instance TypeOf Par.Arg where
+    typeOf (Par.Argument _ typ _) = convert typ
 
 typesMatch :: (MonadError TcError m) => Tc.Position -> Tc.Type -> [Tc.Type] -> m Tc.Type
 typesMatch p expected givens = do
@@ -224,3 +242,19 @@ string = Tc.String Nothing
 
 bool :: Tc.Type
 bool = Tc.Bool Nothing
+
+inBlk :: TcM a -> TcM a
+inBlk ma = do 
+    pushBlk 
+    x <- ma 
+    popBlk 
+    return x
+
+pushBlk :: TcM ()
+pushBlk = modify (\s -> s {variables = mempty : s.variables})
+
+popBlk :: TcM ()
+popBlk = do
+    gets variables >>= \case
+        [] -> return ()
+        (_ : xs) -> modify (\s -> s {variables = xs})
