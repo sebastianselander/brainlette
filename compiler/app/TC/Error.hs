@@ -3,11 +3,10 @@ module TC.Error where
 import TC.Types
 
 data TcError
-    = 
-    -- | Constructor for an unbound variable error
-    UnboundVariable 
+    = -- | Constructor for an unbound variable error
+      UnboundVariable
         -- | The source code position of the error
-        Position 
+        Position
         -- | Name of the unbound variable
         Ident
     | -- | Constructor for mismatched types
@@ -16,7 +15,7 @@ data TcError
         Position
         -- | The given type
         Type
-        -- | Types that would be accepted
+        -- | Expected types
         [Type]
     | -- | Constructor for when a function type was expected
       ExpectedFn
