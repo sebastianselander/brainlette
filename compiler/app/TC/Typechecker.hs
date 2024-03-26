@@ -58,8 +58,9 @@ infExpr = \case
     Par.EString p str -> return (Tc.ELit p string (Tc.LitString str))
     Par.Neg pos expr -> do
         infexpr <- infExpr expr
-        general <- typesMatch pos (typeOf infexpr) isNumber
-        return (Tc.Neg pos general infexpr)
+        let typ = typeOf infexpr
+        unless (isNumber typ) (throwError (TypeMismatch pos typ [int, double]))
+        return (Tc.Neg pos typ infexpr)
     Par.Not pos expr -> do
         infexpr <- infExpr expr
         general <- typesMatch pos (typeOf infexpr) [bool]
@@ -100,7 +101,6 @@ infExpr = \case
         return (Tc.ERel p l' (convert op) r')
     Par.EApp p ident exprs -> do
         rt <- lookupVar p ident
-        -- TODO: Make sure it's function type
         let argTypes = TODO
         exprs' <- mapM infExpr exprs
         zipWithM_ (unify p) (fmap typeOf exprs') argTypes
@@ -127,13 +127,14 @@ lookupVar p i = do
         _ -> throwError (UnboundVariable p (convert i))
 
 insertArg :: Par.Arg -> TcM ()
-insertArg (Par.Argument pos typ name) = insertVar (convert name) (convert typ)
+insertArg (Par.Argument _ typ name) = insertVar (convert name) (convert typ)
 
 insertVar :: Tc.Ident -> Tc.Type -> TcM ()
 insertVar name typ = do
     blocks <- gets variables
     case blocks of
         [] -> modify (\s -> s {variables = [Map.singleton name typ]})
+        (x : xs) -> modify (\s -> s {variables = Map.insert name typ x : xs})
 
 {-| Type class to help converting from the parser types
   to the type checker type
@@ -175,7 +176,6 @@ instance Convert Par.RelOp Tc.RelOp where
         Par.EQU p -> Tc.EQU p
         Par.NE p -> Tc.NE p
 
-
 class TypeOf a where
     typeOf :: a -> Tc.Type
 
@@ -205,8 +205,13 @@ unify pos l r
         (Tc.Double _, Tc.Int _) -> return $ Tc.Double Nothing
         _ -> throwError (TypeMismatch pos l [r])
 
-isNumber :: [Tc.Type]
-isNumber = [Tc.Double Nothing, Tc.Int Nothing]
+isNumber :: Tc.Type -> Bool
+isNumber (Tc.Double _) = True
+isNumber (Tc.Int _) = True
+isNumber (Tc.String _) = False
+isNumber (Tc.Bool _) = False
+isNumber (Tc.Fun {}) = False
+isNumber (Tc.Void _) = False
 
 int :: Tc.Type
 int = Tc.Int Nothing
