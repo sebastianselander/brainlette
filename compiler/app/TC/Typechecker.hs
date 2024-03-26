@@ -7,16 +7,16 @@ import Brainlette.Abs qualified as Par
 import Control.Arrow ((>>>))
 import Control.Monad (unless, void, zipWithM_)
 import Control.Monad.Except
-import Control.Monad.Reader (ReaderT (runReaderT))
+import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Debug.Trace (traceShowId, traceShowM)
 import TC.Error
 import TC.Types qualified as Tc
 import Utils
-import Debug.Trace (traceShowId, traceShowM)
-
+import Data.Maybe (listToMaybe)
 
 {-
 TODO:
@@ -39,12 +39,10 @@ tcProg :: Par.Prog -> TcM Tc.Prog
 tcProg (Par.Program _ topdefs) = Tc.Program <$> mapM infDef topdefs
 
 infDef :: Par.TopDef -> TcM Tc.TopDef
-infDef (Par.FnDef p returnType name args block) = do
+infDef def@(Par.FnDef p returnType name args block) = do
     let fnType = Tc.Fun Nothing (convert returnType) (map typeOf args)
     insertVar (convert name) fnType
-    blk <- inBlk $ do
-        mapM_ insertArg args
-        infBlk block
+    blk <- pushDef def (inBlk (mapM_ insertArg args >> infBlk block))
     return (Tc.FnDef p (convert returnType) (convert name) (convert args) blk)
 
 infBlk :: Par.Blk -> TcM Tc.Blk
@@ -85,8 +83,15 @@ infStmt = \case
         typ <- lookupVar pos var
         unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
         return (Tc.Incr pos (convert var))
-    Par.Ret pos expr -> undefined
-    Par.VRet pos -> undefined
+    Par.Ret pos expr -> do
+        (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
+        expr' <- infExpr expr
+        void $ unify pos (convert rt) (typeOf expr')
+        return $ Tc.Ret pos expr'
+    Par.VRet pos -> do
+        (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
+        unless (isVoid (convert @_ @Tc.Type rt)) $ throwError (IllegalEmptyReturn pos)
+        return $ Tc.VRet pos
     Par.Cond pos cond stmt -> do
         cond' <- infExpr cond
         let condType = typeOf cond'
@@ -112,7 +117,7 @@ infStmt = \case
     And if it should be possible then the value needs to be floored.
 -}
 infExpr :: Par.Expr -> TcM Tc.Expr
-infExpr = \case
+infExpr e = pushExpr e $ case e of
     Par.EVar p i -> flip (Tc.EVar p) (convert i) <$> lookupVar p i
     Par.ELitInt p n -> return (Tc.ELit p int (Tc.LitInt n))
     Par.ELitDoub p n -> return (Tc.ELit p double (Tc.LitDouble n))
@@ -188,7 +193,7 @@ data Ctx = Ctx {defStack :: [Par.TopDef], exprStack :: [Par.Expr]}
     deriving (Show, Eq, Ord)
 
 newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
-    deriving (Functor, Applicative, Monad, MonadState Env, MonadError TcError)
+    deriving (Functor, Applicative, Monad, MonadReader Ctx, MonadState Env, MonadError TcError)
 
 -- | Extract the types from all top level definitions '⌣'
 getDefs :: Par.Prog -> Map Par.Ident (Tc.Type, [Tc.Type])
@@ -277,7 +282,7 @@ instance TypeOf Tc.Expr where
 instance TypeOf Par.Arg where
     typeOf (Par.Argument _ typ _) = convert typ
 
-delPos :: Functor f => f Tc.Position -> f ()
+delPos :: (Functor f) => f Tc.Position -> f ()
 delPos = void
 
 unify :: (MonadError TcError m) => Tc.Position -> Tc.Type -> Tc.Type -> m Tc.Type
@@ -331,6 +336,12 @@ string = Tc.String Nothing
 
 bool :: Tc.Type
 bool = Tc.Bool Nothing
+
+pushExpr :: (MonadReader Ctx m) => Par.Expr -> m a -> m a
+pushExpr e = local $ \s -> s {exprStack = e : s.exprStack}
+
+pushDef :: (MonadReader Ctx m) => Par.TopDef -> m a -> m a
+pushDef d = local $ \s -> s {defStack = d : s.defStack}
 
 inBlk :: TcM a -> TcM a
 inBlk ma = do

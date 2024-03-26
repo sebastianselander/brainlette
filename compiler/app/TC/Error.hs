@@ -29,4 +29,8 @@ data TcError
         Position
         -- | The given type
         Type
+    -- | Constructor for an illegal empty return
+    | IllegalEmptyReturn
+        -- | The source code position of the error
+        Position
     deriving (Show, Eq, Ord)
