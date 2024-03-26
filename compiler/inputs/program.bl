@@ -1,7 +1,4 @@
 int main() {
-    int x,y,z = 5;
-    boolean b = true;
-    while (b) {
-        int z = 0;
-    }
+    int x = 3 + 5.5;
+    return x;
 }
