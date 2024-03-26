@@ -23,4 +23,10 @@ data TcError
         Position
         -- | The given type
         Type
+    | -- | Constructor for when a value of a type is non-comparable
+      NotComparable
+        -- | The source code position of the error
+        Position
+        -- | The given type
+        Type
     deriving (Show, Eq, Ord)

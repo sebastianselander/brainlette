@@ -4,8 +4,10 @@
 module TC.Typechecker where
 
 import Brainlette.Abs qualified as Par
+import Control.Arrow ((>>>))
 import Control.Monad (unless, void, zipWithM_)
 import Control.Monad.Except
+import Control.Monad.Reader (ReaderT (runReaderT))
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
@@ -16,11 +18,12 @@ import Utils
 
 tc :: Par.Prog -> Either TcError Tc.Prog
 tc =
-    runIdentity
-        . runExceptT
-        . flip evalStateT (Env mempty)
-        . runTC
-        . tcProg
+    tcProg
+        >>> runTcM
+        >>> flip evalStateT (Env mempty)
+        >>> flip runReaderT (Ctx mempty mempty)
+        >>> runExceptT
+        >>> runIdentity
 
 tcProg :: Par.Prog -> TcM Tc.Prog
 tcProg (Par.Program _ topdefs) = Tc.Program <$> mapM infDef topdefs
@@ -35,18 +38,41 @@ infDef (Par.FnDef p returnType name args block) = do
     return (Tc.FnDef p (convert returnType) (convert name) (convert args) blk)
 
 infBlk :: Par.Blk -> TcM Tc.Blk
-infBlk = undefined
+infBlk (Par.Block pos stmts) = Tc.Block pos <$> mapM infStmt stmts
 
--- TODO: We need a state...
 infStmt :: Par.Stmt -> TcM Tc.Stmt
 infStmt = \case
     Par.Empty _ -> return Tc.Empty
     Par.BStmt pos (Par.Block bpos stmts) ->
         Tc.BStmt pos . Tc.Block bpos <$> mapM infStmt stmts
-    Par.Decl pos typ items -> undefined
-    Par.Ass pos ident expr -> undefined
-    Par.Incr _ _ -> undefined
-    Par.Decr _ _ -> undefined
+    Par.Decl pos typ items ->
+        let typ' = convert typ
+         in Tc.Decl pos typ' <$> mapM (tcItem typ') items
+      where
+        tcItem :: Tc.Type -> Par.Item -> TcM Tc.Item
+        tcItem expected = \case
+            Par.NoInit pos name -> do
+                let name' = convert name
+                insertVar name' expected
+                return $ Tc.NoInit pos name'
+            Par.Init pos name expr -> do
+                expr' <- infExpr expr
+                void $ unify pos (typeOf expr') expected
+                let name' = convert name
+                insertVar name' expected
+                return $ Tc.Init pos name' expr'
+    Par.Ass pos ident expr -> do
+        typ <- lookupVar pos ident
+        expr' <- infExpr expr
+        undefined
+    Par.Incr pos var -> do
+        typ <- lookupVar pos var
+        unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
+        return (Tc.Incr pos (convert var))
+    Par.Decr pos var -> do
+        typ <- lookupVar pos var
+        unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
+        return (Tc.Incr pos (convert var))
     Par.Ret _ _ -> undefined
     Par.VRet _ -> undefined
     Par.Cond {} -> undefined
@@ -72,41 +98,51 @@ infExpr = \case
         return (Tc.Neg pos typ infexpr)
     Par.Not pos expr -> do
         infexpr <- infExpr expr
-        general <- typesMatch pos (typeOf infexpr) [bool]
+        general <- unify pos (typeOf infexpr) bool
         return (Tc.Neg pos general infexpr)
     Par.EMul p l op r -> do
         l' <- infExpr l
         r' <- infExpr r
-        typleft <- typesMatch p (typeOf l') [double, int]
-        typright <- typesMatch p (typeOf r') [double, int]
-        typ <- unify p typleft typright
+        let typL = typeOf l'
+        unless (isNumber typL) $ throwError (TypeMismatch p typL [int, double])
+        let typR = typeOf r'
+        unless (isNumber typR) $ throwError (TypeMismatch p typR [int, double])
+        typ <- unify p typL typR
         return (Tc.EMul p typ l' (convert op) r')
     Par.EAdd p l op r -> do
         l' <- infExpr l
         r' <- infExpr r
-        typleft <- typesMatch p (typeOf l') [double, int]
-        typright <- typesMatch p (typeOf r') [double, int]
-        typ <- unify p typleft typright
+        let typL = typeOf l'
+        unless (isNumber typL) $ throwError (TypeMismatch p typL [int, double])
+        let typR = typeOf r'
+        unless (isNumber typR) $ throwError (TypeMismatch p typR [int, double])
+        typ <- unify p typL typR
         return (Tc.EAdd p typ l' (convert op) r')
     Par.EAnd p l r -> do
         l' <- infExpr l
         r' <- infExpr r
-        void $ typesMatch p (typeOf l') [bool]
-        void $ typesMatch p (typeOf r') [bool]
+        let typL = typeOf l'
+        unless (isBool typL) $ throwError (TypeMismatch p typL [bool])
+        let typR = typeOf r'
+        unless (isBool typR) $ throwError (TypeMismatch p typR [bool])
         return (Tc.EAnd p l' r')
     Par.EOr p l r -> do
         l' <- infExpr l
         r' <- infExpr r
-        void $ typesMatch p (typeOf l') [bool]
-        void $ typesMatch p (typeOf r') [bool]
+        let typL = typeOf l'
+        unless (isBool typL) $ throwError (TypeMismatch p typL [bool])
+        let typR = typeOf r'
+        unless (isBool typR) $ throwError (TypeMismatch p typR [bool])
         return (Tc.EOr p l' r')
     Par.ERel p l op r -> do
         l' <- infExpr l
         r' <- infExpr r
-        let equalityTypes = [string, bool, int, double]
-        tl <- typesMatch p (typeOf l') equalityTypes
-        tr <- typesMatch p (typeOf r') equalityTypes
-        void $ unify p tl tr
+        let comparableTypes = [string, bool, int, double]
+        let typL = typeOf l'
+        unless (typL `elem` comparableTypes) $ throwError (NotComparable p typL)
+        let typR = typeOf r'
+        unless (typR `elem` comparableTypes) $ throwError (NotComparable p typR)
+        void $ unify p typL typR
         return (Tc.ERel p l' (convert op) r')
     Par.EApp p ident exprs -> do
         rt <- lookupVar p ident
@@ -120,7 +156,10 @@ infExpr = \case
 newtype Env = Env {variables :: [Map Tc.Ident Tc.Type]}
     deriving (Show, Eq, Ord)
 
-newtype TcM a = TC {runTC :: StateT Env (Except TcError) a}
+data Ctx = Ctx {defStack :: [Par.TopDef], exprStack :: [Par.Expr]}
+    deriving (Show, Eq, Ord)
+
+newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
     deriving (Functor, Applicative, Monad, MonadState Env, MonadError TcError)
 
 -- | Extract the types from all top level definitions '⌣'
@@ -210,11 +249,6 @@ instance TypeOf Tc.Expr where
 instance TypeOf Par.Arg where
     typeOf (Par.Argument _ typ _) = convert typ
 
-typesMatch :: (MonadError TcError m) => Tc.Position -> Tc.Type -> [Tc.Type] -> m Tc.Type
-typesMatch p expected givens = do
-    unless (expected `elem` givens) (throwError (TypeMismatch p expected givens))
-    return expected
-
 unify :: (MonadError TcError m) => Tc.Position -> Tc.Type -> Tc.Type -> m Tc.Type
 unify pos l r
     | l == r = return l
@@ -231,6 +265,30 @@ isNumber (Tc.Bool _) = False
 isNumber (Tc.Fun {}) = False
 isNumber (Tc.Void _) = False
 
+isBool :: Tc.Type -> Bool
+isBool (Tc.Bool _) = True
+isBool _ = False
+
+isInt :: Tc.Type -> Bool
+isInt (Tc.Int _) = True
+isInt _ = False
+
+isDouble :: Tc.Type' a -> Bool
+isDouble (Tc.Double _) = True
+isDouble _ = False
+
+isString :: Tc.Type' a -> Bool
+isString (Tc.String _) = True
+isString _ = False
+
+isFun :: Tc.Type' a -> Bool
+isFun (Tc.Fun {}) = True
+isFun _ = False
+
+isVoid :: Tc.Type' a -> Bool
+isVoid (Tc.Void _) = True
+isVoid _ = False
+
 int :: Tc.Type
 int = Tc.Int Nothing
 
@@ -244,10 +302,10 @@ bool :: Tc.Type
 bool = Tc.Bool Nothing
 
 inBlk :: TcM a -> TcM a
-inBlk ma = do 
-    pushBlk 
-    x <- ma 
-    popBlk 
+inBlk ma = do
+    pushBlk
+    x <- ma
+    popBlk
     return x
 
 pushBlk :: TcM ()
