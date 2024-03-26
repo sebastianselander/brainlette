@@ -5,7 +5,6 @@
 module Ast.Types where
 
 import Data.Kind (Constraint)
-import Data.String (IsString)
 import Data.Text (Text)
 
 type family XProgram a
