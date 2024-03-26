@@ -25,6 +25,6 @@ main = do
         Right res -> return res
     hPutStrLn stderr "Type checking"
     res <- case tc res of
-        Left err -> print err *> exitFailure
+        Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
     print res

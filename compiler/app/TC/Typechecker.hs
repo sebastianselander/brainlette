@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
@@ -12,11 +13,9 @@ import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Debug.Trace (traceShowId, traceShowM)
 import TC.Error
 import TC.Types qualified as Tc
 import Utils
-import Data.Maybe (listToMaybe)
 
 {-
 TODO:
@@ -26,7 +25,7 @@ TODO:
     - Should probably create a tcExpr function again...
 -}
 
-tc :: Par.Prog -> Either TcError Tc.Prog
+tc :: Par.Prog -> Either String Tc.Prog
 tc =
     tcProg
         >>> runTcM
@@ -34,6 +33,9 @@ tc =
         >>> flip runReaderT (Ctx mempty mempty)
         >>> runExceptT
         >>> runIdentity
+        >>> \case
+            Left err -> Left $ report err
+            Right p -> Right p
 
 tcProg :: Par.Prog -> TcM Tc.Prog
 tcProg (Par.Program _ topdefs) = Tc.Program <$> mapM infDef topdefs
@@ -65,7 +67,6 @@ infStmt = \case
                 return $ Tc.NoInit pos name'
             Par.Init pos name expr -> do
                 expr' <- infExpr expr
-                traceShowM expr'
                 void $ unify pos (typeOf expr') expected
                 let name' = convert name
                 insertVar name' expected
@@ -86,11 +87,11 @@ infStmt = \case
     Par.Ret pos expr -> do
         (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
         expr' <- infExpr expr
-        void $ unify pos (convert rt) (typeOf expr')
+        void $ unify pos (typeOf expr') (convert rt)
         return $ Tc.Ret pos expr'
     Par.VRet pos -> do
         (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
-        unless (isVoid (convert @_ @Tc.Type rt)) $ throwError (IllegalEmptyReturn pos)
+        unless (isVoid (convert @_ @Tc.Type rt)) $ throwError (IllegalEmptyReturn pos (convert rt))
         return $ Tc.VRet pos
     Par.Cond pos cond stmt -> do
         cond' <- infExpr cond
@@ -170,7 +171,7 @@ infExpr e = pushExpr e $ case e of
     Par.ERel p l op r -> do
         l' <- infExpr l
         r' <- infExpr r
-        let comparableTypes = [string, bool, int, double]
+        let comparableTypes = [string, bool, int, double] :: [Tc.Type]
         let typL = typeOf l'
         unless (typL `elem` comparableTypes) $ throwError (NotComparable p typL)
         let typR = typeOf r'
@@ -286,12 +287,11 @@ delPos :: (Functor f) => f Tc.Position -> f ()
 delPos = void
 
 unify :: (MonadError TcError m) => Tc.Position -> Tc.Type -> Tc.Type -> m Tc.Type
-unify pos l r
-    | delPos l == delPos r = return l
-    | otherwise = case (l, r) of
+unify pos given expected
+    | delPos given == delPos expected = return given
+    | otherwise = case (given, expected) of
         (Tc.Int _, Tc.Double _) -> return $ Tc.Double Nothing
-        (Tc.Double _, Tc.Int _) -> return $ Tc.Double Nothing
-        _ -> throwError (TypeMismatch pos l [r])
+        _ -> throwError (TypeMismatch pos given [expected])
 
 isNumber :: Tc.Type -> Bool
 isNumber (Tc.Double _) = True
