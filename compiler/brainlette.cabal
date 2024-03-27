@@ -40,6 +40,7 @@ executable brainlette
     TC.Error
     Utils
     BMM.Bmm
+    Braingen.LlvmAst
 
   build-depends:
     , array
@@ -47,7 +48,6 @@ executable brainlette
     , containers
     , directory
     , filepath
-    , llvm-hs-pure
     , mtl
     , process
     , x86-64bit
