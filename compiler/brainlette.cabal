@@ -52,7 +52,7 @@ executable brainlette
     , process
     , x86-64bit
     , text
-    , parser
+    , barser
 
 
   hs-source-dirs:     app
