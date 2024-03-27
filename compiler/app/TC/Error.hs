@@ -67,37 +67,34 @@ instance (Report a) => Report [a] where
     report (x : xs) = "'" <> report x <> "', " <> report xs
 
 instance Report TcError where
-        report _ = "tcerror"
---     report :: TcError -> String
---     report = \case
---         UnboundVariable pos (Id _ name) ->
---             "unbound variable '" <> name <> "' at " <> report pos
---         TypeMismatch pos given expected ->
---             "type '"
---                 <> report given
---                 <> "' does not match with "
---                 <> case expected of
---                     (x :| []) -> "'" <> report x <> "'"
---                     (x :| xs) -> "one of " <> report (x : xs)
---                 <> " at "
---                 <> report pos
---         ExpectedFn pos typ ->
---             "expected a function type, but got '"
---                 <> report typ
---                 <> "' at "
---                 <> report pos
---         NotComparable pos typ ->
---             "can not perform "
---                 <> report comps
---                 <> " on '"
---                 <> report typ
---                 <> "', at "
---                 <> report pos
---         IllegalEmptyReturn pos typ ->
---             "can not use empty return where a return type of '"
---                 <> report typ
---                 <> "' is expected, at "
---                 <> report pos
---
--- comps :: [String]
--- comps = ["==", "!=", "<=", ">=", "<", ">"]
+    report = \case
+        UnboundVariable pos (Id _ name) ->
+            "unbound variable '" <> name <> "' at " <> report pos
+        TypeMismatch pos given expected ->
+            "type '"
+                <> report given
+                <> "' does not match with "
+                <> case expected of
+                    (x :| []) -> "'" <> report x <> "'"
+                    (x :| xs) -> "one of " <> report (x : xs)
+                <> " at "
+                <> report pos
+        ExpectedFn pos typ ->
+            "expected a function type, but got '"
+                <> report typ
+                <> "' at "
+                <> report pos
+        NotComparable pos typ ->
+            "can not perform "
+                <> report comps
+                <> " on '"
+                <> report typ
+                <> "', at "
+                <> report pos
+        IllegalEmptyReturn pos typ ->
+            "can not use empty return where a return type of '"
+                <> report typ
+                <> "' is expected, at "
+                <> report pos
+comps :: [Text]
+comps = ["==", "!=", "<=", ">=", "<", ">"]
