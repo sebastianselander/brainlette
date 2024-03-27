@@ -2,7 +2,7 @@ module Internal.Parser.Language where
 
 import Data.Functor.Identity (Identity)
 import Data.Text (Text, length, pack, take, stripEnd)
-import ParserTypes (Parser, Info(..))
+import ParserTypes
 import Text.Parsec (
     alphaNum,
     char,
@@ -106,7 +106,7 @@ semiSep = lexeme . P.semiSep bl
 braces :: Parser a -> Parser a
 braces = lexeme . P.braces bl
 
-info :: Parser a -> Parser (Info, a)
+info :: Parser a -> Parser (InfoSyn, a)
 info p = do
     before <- getInput
     pos <- getPosition
@@ -116,4 +116,4 @@ info p = do
     a <- p
     after <- getInput
     let code = stripEnd $ take (length before - length after) before
-    return (Info line column (pack sourceNm) code, a)
+    return (InfoSyn line column (pack sourceNm) code, a)

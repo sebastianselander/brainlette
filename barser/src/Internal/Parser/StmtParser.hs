@@ -22,10 +22,10 @@ item = choice [try init, noInit]
             _ <- reservedOp "="
             e <- expr
             return (ident, e)
-        return (Init i ident e)
+        return (InitSyn i ident e)
 
     noInit :: Parser ItemSyn
-    noInit = uncurry NoInit <$> info id
+    noInit = uncurry NoInitSyn <$> info id
 
 -- Statements
 stmt :: Parser StmtSyn
@@ -46,10 +46,10 @@ stmt =
         ]
 
 empty :: Parser StmtSyn
-empty = Empty . fst <$> info (reservedOp ";")
+empty = EmptySyn . fst <$> info (reservedOp ";")
 
 blk :: Parser StmtSyn
-blk = uncurry BStmt <$> info (braces (many stmt))
+blk = uncurry BStmtSyn <$> info (braces (many stmt))
 
 decl :: Parser StmtSyn
 decl = do
@@ -58,7 +58,7 @@ decl = do
         items <- commaSep1 item
         _ <- reservedOp ";"
         return (ty, items)
-    return $ Decl i ty items
+    return $ DeclSyn i ty items
 
 ass :: Parser StmtSyn
 ass = do
@@ -66,19 +66,19 @@ ass = do
         ident <- id
         e <- reservedOp "=" *> expr <* reservedOp ";"
         return (ident, e)
-    return (Ass i ident e)
+    return (AssSyn i ident e)
 
 incr :: Parser StmtSyn
-incr = uncurry Incr <$> info (id <* reservedOp "++" <* reservedOp ";")
+incr = uncurry IncrSyn <$> info (id <* reservedOp "++" <* reservedOp ";")
 
 decr :: Parser StmtSyn
-decr = uncurry Decr <$> info (id <* reservedOp "--" <* reservedOp ";")
+decr = uncurry DecrSyn <$> info (id <* reservedOp "--" <* reservedOp ";")
 
 ret :: Parser StmtSyn
-ret = uncurry Ret <$> info (reserved "return" *> expr <* reservedOp ";")
+ret = uncurry RetSyn <$> info (reserved "return" *> expr <* reservedOp ";")
 
 vret :: Parser StmtSyn
-vret = VRet . fst <$> info (reserved "return" *> reservedOp ";")
+vret = VRetSyn . fst <$> info (reserved "return" *> reservedOp ";")
 
 cond :: Parser StmtSyn
 cond = do
@@ -87,7 +87,7 @@ cond = do
         e <- parens expr
         s <- stmt
         return (e, s)
-    return (Cond i e s)
+    return (CondSyn i e s)
 
 condElse :: Parser StmtSyn
 condElse = do
@@ -98,7 +98,7 @@ condElse = do
         reserved "else"
         s2 <- stmt
         return (e, s1, s2)
-    return (CondElse i e s1 s2)
+    return (CondElseSyn i e s1 s2)
 
 while :: Parser StmtSyn
 while = do
@@ -107,7 +107,7 @@ while = do
         e <- parens expr
         s <- stmt
         return (e, s)
-    return (While i e s)
+    return (WhileSyn i e s)
 
 sexp :: Parser StmtSyn
-sexp = uncurry SExp <$> info (expr <* reservedOp ";")
+sexp = uncurry SExpSyn <$> info (expr <* reservedOp ";")

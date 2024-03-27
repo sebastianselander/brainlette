@@ -4,7 +4,6 @@
 module TC.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
-import Barser
 import Ast
 import ParserTypes
 import Data.Text (Text, intercalate)
@@ -13,13 +12,13 @@ data TcError
     = -- | Constructor for an unbound variable error
       UnboundVariable
         -- | The source code position of the error
-        Info
+        InfoSyn
         -- | Name of the unbound variable
         IdSyn
     | -- | Constructor for mismatched types
       TypeMismatch
         -- | The source code position of the error
-        Info
+        InfoSyn
         -- | The given type
         TypeSyn
         -- | Expected types
@@ -27,19 +26,19 @@ data TcError
     | -- | Constructor for when a function type was expected
       ExpectedFn
         -- | The source code position of the error
-        Info
+        InfoSyn
         -- | The given type
         TypeSyn
     | -- | Constructor for when a value of a type is non-comparable
       NotComparable
         -- | The source code position of the error
-        Info
+        InfoSyn
         -- | The given type
         TypeSyn
     | -- | Constructor for an illegal empty return
       IllegalEmptyReturn
         -- | The source code position of the error
-        Info
+        InfoSyn
         -- | The expected type
         TypeSyn
     deriving (Show)
@@ -47,7 +46,7 @@ data TcError
 class Report a where
     report :: a -> Text
 
-instance Report Info where
+instance Report InfoSyn where
     report _ = "info"
 
 instance Report IdSyn where
@@ -55,8 +54,8 @@ instance Report IdSyn where
 
 instance Report TypeSyn where
     report = \case
-           TVar _ id -> report id
-           Fun _ rt argTys -> intercalate " ->" (map report (argTys ++ [rt]))
+           TVarSyn _ id -> report id
+           FunSyn _ rt argTys -> intercalate " ->" (map report (argTys ++ [rt]))
 
 instance {-# OVERLAPPING #-} Report Text where
     report = id
@@ -68,7 +67,7 @@ instance (Report a) => Report [a] where
 
 instance Report TcError where
     report = \case
-        UnboundVariable pos (Id _ name) ->
+        UnboundVariable pos (IdSyn _ name) ->
             "unbound variable '" <> name <> "' at " <> report pos
         TypeMismatch pos given expected ->
             "type '"

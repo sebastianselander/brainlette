@@ -1,12 +1,6 @@
 module Internal.Parser.ExprParser where
 
 import Ast
-    ( Id(Id),
-      RelOp(GTH, EQU, NE, LE, GE, LTH),
-      MulOp(Mod, Times, Div),
-      AddOp(Minus, Plus),
-      Expr(EOr, EVar, ELitInt, ELitDouble, ELitTrue, ELitFalse, EApp,
-           EString, EAdd, EMul, ERel, Neg, Not, EAnd) )
 import Internal.Parser.Language
     ( identifier,
       integer,
@@ -17,7 +11,7 @@ import Internal.Parser.Language
       reservedOp,
       commaSep,
       info )
-import ParserTypes ( IdSyn, ExprSyn, Info(NoInfo), Parser )
+import ParserTypes
 import Text.Parsec ( choice, try )
 import Text.Parsec.Expr
     ( buildExpressionParser,
@@ -27,30 +21,30 @@ import Prelude hiding (id, length, take)
 
 --
 id :: Parser IdSyn
-id = uncurry Id <$> info identifier
+id = uncurry IdSyn <$> info identifier
 
 var :: Parser ExprSyn
-var = uncurry EVar <$> info id
+var = uncurry EVarSyn <$> info id
 
 int :: Parser ExprSyn
-int = uncurry ELitInt <$> info integer
+int = uncurry ELitIntSyn <$> info integer
 
 double :: Parser ExprSyn
-double = uncurry ELitDouble <$> info float
+double = uncurry ELitDoubleSyn <$> info float
 
 true :: Parser ExprSyn
-true = ELitTrue . fst <$> info (reserved "true")
+true = ELitTrueSyn . fst <$> info (reserved "true")
 
 false :: Parser ExprSyn
-false = ELitFalse . fst <$> info (reserved "false")
+false = ELitFalseSyn . fst <$> info (reserved "false")
 
 app :: Parser ExprSyn
 app =
-    (\(a, (b, c)) -> EApp a b c)
+    (\(a, (b, c)) -> EAppSyn a b c)
         <$> info (((,) <$> id) <*> parens (commaSep expr))
 
 string :: Parser ExprSyn
-string = uncurry EString <$> info stringLiteral
+string = uncurry EStringSyn <$> info stringLiteral
 
 atom :: Parser ExprSyn
 atom =
@@ -69,34 +63,34 @@ expr = buildExpressionParser table atom
   where
     table =
         [
-            [ Prefix (Neg . fst <$> info (reservedOp "-"))
-            , Prefix (Not . fst <$> info (reservedOp "!"))
+            [ Prefix (NegSyn . fst <$> info (reservedOp "-"))
+            , Prefix (NotSyn . fst <$> info (reservedOp "!"))
             ]
         ,
-            [ Infix (mul Times . fst <$> info (reservedOp "*")) AssocLeft
-            , Infix (mul Div . fst <$> info (reservedOp "/")) AssocLeft
-            , Infix (mul Mod . fst <$> info (reservedOp "%")) AssocLeft
+            [ Infix (mul TimesSyn . fst <$> info (reservedOp "*")) AssocLeft
+            , Infix (mul DivSyn . fst <$> info (reservedOp "/")) AssocLeft
+            , Infix (mul ModSyn . fst <$> info (reservedOp "%")) AssocLeft
             ]
         ,
-            [ Infix (add Plus . fst <$> info (reservedOp "+")) AssocLeft
-            , Infix (add Minus . fst <$> info (reservedOp "-")) AssocLeft
+            [ Infix (add PlusSyn . fst <$> info (reservedOp "+")) AssocLeft
+            , Infix (add MinusSyn . fst <$> info (reservedOp "-")) AssocLeft
             ]
         ,
-            [ Infix (rel EQU . fst <$> info (reservedOp "==")) AssocNone
-            , Infix (rel NE . fst <$> info (reservedOp "!=")) AssocNone
-            , Infix (rel LE . fst <$> info (reservedOp "<=")) AssocNone
-            , Infix (rel GE . fst <$> info (reservedOp ">=")) AssocNone
-            , Infix (rel LTH . fst <$> info (reservedOp "<")) AssocNone
-            , Infix (rel GTH . fst <$> info (reservedOp ">")) AssocNone
+            [ Infix (rel EQUSyn . fst <$> info (reservedOp "==")) AssocNone
+            , Infix (rel NESyn . fst <$> info (reservedOp "!=")) AssocNone
+            , Infix (rel LESyn . fst <$> info (reservedOp "<=")) AssocNone
+            , Infix (rel GESyn . fst <$> info (reservedOp ">=")) AssocNone
+            , Infix (rel LTHSyn . fst <$> info (reservedOp "<")) AssocNone
+            , Infix (rel GTHSyn . fst <$> info (reservedOp ">")) AssocNone
             ]
         ,
-            [ Infix (EAnd . fst <$> info (reservedOp "&&")) AssocLeft
+            [ Infix (EAndSyn . fst <$> info (reservedOp "&&")) AssocLeft
             ]
         ,
-            [ Infix (EOr . fst <$> info (reservedOp "||")) AssocLeft
+            [ Infix (EOrSyn . fst <$> info (reservedOp "||")) AssocLeft
             ]
         ]
       where
-        add op i l = EAdd i l (op NoInfo)
-        mul op i l = EMul i l (op NoInfo)
-        rel op i l = ERel i l (op NoInfo)
+        add op i l = EAddSyn i l (op NoInfoSyn)
+        mul op i l = EMulSyn i l (op NoInfoSyn)
+        rel op i l = ERelSyn i l (op NoInfoSyn)

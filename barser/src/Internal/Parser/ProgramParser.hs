@@ -1,10 +1,10 @@
 module Internal.Parser.ProgramParser where
 
-import Ast (Prog (..))
+import Ast
 import Data.Text (Text)
 import Internal.Parser.TopDefParser (topdef)
-import ParserTypes (ProgSyn, Info (NoInfo))
+import ParserTypes
 import Text.Parsec (ParseError, SourceName, many, parse)
 
 program :: SourceName -> Text -> Either ParseError ProgSyn
-program = parse (Program NoInfo <$> many topdef)
+program = parse (ProgramSyn NoInfoSyn <$> many topdef)

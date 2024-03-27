@@ -2,9 +2,7 @@
 
 module TC.Types where
 
-import Ast
 import Data.Text (Text)
-import ParserTypes (Info (..))
 
 data Tc
 
@@ -14,83 +12,94 @@ data InfoTc = InfoTc
     , sourceName :: !Text
     , sourceCode :: !Text
     , typ :: !TypeTc
-    }
-    deriving (Show)
+    } | NoInfoTc
+    deriving (Show, Eq, Ord)
 
-type ExprTc = Expr Tc
+type ExprTc = ExprTc' InfoTc
 
-type AddOpTc = AddOp Tc
+type AddOpTc = AddOpTc' InfoTc
 
-type ArgTc = Arg Tc
+type ItemTc = ItemTc' InfoTc
 
-type ItemTc = Item Tc
+type MulOpTc = MulOpTc' InfoTc
 
-type MulOpTc = MulOp Tc
+type ProgTc = ProgTc' InfoTc
 
-type ProgTc = Prog Tc
+type RelOpTc = RelOpTc' InfoTc
 
-type RelOpTc = RelOp Tc
+type StmtTc = StmtTc' InfoTc
 
-type StmtTc = Stmt Tc
+type TopDefTc = TopDefTc' InfoTc
 
-type TopDefTc = TopDef Tc
+type TypeTc = TypeTc' InfoTc
 
-type TypeTc = Type Tc
+type IdTc = IdTc' InfoTc
 
-type IdTc = Id Tc
+data ProgTc' a = ProgramTc a [TopDefTc' a]
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
-type instance XAddOp Tc     = Info
-type instance XArg Tc       = InfoTc
-type instance XArgument Tc  = Info
-type instance XAss Tc       = InfoTc
-type instance XBStmt Tc     = Info
-type instance XCond Tc      = Info
-type instance XCondElse Tc  = Info
-type instance XDecl Tc      = Info
-type instance XDecr Tc      = Info
-type instance XDiv Tc       = Info
-type instance XEAdd Tc      = InfoTc
-type instance XEAnd Tc      = Info
-type instance XEApp Tc      = InfoTc
-type instance XELitDoub Tc  = Info
-type instance XELitFalse Tc = Info
-type instance XELitInt Tc   = Info
-type instance XELitTrue Tc  = Info
-type instance XEMul Tc      = InfoTc
-type instance XEOr Tc       = Info
-type instance XEQU Tc       = Info
-type instance XERel Tc      = Info
-type instance XEString Tc   = Info
-type instance XEVar Tc      = InfoTc
-type instance XEmpty Tc     = Info
-type instance XExpr Tc      = Info
-type instance XFnDef Tc     = Info
-type instance XFun Tc       = Info
-type instance XGE Tc        = Info
-type instance XGTH Tc       = Info
-type instance XId Tc        = InfoTc
-type instance XIncr Tc      = Info
-type instance XInit Tc      = Info
-type instance XItem Tc      = Info
-type instance XLE Tc        = Info
-type instance XLTH Tc       = Info
-type instance XMinus Tc     = Info
-type instance XMod Tc       = Info
-type instance XMulOp Tc     = Info
-type instance XNE Tc        = Info
-type instance XNeg Tc       = Info
-type instance XNoInit Tc    = Info
-type instance XNot Tc       = Info
-type instance XPlus Tc      = Info
-type instance XProg Tc      = Info
-type instance XProgram Tc   = Info
-type instance XRelOp Tc     = Info
-type instance XRet Tc       = Info
-type instance XSExp Tc      = Info
-type instance XStmt Tc      = Info
-type instance XTVar Tc      = Info
-type instance XTimes Tc     = Info
-type instance XTopDef Tc    = Info
-type instance XType Tc      = Info
-type instance XVRet Tc      = Info
-type instance XWhile Tc     = Info
+data TopDefTc' a = FnDefTc a (TypeTc' a) (IdTc' a) [IdTc' a] [StmtTc' a]
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data ItemTc' a = NoInitTc a (IdTc' a) | InitTc a (IdTc' a) (ExprTc' a)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data StmtTc' a
+    = BStmtTc a [StmtTc' a]
+    | DeclTc a [ItemTc' a]
+    | AssTc a (IdTc' a) (ExprTc' a)
+    | IncrTc a (IdTc' a)
+    | DecrTc a (IdTc' a)
+    | RetTc a (ExprTc' a)
+    | VRetTc a
+    | CondTc a (ExprTc' a) (StmtTc' a)
+    | CondElseTc a (ExprTc' a) (StmtTc' a) (StmtTc' a)
+    | WhileTc a (ExprTc' a) (StmtTc' a)
+    | SExpTc a (ExprTc' a)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data TypeTc' a
+    = TVarTc a (IdTc' a)
+    | FunTc a (TypeTc' a) [TypeTc' a]
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data ExprTc' a
+    = EVarTc a (IdTc' a)
+    | ELitIntTc a Integer
+    | ELitDoubleTc a Double
+    | ELitTrueTc a
+    | ELitFalseTc a
+    | EAppTc a (IdTc' a) [ExprTc' a]
+    | EStringTc a Text
+    | NegTc a (ExprTc' a)
+    | NotTc a (ExprTc' a)
+    | EMulTc a (ExprTc' a) (MulOpTc' a) (ExprTc' a)
+    | EAddTc a (ExprTc' a) (AddOpTc' a) (ExprTc' a)
+    | ERelTc a (ExprTc' a) (RelOpTc' a) (ExprTc' a)
+    | EAndTc a (ExprTc' a) (ExprTc' a)
+    | EOrTc a (ExprTc' a) (ExprTc' a)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data AddOpTc' a
+    = PlusTc a
+    | MinusTc a
+    | AddOpXTc a
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data MulOpTc' a
+    = TimesTc a
+    | DivTc a
+    | ModTc a
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data RelOpTc' a
+    = LTHTc a
+    | LETc a
+    | GTHTc a
+    | GETc a
+    | EQUTc a
+    | NETc a
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+data IdTc' a = IdTc a Text
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)

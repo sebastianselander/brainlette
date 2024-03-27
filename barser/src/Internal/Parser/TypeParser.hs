@@ -9,7 +9,7 @@ import ParserTypes
 import Text.Parsec hiding (string)
 
 primType :: Text -> Parser TypeSyn
-primType t = (\(i,_) -> TVar i (Id i t)) <$> info (reserved (unpack t))
+primType t = (\(i,_) -> TVarSyn i (IdSyn i t)) <$> info (reserved (unpack t))
 
 int :: Parser TypeSyn
 int = primType "int"

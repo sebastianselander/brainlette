@@ -1,7 +1,7 @@
 module Internal.Parser.ArgumentParser where
 
 import ParserTypes
-import Ast (Arg(..))
+import Ast
 import Internal.Parser.Language
 import Prelude hiding (id)
 import Internal.Parser.TypeParser (typ)
@@ -13,4 +13,4 @@ arg = do
         ty <- typ
         ident <- id
         return (ty, ident)
-    return (Argument i ty ident)
+    return (ArgumentSyn i ty ident)
