@@ -2,10 +2,10 @@
 
 module Internal.Parser.TypeParser where
 
-import Internal.Ast.Types
+import Ast
 import Data.Text (Text, unpack)
 import Internal.Parser.Language
-import Internal.Parser.Types
+import ParserTypes
 import Text.Parsec hiding (string)
 
 primType :: Text -> Parser TypeSyn

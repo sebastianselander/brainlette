@@ -1,7 +1,0 @@
-SRC := "app"
-GRAMMAR_DIR := "app/Brainlette"
-
-grammar:
-    bnfc --functor -d Brainlette.cf -o "{{SRC}}"
-clean:
-    rm -rf "{{GRAMMAR_DIR}}"

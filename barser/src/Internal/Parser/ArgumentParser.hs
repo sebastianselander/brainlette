@@ -1,7 +1,7 @@
 module Internal.Parser.ArgumentParser where
 
-import Internal.Parser.Types
-import Internal.Ast.Types (Arg(..))
+import ParserTypes
+import Ast (Arg(..))
 import Internal.Parser.Language
 import Prelude hiding (id)
 import Internal.Parser.TypeParser (typ)

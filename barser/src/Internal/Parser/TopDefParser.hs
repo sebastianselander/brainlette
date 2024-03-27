@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Internal.Parser.TopDefParser where
 
-import Internal.Ast.Types (TopDef (FnDef), Id (Id))
+import Ast (TopDef (FnDef), Id (Id))
 import Internal.Parser.ArgumentParser (arg)
 import Internal.Parser.ExprParser (id)
 import Internal.Parser.Language (braces, commaSep, info, parens, reserved)
 import Internal.Parser.StmtParser (stmt)
 import Internal.Parser.TypeParser (typ)
-import Internal.Parser.Types (Parser, TopDefSyn)
+import ParserTypes (Parser, TopDefSyn)
 import Prelude hiding (id)
 import Text.Parsec ((<|>), many)
 

@@ -1,16 +1,13 @@
 cabal-version:   3.0
 name:            barser
 version:         0.1.0.0
-
 license:         MIT
 license-file:    LICENSE
 author:          sebastianselander, loafey
 maintainer:      <secret>
-
 category:        Language
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
-
 
 common warnings
   ghc-options: -Wall -Wextra
@@ -18,20 +15,19 @@ common warnings
 library
   import:           warnings
   exposed-modules:
-    Internal.Ast.Types
-    Internal.Parser.ExprParser
-    Internal.Parser.Types
-    Internal.Parser.Language
-    Internal.Parser.TypeParser
-    Internal.Parser.StmtParser
-    Internal.Parser.ArgumentParser
-    Internal.Parser.TopDefParser
-    Internal.Parser.ProgramParser
     Ast
-    Parser
+    Barser
+    Internal.Parser.ArgumentParser
+    Internal.Parser.ExprParser
+    Internal.Parser.Language
+    Internal.Parser.ProgramParser
+    Internal.Parser.StmtParser
+    Internal.Parser.TopDefParser
+    Internal.Parser.TypeParser
+    ParserTypes
 
   build-depends:
-    , base        >=4.17
+    , base    >=4.17
     , parsec
     , text
 

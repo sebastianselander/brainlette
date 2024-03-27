@@ -1,10 +1,10 @@
 module Internal.Parser.StmtParser where
 
-import Internal.Ast.Types
+import Ast
 import Internal.Parser.ExprParser
 import Internal.Parser.Language
 import Internal.Parser.TypeParser
-import Internal.Parser.Types
+import ParserTypes
 import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
 import Prelude hiding (id, init)

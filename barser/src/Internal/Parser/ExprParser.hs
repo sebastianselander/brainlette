@@ -1,6 +1,6 @@
 module Internal.Parser.ExprParser where
 
-import Internal.Ast.Types
+import Ast
     ( Id(Id),
       RelOp(GTH, EQU, NE, LE, GE, LTH),
       MulOp(Mod, Times, Div),
@@ -17,7 +17,7 @@ import Internal.Parser.Language
       reservedOp,
       commaSep,
       info )
-import Internal.Parser.Types ( IdSyn, ExprSyn, Info(NoInfo), Parser )
+import ParserTypes ( IdSyn, ExprSyn, Info(NoInfo), Parser )
 import Text.Parsec ( choice, try )
 import Text.Parsec.Expr
     ( buildExpressionParser,

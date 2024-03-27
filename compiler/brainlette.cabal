@@ -1,20 +1,13 @@
 cabal-version:   3.0
 name:            brainlette
 version:         0.1.0.0
-
--- synopsis:
--- description:
 license:         MIT
 license-file:    LICENSE
-author:          sebastianselander
-maintainer:      sebastian.selander@gmail.com
-
--- copyright:
+author:          sebastianselander, loafey
+maintainer:      <secret>
 category:        Language
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
-
--- extra-source-files:
 
 common warnings
   ghc-options: -Wall -Wextra -Wno-name-shadowing
@@ -23,26 +16,16 @@ executable brainlette
   import:             warnings
   main-is:            Main.hs
   extra-source-files: Brainlette.cf
-  build-tool-depends:
-    , alex:alex
-    , happy:happy
-
   other-extensions:   LambdaCase
   other-modules:
-    Brainlette.Lex
-    Brainlette.Par
-    Brainlette.Abs
-    Brainlette.ErrM
-    Brainlette.Print
-    Brainlette.Skel
-    TC.Typechecker
-    TC.Types
-    TC.Error
-    Utils
     BMM.Bmm
+    TC.Error
+    TC.Tc
+    Utils
 
   build-depends:
     , array
+    , barser
     , base
     , containers
     , directory
@@ -50,10 +33,8 @@ executable brainlette
     , llvm-hs-pure
     , mtl
     , process
-    , x86-64bit
     , text
-    , barser
-
+    , x86-64bit
 
   hs-source-dirs:     app
   default-language:   GHC2021

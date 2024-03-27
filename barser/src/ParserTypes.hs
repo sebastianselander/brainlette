@@ -1,8 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Internal.Parser.Types where
+module ParserTypes where
 
-import Internal.Ast.Types
+import Ast
 import Data.Text (Text)
 import Text.Parsec (Parsec)
 

@@ -2,7 +2,7 @@ module Internal.Parser.Language where
 
 import Data.Functor.Identity (Identity)
 import Data.Text (Text, length, pack, take)
-import Internal.Parser.Types (Parser, Info(..))
+import ParserTypes (Parser, Info(..))
 import Text.Parsec (
     alphaNum,
     char,
