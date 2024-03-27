@@ -1,7 +1,7 @@
 module Internal.Parser.Language where
 
 import Data.Functor.Identity (Identity)
-import Data.Text (Text, length, pack, take)
+import Data.Text (Text, length, pack, take, stripEnd)
 import ParserTypes (Parser, Info(..))
 import Text.Parsec (
     alphaNum,
@@ -115,5 +115,5 @@ info p = do
     let sourceNm = Text.Parsec.sourceName pos
     a <- p
     after <- getInput
-    let code = take (length before - length after) before
+    let code = stripEnd $ take (length before - length after) before
     return (Info line column (pack sourceNm) code, a)
