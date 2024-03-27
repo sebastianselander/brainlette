@@ -39,6 +39,7 @@ executable brainlette
     TC.Types
     TC.Error
     Utils
+    BMM.Bmm
 
   build-depends:
     , array
@@ -50,6 +51,7 @@ executable brainlette
     , mtl
     , process
     , x86-64bit
+    , text
 
   hs-source-dirs:     app
   default-language:   GHC2021
