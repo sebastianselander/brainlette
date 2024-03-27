@@ -21,7 +21,7 @@ executable brainlette
     BMM.Bmm
     TC.Error
     TC.Tc
-    Tc.Types
+    TC.Types
     Utils
 
   build-depends:
