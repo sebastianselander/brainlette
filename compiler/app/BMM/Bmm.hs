@@ -16,7 +16,7 @@ type ForallProg (f :: * -> Constraint) a =
     , f (XProg a)
     )
 
-data Prog a = Program (XProgram a) [TopDef a]
+newtype Prog a = Program [TopDef a]
 
 deriving instance
     ( ForallTopDef Show a
@@ -42,7 +42,7 @@ type ForallTopDef (f :: * -> Constraint) a =
     , f (XTopDef a)
     )
 
-data TopDef a = FnDef (XFnDef a) (Type a) (Id a) [Arg a] [Stmt a]
+data TopDef a = FnDef (Type a) (Id a) [Arg a] [Stmt a]
 
 deriving instance
     ( ForallTopDef Show a
@@ -165,8 +165,8 @@ type ForallType (f :: * -> Constraint) a =
     )
 
 data Type a
-    = TVar (XTVar a) (Id a)
-    | Fun (XFun a) (Type a) [Type a]
+    = TVar (Id a)
+    | Fun (Type a) [Type a]
 
 deriving instance (ForallType Show a, ForallId Show a) => Show (Type a)
 

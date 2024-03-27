@@ -40,6 +40,7 @@ executable brainlette
     TC.Error
     Utils
     BMM.Bmm
+    Braingen.Ir
     Braingen.LlvmAst
 
   build-depends:
