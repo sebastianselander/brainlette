@@ -52,6 +52,8 @@ executable brainlette
     , process
     , x86-64bit
     , text
+    , parser
+
 
   hs-source-dirs:     app
   default-language:   GHC2021
