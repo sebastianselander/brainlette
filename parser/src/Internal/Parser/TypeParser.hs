@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser.TypeParser where
+module Internal.Parser.TypeParser where
 
-import Ast.Types
+import Internal.Ast.Types
 import Data.Text (Text, unpack)
-import Parser.Language
-import Parser.Types
+import Internal.Parser.Language
+import Internal.Parser.Types
 import Text.Parsec hiding (string)
 
 primType :: Text -> Parser TypeSyn

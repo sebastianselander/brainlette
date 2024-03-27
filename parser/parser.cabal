@@ -22,16 +22,17 @@ common warnings
 library
   import:           warnings
   exposed-modules:
-    Ast.Types
-    Parser.ExprParser
-    Parser.Types
-    Parser.Language
-    Parser.TypeParser
-    Parser.StmtParser
-    Parser.ArgumentParser
-    Parser.TopDefParser
-    Parser.ProgramParser
-    Example
+    Internal.Ast.Types
+    Internal.Parser.ExprParser
+    Internal.Parser.Types
+    Internal.Parser.Language
+    Internal.Parser.TypeParser
+    Internal.Parser.StmtParser
+    Internal.Parser.ArgumentParser
+    Internal.Parser.TopDefParser
+    Internal.Parser.ProgramParser
+    Ast
+    Parser
 
   -- other-modules:
   -- other-extensions:

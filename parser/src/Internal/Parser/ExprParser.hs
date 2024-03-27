@@ -1,13 +1,13 @@
-module Parser.ExprParser where
+module Internal.Parser.ExprParser where
 
-import Ast.Types
+import Internal.Ast.Types
     ( Id(Id),
       RelOp(GTH, EQU, NE, LE, GE, LTH),
       MulOp(Mod, Times, Div),
       AddOp(Minus, Plus),
       Expr(EOr, EVar, ELitInt, ELitDouble, ELitTrue, ELitFalse, EApp,
            EString, EAdd, EMul, ERel, Neg, Not, EAnd) )
-import Parser.Language
+import Internal.Parser.Language
     ( identifier,
       integer,
       float,
@@ -17,7 +17,7 @@ import Parser.Language
       reservedOp,
       commaSep,
       info )
-import Parser.Types ( IdSyn, ExprSyn, Info(NoInfo), Parser )
+import Internal.Parser.Types ( IdSyn, ExprSyn, Info(NoInfo), Parser )
 import Text.Parsec ( choice, try )
 import Text.Parsec.Expr
     ( buildExpressionParser,

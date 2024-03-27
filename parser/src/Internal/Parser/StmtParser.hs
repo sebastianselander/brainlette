@@ -1,10 +1,10 @@
-module Parser.StmtParser where
+module Internal.Parser.StmtParser where
 
-import Ast.Types
-import Parser.ExprParser
-import Parser.Language
-import Parser.TypeParser
-import Parser.Types
+import Internal.Ast.Types
+import Internal.Parser.ExprParser
+import Internal.Parser.Language
+import Internal.Parser.TypeParser
+import Internal.Parser.Types
 import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
 import Prelude hiding (id, init)

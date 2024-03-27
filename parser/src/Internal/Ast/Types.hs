@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Ast.Types where
+module Internal.Ast.Types where
 
 import Data.Kind (Constraint)
 import Data.Text (Text)
