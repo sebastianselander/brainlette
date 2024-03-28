@@ -7,9 +7,9 @@ module Barser (
     typ,
 ) where
 
-import Internal.Parser.ArgumentParser (arg)
-import Internal.Parser.ExprParser (expr)
-import Internal.Parser.ProgramParser (program)
-import Internal.Parser.StmtParser (stmt)
-import Internal.Parser.TopDefParser (topdef)
-import Internal.Parser.TypeParser (typ)
+import Internal.ArgumentParser (arg)
+import Internal.ExprParser (expr)
+import Internal.ProgramParser (program)
+import Internal.StmtParser (stmt)
+import Internal.TopDefParser (topdef)
+import Internal.TypeParser (typ)

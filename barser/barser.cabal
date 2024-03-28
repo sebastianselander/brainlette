@@ -15,15 +15,14 @@ common warnings
 library
   import:           warnings
   exposed-modules:
-    Ast
     Barser
-    Internal.Parser.ArgumentParser
-    Internal.Parser.ExprParser
-    Internal.Parser.Language
-    Internal.Parser.ProgramParser
-    Internal.Parser.StmtParser
-    Internal.Parser.TopDefParser
-    Internal.Parser.TypeParser
+    Internal.ArgumentParser
+    Internal.ExprParser
+    Internal.Language
+    Internal.ProgramParser
+    Internal.StmtParser
+    Internal.TopDefParser
+    Internal.TypeParser
     ParserTypes
 
   build-depends:
