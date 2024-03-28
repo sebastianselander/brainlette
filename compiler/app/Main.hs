@@ -1,13 +1,16 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import System.Environment
 import System.Exit
 
-import Brainlette.Par (pProg, myLexer)
-import TC.Typechecker
-import System.IO (hPutStrLn, stderr)
 import System.Directory (doesFileExist)
 import Control.Monad (unless)
+import BrainletteParser
+import Data.Text (pack)
+import TC.Tc (tc)
+import Data.Text.IO (hPutStrLn)
+import System.IO (stderr, stdout)
 
 main :: IO ()
 main = do
@@ -19,11 +22,9 @@ main = do
             unless b $ hPutStrLn stderr "brainlette: file does not exist" >> exitFailure
             return file
     text <- readFile file
-    hPutStrLn stderr "Parsing"
-    res <- case pProg (myLexer text) of
+    res <- case program file (pack text) of
         Left err -> print err *> exitFailure
         Right res -> return res
-    hPutStrLn stderr "Type checking"
     res <- case tc res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res

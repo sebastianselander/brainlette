@@ -1,32 +1,34 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Internal.Parser.TypeParser where
+module Internal.TypeParser where
 
-import Internal.Ast.Types
 import Data.Text (Text, unpack)
-import Internal.Parser.Language
-import Internal.Parser.Types
+import Internal.Language
+import ParserTypes
 import Text.Parsec hiding (string)
 
-primType :: Text -> Parser TypeSyn
+primType :: Text -> Parser Type
 primType t = (\(i,_) -> TVar i (Id i t)) <$> info (reserved (unpack t))
 
-int :: Parser TypeSyn
+int :: Parser Type
 int = primType "int"
 
-double :: Parser TypeSyn
+double :: Parser Type
 double = primType "double"
 
-string :: Parser TypeSyn
+string :: Parser Type
 string = primType "string"
 
-void :: Parser TypeSyn
+void :: Parser Type
 void = primType "void"
 
-typ :: Parser TypeSyn
-typ = choice [try int, try double, try string, void]
+boolean :: Parser Type
+boolean = primType "boolean"
 
--- fun :: Parser TypeSyn
+typ :: Parser Type
+typ = choice [try boolean, try int, try double, try string, void]
+
+-- fun :: Parser Type
 -- fun = do
 --     traceShowM "fun"
 --     (i, (ty, tys)) <- info $ do

@@ -1,10 +1,9 @@
-module Internal.Parser.StmtParser where
+module Internal.StmtParser where
 
-import Internal.Ast.Types
-import Internal.Parser.ExprParser
-import Internal.Parser.Language
-import Internal.Parser.TypeParser
-import Internal.Parser.Types
+import Internal.ExprParser
+import Internal.Language
+import Internal.TypeParser
+import ParserTypes
 import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
 import Prelude hiding (id, init)
@@ -12,10 +11,10 @@ import Text.ParserCombinators.Parsec (many)
 
 -- Items
 
-item :: Parser ItemSyn
+item :: Parser Item
 item = choice [try init, noInit]
   where
-    init :: Parser ItemSyn
+    init :: Parser Item
     init = do
         (i, (ident, e)) <- info $ do
             ident <- id
@@ -24,11 +23,11 @@ item = choice [try init, noInit]
             return (ident, e)
         return (Init i ident e)
 
-    noInit :: Parser ItemSyn
+    noInit :: Parser Item
     noInit = uncurry NoInit <$> info id
 
 -- Statements
-stmt :: Parser StmtSyn
+stmt :: Parser Stmt
 stmt =
     choice
         [ try while
@@ -45,13 +44,13 @@ stmt =
         , empty
         ]
 
-empty :: Parser StmtSyn
+empty :: Parser Stmt
 empty = Empty . fst <$> info (reservedOp ";")
 
-blk :: Parser StmtSyn
+blk :: Parser Stmt
 blk = uncurry BStmt <$> info (braces (many stmt))
 
-decl :: Parser StmtSyn
+decl :: Parser Stmt
 decl = do
     (i, (ty, items)) <- info $ do
         ty <- typ
@@ -60,7 +59,7 @@ decl = do
         return (ty, items)
     return $ Decl i ty items
 
-ass :: Parser StmtSyn
+ass :: Parser Stmt
 ass = do
     (i, (ident, e)) <- info $ do
         ident <- id
@@ -68,19 +67,19 @@ ass = do
         return (ident, e)
     return (Ass i ident e)
 
-incr :: Parser StmtSyn
+incr :: Parser Stmt
 incr = uncurry Incr <$> info (id <* reservedOp "++" <* reservedOp ";")
 
-decr :: Parser StmtSyn
+decr :: Parser Stmt
 decr = uncurry Decr <$> info (id <* reservedOp "--" <* reservedOp ";")
 
-ret :: Parser StmtSyn
+ret :: Parser Stmt
 ret = uncurry Ret <$> info (reserved "return" *> expr <* reservedOp ";")
 
-vret :: Parser StmtSyn
+vret :: Parser Stmt
 vret = VRet . fst <$> info (reserved "return" *> reservedOp ";")
 
-cond :: Parser StmtSyn
+cond :: Parser Stmt
 cond = do
     (i, (e, s)) <- info $ do
         reserved "if"
@@ -89,7 +88,7 @@ cond = do
         return (e, s)
     return (Cond i e s)
 
-condElse :: Parser StmtSyn
+condElse :: Parser Stmt
 condElse = do
     (i, (e, s1, s2)) <- info $ do
         reserved "if"
@@ -100,7 +99,7 @@ condElse = do
         return (e, s1, s2)
     return (CondElse i e s1 s2)
 
-while :: Parser StmtSyn
+while :: Parser Stmt
 while = do
     (i, (e, s)) <- info $ do
         reserved "while"
@@ -109,5 +108,5 @@ while = do
         return (e, s)
     return (While i e s)
 
-sexp :: Parser StmtSyn
+sexp :: Parser Stmt
 sexp = uncurry SExp <$> info (expr <* reservedOp ";")

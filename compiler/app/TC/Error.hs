@@ -1,22 +1,26 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module TC.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
+import Data.Text (Text, cons, intercalate, pack, unlines)
+import ParserTypes (SynInfo (..))
 import TC.Types
-import Data.List (intercalate)
+import Prelude hiding (unlines)
 
 data TcError
     = -- | Constructor for an unbound variable error
       UnboundVariable
         -- | The source code position of the error
-        Position
+        SynInfo
         -- | Name of the unbound variable
-        Ident
+        Id
     | -- | Constructor for mismatched types
       TypeMismatch
         -- | The source code position of the error
-        Position
+        SynInfo
         -- | The given type
         Type
         -- | Expected types
@@ -24,40 +28,59 @@ data TcError
     | -- | Constructor for when a function type was expected
       ExpectedFn
         -- | The source code position of the error
-        Position
+        SynInfo
         -- | The given type
         Type
     | -- | Constructor for when a value of a type is non-comparable
       NotComparable
         -- | The source code position of the error
-        Position
+        SynInfo
+        -- | Comparison operator
+        RelOp
         -- | The given type
         Type
     | -- | Constructor for an illegal empty return
       IllegalEmptyReturn
         -- | The source code position of the error
-        Position
+        SynInfo
         -- | The expected type
         Type
-    deriving (Show, Eq, Ord)
+    | -- | Constructor for when the expected type was not given
+      ExpectedType
+        -- | The source code position of the error
+        SynInfo
+        -- | The expected type
+        Type
+        -- | The given type
+        Type
+    | -- | Constructor for when a number is expected
+      ExpectedNumber
+        -- | The source code position of the error
+        SynInfo
+        -- | The given type
+        Type
+    deriving (Show)
 
 class Report a where
-    report :: a -> String
+    report :: a -> Text
 
-instance Report Position where
-    report Nothing = "unknown position"
-    report (Just (row, col)) = show row <> ":" <> show col
+instance Report SynInfo where
+    report i =
+        unlines
+            [ cons star " At " <> pack (show i.sourceLine) <> ":" <> pack (show i.sourceColumn)
+            , cons star " In '" <> i.sourceCode <> "'"
+            , cons star " In the module " <> quote i.sourceName
+            ]
+
+instance Report Id where
+    report (Id a) = a
 
 instance Report Type where
     report = \case
-           Int _ -> "int"
-           Double _ -> "double"
-           Bool _ -> "boolean"
-           String _ -> "string"
-           Void _ -> "void"
-           Fun _ rt argTys -> intercalate " ->" (map report (argTys ++ [rt]))
+        TVar id -> report id
+        Fun rt argTys -> intercalate " ->" (map report (argTys ++ [rt]))
 
-instance {-# OVERLAPPING #-} Report String where
+instance {-# OVERLAPPING #-} Report Text where
     report = id
 
 instance (Report a) => Report [a] where
@@ -65,37 +88,80 @@ instance (Report a) => Report [a] where
     report [x] = "'" <> report x <> "'"
     report (x : xs) = "'" <> report x <> "', " <> report xs
 
-instance Report TcError where
-    report :: TcError -> String
+instance Report RelOp where
     report = \case
-        UnboundVariable pos (Ident name) ->
-            "unbound variable '" <> name <> "' at " <> report pos
-        TypeMismatch pos given expected ->
-            "type '"
-                <> report given
-                <> "' does not match with "
-                <> case expected of
-                    (x :| []) -> "'" <> report x <> "'"
-                    (x :| xs) -> "one of " <> report (x : xs)
-                <> " at "
-                <> report pos
-        ExpectedFn pos typ ->
-            "expected a function type, but got '"
-                <> report typ
-                <> "' at "
-                <> report pos
-        NotComparable pos typ ->
-            "can not perform "
-                <> report comps
-                <> " on '"
-                <> report typ
-                <> "', at "
-                <> report pos
-        IllegalEmptyReturn pos typ ->
-            "can not use empty return where a return type of '"
-                <> report typ
-                <> "' is expected, at "
-                <> report pos
+        LTH -> "<"
+        LE -> "<="
+        GTH -> ">"
+        GE -> ">="
+        EQU -> "=="
+        NE -> "!="
 
-comps :: [String]
-comps = ["==", "!=", "<=", ">=", "<", ">"]
+instance Report TcError where
+    report = \case
+        UnboundVariable info (Id name) ->
+            pretty $ combine ["Unbound variable '" <> name <> "'"] info
+        TypeMismatch pos given expected ->
+            pretty $ combine
+                [ "Type "
+                    <> quote (report given)
+                    <> " does not match with "
+                    <> quote
+                        ( case expected of
+                            (x :| []) -> "'" <> report x <> "'"
+                            (x :| xs) -> "one of " <> report (x : xs)
+                        )
+                ]
+                pos
+        ExpectedFn pos typ ->
+            pretty $ combine
+                [ "Expected a function type, but got "
+                    <> quote (report typ)
+                ]
+                pos
+        NotComparable info op typ ->
+            pretty $ combine
+                [ "Can't perform "
+                    <> quote (report op)
+                    <> " on type "
+                    <> quote (report typ)
+                ]
+                info
+        IllegalEmptyReturn pos typ ->
+            pretty $ combine
+                [ "Can not use empty return where a return type of "
+                    <> quote (report typ)
+                    <> " is expected"
+                ]
+                pos
+        ExpectedType info expected given ->
+            pretty $ combine
+                [ "Couldn't match expected type "
+                    <> quote (report expected)
+                    <> " with actual type "
+                    <> quote (report given)
+                ]
+                info
+        ExpectedNumber info ty ->
+            pretty $ combine ["Expected a numeric type, but got " <> quote (report ty)] info
+
+quote :: Text -> Text
+quote s = "'" <> s <> "'"
+
+pretty :: [Text] -> Text
+pretty [] = ""
+pretty (x:xs) = unlines (bold x : xs)
+
+-- TODO: Implement
+bold :: Text -> Text
+bold s = s
+
+combine :: (Report a) => [Text] -> a -> [Text]
+combine xs info = go xs <> [report info]
+  where
+    go :: [Text] -> [Text]
+    go [] = []
+    go (x : xs) = cons star (cons ' ' x) : go xs
+
+star :: Char
+star = '•'

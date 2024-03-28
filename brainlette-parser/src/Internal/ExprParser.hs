@@ -1,13 +1,6 @@
-module Internal.Parser.ExprParser where
+module Internal.ExprParser where
 
-import Internal.Ast.Types
-    ( Id(Id),
-      RelOp(GTH, EQU, NE, LE, GE, LTH),
-      MulOp(Mod, Times, Div),
-      AddOp(Minus, Plus),
-      Expr(EOr, EVar, ELitInt, ELitDouble, ELitTrue, ELitFalse, EApp,
-           EString, EAdd, EMul, ERel, Neg, Not, EAnd) )
-import Internal.Parser.Language
+import Internal.Language
     ( identifier,
       integer,
       float,
@@ -17,7 +10,7 @@ import Internal.Parser.Language
       reservedOp,
       commaSep,
       info )
-import Internal.Parser.Types ( IdSyn, ExprSyn, Info(NoInfo), Parser )
+import ParserTypes
 import Text.Parsec ( choice, try )
 import Text.Parsec.Expr
     ( buildExpressionParser,
@@ -26,33 +19,33 @@ import Text.Parsec.Expr
 import Prelude hiding (id, length, take)
 
 --
-id :: Parser IdSyn
+id :: Parser Id
 id = uncurry Id <$> info identifier
 
-var :: Parser ExprSyn
+var :: Parser Expr
 var = uncurry EVar <$> info id
 
-int :: Parser ExprSyn
+int :: Parser Expr
 int = uncurry ELitInt <$> info integer
 
-double :: Parser ExprSyn
+double :: Parser Expr
 double = uncurry ELitDouble <$> info float
 
-true :: Parser ExprSyn
+true :: Parser Expr
 true = ELitTrue . fst <$> info (reserved "true")
 
-false :: Parser ExprSyn
+false :: Parser Expr
 false = ELitFalse . fst <$> info (reserved "false")
 
-app :: Parser ExprSyn
+app :: Parser Expr
 app =
     (\(a, (b, c)) -> EApp a b c)
         <$> info (((,) <$> id) <*> parens (commaSep expr))
 
-string :: Parser ExprSyn
+string :: Parser Expr
 string = uncurry EString <$> info stringLiteral
 
-atom :: Parser ExprSyn
+atom :: Parser Expr
 atom =
     choice
         [ try int
@@ -64,7 +57,7 @@ atom =
         , var
         ]
 
-expr :: Parser ExprSyn
+expr :: Parser Expr
 expr = buildExpressionParser table atom
   where
     table =
