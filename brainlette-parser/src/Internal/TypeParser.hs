@@ -22,8 +22,11 @@ string = primType "string"
 void :: Parser Type
 void = primType "void"
 
+boolean :: Parser Type
+boolean = primType "boolean"
+
 typ :: Parser Type
-typ = choice [try int, try double, try string, void]
+typ = choice [try boolean, try int, try double, try string, void]
 
 -- fun :: Parser Type
 -- fun = do

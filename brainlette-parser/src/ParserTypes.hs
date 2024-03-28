@@ -4,6 +4,7 @@ module ParserTypes where
 
 import Data.Text (Text)
 import Text.Parsec (Parsec)
+import GHC.Generics
 
 type Parser a = Parsec Text () a
 
@@ -15,7 +16,7 @@ data SynInfo
         , sourceCode :: !Text
         }
     | NoInfo
-    deriving (Show)
+    deriving (Show, Eq, Ord, Generic)
 
 type Expr = Expr' SynInfo
 type AddOp = AddOp' SynInfo
@@ -82,7 +83,6 @@ data Expr' a
 data AddOp' a
     = Plus a
     | Minus a
-    | AddOpX a
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
 data MulOp' a

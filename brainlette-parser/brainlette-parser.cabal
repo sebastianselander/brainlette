@@ -1,5 +1,5 @@
 cabal-version:   3.0
-name:            barser
+name:            brainlette-parser
 version:         0.1.0.0
 license:         MIT
 license-file:    LICENSE
@@ -15,7 +15,7 @@ common warnings
 library
   import:           warnings
   exposed-modules:
-    Barser
+    BrainletteParser
     Internal.ArgumentParser
     Internal.ExprParser
     Internal.Language

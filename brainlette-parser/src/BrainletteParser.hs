@@ -1,4 +1,4 @@
-module Barser (
+module BrainletteParser (
     arg,
     expr,
     program,
