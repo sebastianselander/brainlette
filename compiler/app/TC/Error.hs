@@ -5,10 +5,10 @@
 module TC.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.Text (Text, cons, intercalate, pack, unlines)
+import Data.Text (Text, cons, intercalate, pack, unlines, unwords)
 import ParserTypes (SynInfo (..))
 import TC.Types
-import Prelude hiding (unlines)
+import Prelude hiding (unlines, unwords)
 
 data TcError
     = -- | Constructor for an unbound variable error
@@ -67,8 +67,8 @@ class Report a where
 instance Report SynInfo where
     report i =
         unlines
-            [ cons star " At " <> pack (show i.sourceLine) <> ":" <> pack (show i.sourceColumn)
-            , cons star " In '" <> i.sourceCode <> "'"
+            [ cons star " In '" <> i.sourceCode <> "'"
+            , cons star " At " <> pack (show i.sourceLine) <> ":" <> pack (show i.sourceColumn)
             , cons star " In the module " <> quote i.sourceName
             ]
 
@@ -136,11 +136,7 @@ instance Report TcError where
                 pos
         ExpectedType info expected given ->
             pretty $ combine
-                [ "Couldn't match expected type "
-                    <> quote (report expected)
-                    <> " with actual type "
-                    <> quote (report given)
-                ]
+                [unwords ["Expected type ", quote (report expected), " but got ", quote (report given)]]
                 info
         ExpectedNumber info ty ->
             pretty $ combine ["Expected a numeric type, but got " <> quote (report ty)] info
