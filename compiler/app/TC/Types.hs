@@ -1,105 +1,91 @@
-{-# LANGUAGE TypeFamilies #-}
-
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 module TC.Types where
 
+import Data.String (IsString)
 import Data.Text (Text)
 
-data Tc
+newtype Prog = Program [TopDef]
+    deriving (Eq, Ord, Show, Read)
 
-data InfoTc = InfoTc
-    { sourceLine :: !Int
-    , sourceColumn :: !Int
-    , sourceName :: !Text
-    , sourceCode :: !Text
-    , typ :: !TypeTc
-    } | NoInfoTc
-    deriving (Show, Eq, Ord)
+data TopDef = FnDef Type Id [Arg] [Stmt]
+    deriving (Eq, Ord, Show, Read)
 
-type ExprTc = ExprTc' InfoTc
+data Arg = Argument Type Id
+    deriving (Eq, Ord, Show, Read)
 
-type AddOpTc = AddOpTc' InfoTc
+data Stmt
+    = BStmt [Stmt]
+    | Decl Type [Item]
+    | Ass Id Expr
+    | Incr Type Id
+    | Decr Type Id
+    | Ret Expr
+    | VRet
+    | Cond Expr Stmt
+    | CondElse Expr Stmt Stmt
+    | While Expr Stmt
+    | SExp Expr
+    deriving (Eq, Ord, Show, Read)
 
-type ItemTc = ItemTc' InfoTc
+data Item = NoInit Id | Init Id Expr
+    deriving (Eq, Ord, Show, Read)
 
-type MulOpTc = MulOpTc' InfoTc
+data Type
+    = TVar Id
+    | Fun Type [Type]
+    deriving (Eq, Ord, Show, Read)
 
-type ProgTc = ProgTc' InfoTc
+pattern Int :: Type
+pattern Int <- TVar (Id "int")
+  where Int = TVar (Id "int")
 
-type RelOpTc = RelOpTc' InfoTc
+pattern Double :: Type
+pattern Double <- TVar (Id "double")
+  where Double = TVar (Id "double")
 
-type StmtTc = StmtTc' InfoTc
+pattern String :: Type
+pattern String <- TVar (Id "string")
+  where String = TVar (Id "string")
 
-type TopDefTc = TopDefTc' InfoTc
+pattern Boolean :: Type
+pattern Boolean <- TVar (Id "boolean")
+  where Boolean = TVar (Id "boolean")
 
-type TypeTc = TypeTc' InfoTc
+pattern Void :: Type
+pattern Void <- TVar (Id "void")
+  where Void = TVar (Id "void")
 
-type IdTc = IdTc' InfoTc
+type Expr = (Type, Expr')
 
-data ProgTc' a = ProgramTc a [TopDefTc' a]
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+data Expr'
+    = EVar Id
+    | ELit Lit
+    | EApp Id [Expr]
+    | Neg Expr
+    | Not Expr
+    | EMul Expr MulOp Expr
+    | EAdd Expr AddOp Expr
+    | ERel Expr RelOp Expr
+    | EAnd Expr Expr
+    | EOr Expr Expr
+    deriving (Eq, Ord, Show, Read)
 
-data TopDefTc' a = FnDefTc a (TypeTc' a) (IdTc' a) [IdTc' a] [StmtTc' a]
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+data Lit
+    = LitInt Integer
+    | LitDouble Double
+    | LitBool Bool
+    | LitString Text
+    deriving (Eq, Ord, Show, Read)
 
-data ItemTc' a = NoInitTc a (IdTc' a) | InitTc a (IdTc' a) (ExprTc' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+data AddOp = Plus | Minus
+    deriving (Eq, Ord, Show, Read)
 
-data StmtTc' a
-    = BStmtTc a [StmtTc' a]
-    | DeclTc a [ItemTc' a]
-    | AssTc a (IdTc' a) (ExprTc' a)
-    | IncrTc a (IdTc' a)
-    | DecrTc a (IdTc' a)
-    | RetTc a (ExprTc' a)
-    | VRetTc a
-    | CondTc a (ExprTc' a) (StmtTc' a)
-    | CondElseTc a (ExprTc' a) (StmtTc' a) (StmtTc' a)
-    | WhileTc a (ExprTc' a) (StmtTc' a)
-    | SExpTc a (ExprTc' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+data MulOp = Times | Div | Mod
+    deriving (Eq, Ord, Show, Read)
 
-data TypeTc' a
-    = TVarTc a (IdTc' a)
-    | FunTc a (TypeTc' a) [TypeTc' a]
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+data RelOp = LTH | LE | GTH | GE | EQU | NE
+    deriving (Eq, Ord, Show, Read)
 
-data ExprTc' a
-    = EVarTc a (IdTc' a)
-    | ELitIntTc a Integer
-    | ELitDoubleTc a Double
-    | ELitTrueTc a
-    | ELitFalseTc a
-    | EAppTc a (IdTc' a) [ExprTc' a]
-    | EStringTc a Text
-    | NegTc a (ExprTc' a)
-    | NotTc a (ExprTc' a)
-    | EMulTc a (ExprTc' a) (MulOpTc' a) (ExprTc' a)
-    | EAddTc a (ExprTc' a) (AddOpTc' a) (ExprTc' a)
-    | ERelTc a (ExprTc' a) (RelOpTc' a) (ExprTc' a)
-    | EAndTc a (ExprTc' a) (ExprTc' a)
-    | EOrTc a (ExprTc' a) (ExprTc' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
-
-data AddOpTc' a
-    = PlusTc a
-    | MinusTc a
-    | AddOpXTc a
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
-
-data MulOpTc' a
-    = TimesTc a
-    | DivTc a
-    | ModTc a
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
-
-data RelOpTc' a
-    = LTHTc a
-    | LETc a
-    | GTHTc a
-    | GETc a
-    | EQUTc a
-    | NETc a
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
-
-data IdTc' a = IdTc a Text
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+newtype Id = Id Text
+    deriving (Eq, Ord, Show, Read, IsString)

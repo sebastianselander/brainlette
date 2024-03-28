@@ -15,7 +15,6 @@ common warnings
 executable brainlette
   import:             warnings
   main-is:            Main.hs
-  extra-source-files: Brainlette.cf
   other-extensions:   LambdaCase
   other-modules:
     BMM.Bmm
@@ -26,7 +25,8 @@ executable brainlette
 
   build-depends:
     , array
-    , barser
+    , brainlette-parser
+    , extra
     , base
     , containers
     , directory

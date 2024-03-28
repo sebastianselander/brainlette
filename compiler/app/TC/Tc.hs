@@ -1,220 +1,280 @@
-{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# OPTIONS_GHC -fextended-default-rules #-}
 
 module TC.Tc where
 
-import ParserTypes
-import Ast
-import Control.Arrow ((>>>))
-import Control.Monad (unless, void, zipWithM_)
+import Control.Arrow (first, (>>>))
+import Control.Monad (unless)
 import Control.Monad.Except
+import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Data.Tuple.Extra (uncurry3)
+import ParserTypes qualified as Par
 import TC.Error
-import TC.Types
-import Utils
+import TC.Types qualified as Tc
 
-{-
-TODO:
-    - All calls to unify are potentially problematic.
-        `int x = 5.5;` may perhaps type check because the order of the arguments matter, but we don't care atm
-        fix this
-    - Should probably create a tcExpr function again...
--}
+tc :: Par.Prog -> Either Text Tc.Prog
+tc p =
+    ( tcProg >>> runTcM >>> flip evalStateT (addDefs p) >>> flip runReaderT (Ctx mempty mempty) >>> runExceptT >>> runIdentity >>> \case
+        Left err -> Left $ report err
+        Right p -> Right p
+    )
+        p
 
-tc :: ProgSyn -> Either String ProgTc
-tc =
-    tcProg
-        >>> runTcM
-        >>> flip evalStateT (Env mempty)
-        >>> flip runReaderT (Ctx mempty mempty)
-        >>> runExceptT
-        >>> runIdity
-        >>> \case
-            Left err -> Left $ report err
-            Right p -> Right p
+tcProg :: Par.Prog -> TcM Tc.Prog
+tcProg (Par.Program _ defs) = Tc.Program <$> mapM infDef defs
 
-tcProg :: ProgSyn -> TcM ProgTc
-tcProg (ProgramSyn _ topdefs) = ProgramTc <$> mapM infDef topdefs
+infDef :: Par.TopDef -> TcM Tc.TopDef
+infDef def@(Par.FnDef _ rt name args block) = do
+    let rt' = convert rt
+    let name' = convert name
+    let fnType = Tc.Fun rt' (map typeOf args)
+    insertVar name' fnType
+    block' <- pushDef def $ inBlock do
+        mapM_ insertArg args
+        mapMaybeM infStmt block
+    return (Tc.FnDef rt' name' (convert args) block')
 
-infDef :: TopDefSyn -> TcM TopDefTc
-infDef def@(FnDefSyn p returnType name args block) = do
-    let fnType = FunTc Nothing (convert returnType) (map typeOf args)
-    insertVar (convert name) fnType
-    blk <- pushDef def (inBlk (mapM_ insertArg args >> infBlk block))
-    return (FnDefTc p (convert returnType) (convert name) (convert args) blk)
-
-infStmt :: StmtSyn -> TcM StmtTc
+infStmt :: Par.Stmt -> TcM (Maybe Tc.Stmt)
 infStmt = \case
-    EmptySyn _ -> return EmptyTc
-    DeclSyn pos typ items ->
+    Par.Empty _ -> return Nothing
+    Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM infStmt stmts
+    Par.Decl _ typ items -> do
         let typ' = convert typ
-         in DeclTc pos typ' <$> mapM (tcItem typ') items
+         in Just . Tc.Decl typ' <$> mapM (tcItem typ') items
       where
-        tcItem :: TypeTc -> ItemSyn -> TcM ItemTc
+        tcItem :: Tc.Type -> Par.Item -> TcM Tc.Item
         tcItem expected = \case
-            NoInitSyn pos name -> do
+            Par.NoInit _ name -> do
                 let name' = convert name
                 insertVar name' expected
-                return $ NoInitTc pos name'
-            InitSyn pos name expr -> do
-                expr' <- infExpr expr
-                void $ unify pos (typeOf expr') expected
+                return $ Tc.NoInit name'
+            Par.Init info name expr -> do
+                (ty, expr') <- infExpr expr
+                ty' <- unify info expected ty
                 let name' = convert name
-                insertVar name' expected
-                return $ InitTc pos name' expr'
-    AssSyn pos ident expr -> do
-        typ <- lookupVar pos ident
-        expr' <- infExpr expr
-        void $ unify pos typ (typeOf expr')
-        return $ AssTc pos typ (convert ident) expr'
-    IncrSyn pos var -> do
-        typ <- lookupVar pos var
-        unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
-        return (IncrTc pos (convert var))
-    DecrSyn pos var -> do
-        typ <- lookupVar pos var
-        unless (isNumber typ) (throwError (TypeMismatch pos typ [double, int]))
-        return (IncrTc pos (convert var))
-    RetSyn pos expr -> do
-        (FnDefSyn _ rt _ _ _) <- asks (head . defStack)
-        expr' <- infExpr expr
-        void $ unify pos (typeOf expr') (convert rt)
-        return $ RetTc pos expr'
-    VRetSyn pos -> do
-        (FnDefSyn _ rt _ _ _) <- asks (head . defStack)
-        unless (isVoid (convert @_ @TypeTc rt)) $ throwError (IllegalEmptyReturn pos (convert rt))
-        return $ VRetTc pos
-    CondSyn pos cond stmt -> do
+                insertVar name' ty
+                return $ Tc.Init name' (ty', expr')
+    Par.Ass info ident expr -> do
+        identTy <- lookupVar info ident
+        (ty, expr') <- infExpr expr
+        ty' <- unify info identTy ty
+        return (Just (Tc.Ass (convert ident) (ty', expr')))
+    Par.Incr info var -> do
+        typ <- lookupVar info var
+        errNotNumber info typ
+        return (Just (Tc.Incr typ (convert var)))
+    Par.Decr info var -> do
+        typ <- lookupVar info var
+        errNotNumber info typ
+        return (Just (Tc.Incr typ (convert var)))
+    Par.Ret info expr -> do
+        (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
+        (ty, expr') <- infExpr expr
+        ty' <- unify info (convert rt) ty
+        return (Just (Tc.Ret (ty', expr')))
+    Par.VRet pos -> do
+        (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
+        unless (isVoid (convert rt)) $ throwError (IllegalEmptyReturn pos (convert rt))
+        return (Just Tc.VRet)
+    Par.Cond _ cond stmt -> do
         cond' <- infExpr cond
-        let condType = typeOf cond'
-        unless (isBool condType) $ throwError (TypeMismatch pos condType [bool])
+        errNotBoolean (hasInfo cond) (typeOf cond')
         stmt' <- infStmt stmt
-        return $ CondTc pos cond' stmt'
-    CondElseSyn pos cond stmt1 stmt2 -> do
+        let statement = fromMaybe (Tc.BStmt []) stmt'
+        return $ Just (Tc.Cond cond' statement)
+    Par.CondElse _ cond stmt1 stmt2 -> do
         cond' <- infExpr cond
-        let condType = typeOf cond'
-        unless (isBool condType) $ throwError (TypeMismatch pos condType [bool])
-        stmt1' <- infStmt stmt1
-        stmt2' <- infStmt stmt2
-        return $ CondElseTc pos cond' stmt1' stmt2'
-    WhileSyn pos cond stmt -> do
+        errNotBoolean (hasInfo cond) (typeOf cond')
+        stmt1' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt1
+        stmt2' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt2
+        return (Just (Tc.CondElse cond' stmt1' stmt2'))
+    Par.While _ cond stmt -> do
         cond' <- infExpr cond
-        let condType = typeOf cond'
-        unless (isBool condType) $ throwError (TypeMismatch pos condType [bool])
-        stmt' <- infStmt stmt
-        return $ WhileTc pos cond' stmt'
-    SExpSyn pos expr -> SExpTc pos <$> infExpr expr
+        errNotBoolean (hasInfo cond) (typeOf cond')
+        stmt' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt
+        return (Just (Tc.While cond' stmt'))
+    Par.SExp _ expr -> Just . Tc.SExp <$> infExpr expr
 
-{- TODO: Type casting int to double is possible both ways I think, this should not be possible.
-    And if it should be possible then the value needs to be floored.
--}
-infExpr :: ExprSyn -> TcM ExprTc
+infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
-    EVarSyn p i -> flip (EVarTc p) (convert i) <$> lookupVar p i
-    ELitIntSyn p n -> return (ELitTc p int (LitIntTc n))
-    ELitDoubleSyn p n -> return (ELitTc p double (LitDoubleTc n))
-    ELitTrueSyn p -> return (ELitTc p bool (LitBoolTc True))
-    ELitFalseSyn p -> return (ELitTc p bool (LitBoolTc False))
-    EStringSyn p str -> return (ELitTc p string (LitStringTc str))
-    NegSyn pos expr -> do
-        infexpr <- infExpr expr
-        let typ = typeOf infexpr
-        unless (isNumber typ) (throwError (TypeMismatch pos typ [int, double]))
-        return (NegTc pos typ infexpr)
-    NotSyn pos expr -> do
-        infexpr <- infExpr expr
-        general <- unify pos (typeOf infexpr) bool
-        return (NegTc pos general infexpr)
-    EMulSyn p l op r -> do
+    Par.ELitInt _ n -> return (Tc.Int, Tc.ELit (Tc.LitInt n))
+    Par.ELitDouble _ n -> return (Tc.Double, Tc.ELit (Tc.LitDouble n))
+    Par.ELitTrue _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool True))
+    Par.ELitFalse _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool False))
+    Par.EString _ str -> return (Tc.Boolean, Tc.ELit (Tc.LitString str))
+    Par.EVar p i -> do
+        ty <- lookupVar p i
+        return (ty, Tc.EVar (convert i))
+    Par.Neg info expr -> do
+        expr' <- infExpr expr
+        let ty = typeOf expr'
+        errNotNumber info ty
+        return (ty, Tc.Neg expr')
+    Par.Not info expr -> do
+        expr' <- infExpr expr
+        let ty = typeOf expr'
+        errNotBoolean info ty
+        return (ty, Tc.Not expr')
+    Par.EMul info l op r -> do
+        (tyl, l') <- infExpr l
+        errNotNumber info tyl
+        (tyr, r') <- infExpr r
+        errNotNumber info tyr
+        let ty = case (tyl, tyr) of
+                (Tc.Double, _) -> Tc.Double
+                (_, Tc.Double) -> Tc.Double
+                _ -> tyl
+        return (ty, Tc.EMul (ty, l') (convert op) (ty, r'))
+    Par.EAdd info l op r -> do
+        (tyl, l') <- infExpr l
+        errNotNumber info tyl
+        (tyr, r') <- infExpr r
+        errNotNumber info tyr
+        let ty = case (tyl, tyr) of
+                (Tc.Double, _) -> Tc.Double
+                (_, Tc.Double) -> Tc.Double
+                _ -> tyl
+        return (ty, Tc.EAdd (ty, l') (convert op) (ty, r'))
+    Par.EAnd info l r -> do
+        l' <- infExpr l
+        errNotBoolean info (typeOf l')
+        r' <- infExpr r
+        errNotBoolean info (typeOf r')
+        return (Tc.Boolean, Tc.EAnd l' r')
+    Par.EOr info l r -> do
+        l' <- infExpr l
+        errNotBoolean info (typeOf l')
+        r' <- infExpr r
+        errNotBoolean info (typeOf r')
+        return (Tc.Boolean, Tc.EOr l' r')
+    Par.ERel info l op r -> do
         l' <- infExpr l
         r' <- infExpr r
-        let typL = typeOf l'
-        unless (isNumber typL) $ throwError (TypeMismatch p typL [int, double])
-        let typR = typeOf r'
-        unless (isNumber typR) $ throwError (TypeMismatch p typR [int, double])
-        typ <- unify p typL typR
-        return (EMulTc p typ l' (convert op) r')
-    EAddSyn p l op r -> do
-        l' <- infExpr l
-        r' <- infExpr r
-        let typL = typeOf l'
-        unless (isNumber typL) $ throwError (TypeMismatch p typL [int, double])
-        let typR = typeOf r'
-        unless (isNumber typR) $ throwError (TypeMismatch p typR [int, double])
-        typ <- unify p typL typR
-        return (EAddTc p typ l' (convert op) r')
-    EAndSyn p l r -> do
-        l' <- infExpr l
-        r' <- infExpr r
-        let typL = typeOf l'
-        unless (isBool typL) $ throwError (TypeMismatch p typL [bool])
-        let typR = typeOf r'
-        unless (isBool typR) $ throwError (TypeMismatch p typR [bool])
-        return (EAndTc p l' r')
-    EOrSyn p l r -> do
-        l' <- infExpr l
-        r' <- infExpr r
-        let typL = typeOf l'
-        unless (isBool typL) $ throwError (TypeMismatch p typL [bool])
-        let typR = typeOf r'
-        unless (isBool typR) $ throwError (TypeMismatch p typR [bool])
-        return (EOrTc p l' r')
-    ERelSyn p l op r -> do
-        l' <- infExpr l
-        r' <- infExpr r
-        let comparableTypes = [string, bool, int, double] :: [TypeTc]
-        let typL = typeOf l'
-        unless (typL `elem` comparableTypes) $ throwError (NotComparable p typL)
-        let typR = typeOf r'
-        unless (typR `elem` comparableTypes) $ throwError (NotComparable p typR)
-        void $ unify p typL typR
-        return (ERelTc p l' (convert op) r')
-    EAppSyn p ident exprs -> do
-        rt <- lookupVar p ident
-        case rt of
-            FunTc _ rt argTypes -> do
+        ty <- case (typeOf l', typeOf r') of
+            (Tc.Double, Tc.Int) -> return Tc.Double
+            (Tc.Int, Tc.Double) -> return Tc.Double
+            (l, r)
+                | l == r -> return l
+                | otherwise -> throwError (TypeMismatch info l [r])
+        return (ty, Tc.ERel l' (convert op) r')
+    Par.EApp p ident exprs -> do
+        ty <- lookupVar p ident
+        case ty of
+            Tc.Fun rt argtys -> do
+                let infos = map hasInfo exprs
                 exprs' <- mapM infExpr exprs
-                zipWithM_ (unify p) (fmap typeOf exprs') argTypes
-                return (EAppTc p rt (convert ident) exprs')
-            _ -> throwError (ExpectedFn p rt)
+                let infoTys = zip3 infos argtys (map typeOf exprs')
+                mapM_ (uncurry3 unify) infoTys
+                return (rt, Tc.EApp (convert ident) exprs')
+            _else -> throwError (ExpectedFn p ty)
 
-newtype Env = Env {variables :: [Map IdTc TypeTc]}
+newtype Env = Env {variables :: [Map Tc.Id Tc.Type]}
     deriving (Show, Eq, Ord)
 
-data Ctx = Ctx {defStack :: [TopDefSyn], exprStack :: [ExprSyn]}
+data Ctx = Ctx {defStack :: [Par.TopDef], exprStack :: [Par.Expr]}
     deriving (Show, Eq, Ord)
 
 newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
-    deriving (Functor, Applicative, Monad, MonadReader Ctx, MonadState Env, MonadError TcError)
+    deriving
+        ( Functor
+        , Applicative
+        , Monad
+        , MonadReader Ctx
+        , MonadState Env
+        , MonadError TcError
+        )
 
 -- | Extract the types from all top level definitions '⌣'
-getDefs :: ProgSyn -> Map IdSyn (TypeTc, [TypeTc])
-getDefs (ProgramSyn _ prog) =
-    let argTypes = map (\(ArgumentSyn _ t _) -> t)
-     in Map.fromList . for prog $ \(FnDefSyn _ rt ident args _) ->
-            (ident, (convert rt, convert . argTypes $ args))
+addDefs :: Par.Prog -> Env
+addDefs (Par.Program _ prog) = Env [Map.fromList $ map (first convert . getType) prog]
+  where
+    getType (Par.FnDef _ ty name args _) =
+        (name, Tc.Fun (convert ty) (map typeOf args))
 
-lookupVar :: InfoSyn -> IdSyn -> TcM TypeTc
-lookupVar p i = do
-    typ <- gets (Map.lookup (convert i) . head . variables)
-    case typ of
+lookupVar :: Par.SynInfo -> Par.Id -> TcM Tc.Type
+lookupVar info i = do
+    vars <- gets variables
+    findVar vars
+  where
+    findVar [] = throwError (UnboundVariable info (convert i))
+    findVar (vs:vvs) = case Map.lookup (convert i) vs of
         Just rt -> return rt
-        _ -> throwError (UnboundVariable p (convert i))
+        Nothing -> findVar vvs
 
-insertArg :: ArgSyn -> TcM ()
-insertArg (ArgumentSyn _ typ name) = insertVar (convert name) (convert typ)
+insertArg :: Par.Arg -> TcM ()
+insertArg (Par.Argument _ typ name) = insertVar (convert name) (convert typ)
 
-insertVar :: IdTc -> TypeTc -> TcM ()
+insertVar :: Tc.Id -> Tc.Type -> TcM ()
 insertVar name typ = do
     blocks <- gets variables
     case blocks of
         [] -> modify (\s -> s {variables = [Map.singleton name typ]})
         (x : xs) -> modify (\s -> s {variables = Map.insert name typ x : xs})
+
+errNotBoolean :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
+errNotBoolean info = \case
+    Tc.Boolean -> return ()
+    other -> throwError (ExpectedType info Tc.Boolean other)
+
+errNotNumber :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
+errNotNumber info ty
+    | isNumber ty = return ()
+    | otherwise = throwError (ExpectedNumber info ty)
+
+isVoid :: Tc.Type -> Bool
+isVoid Tc.Void = True
+isVoid _ = False
+
+isNumber :: Tc.Type -> Bool
+isNumber Tc.Int = True
+isNumber Tc.Double = True
+isNumber _ = False
+
+unify ::
+    (MonadError TcError m) =>
+    -- | Parsing information
+    Par.SynInfo ->
+    -- | Expected type
+    Tc.Type ->
+    -- | Given type
+    Tc.Type ->
+    -- | The type to use considering automatic type casting
+    m Tc.Type
+unify info expected given = case (expected, given) of
+    (Tc.Double, Tc.Int) -> return expected
+    _ -> do
+        unless (expected == given) $ throwError (ExpectedType info expected given)
+        return expected
+
+class HasInfo a where
+    hasInfo :: a -> Par.SynInfo
+
+instance HasInfo Par.Expr where
+    hasInfo = \case
+        Par.EVar i _ -> i
+        Par.ELitInt i _ -> i
+        Par.ELitDouble i _ -> i
+        Par.ELitTrue i -> i
+        Par.ELitFalse i -> i
+        Par.EApp i _ _ -> i
+        Par.EString i _ -> i
+        Par.Neg i _ -> i
+        Par.Not i _ -> i
+        Par.EMul i _ _ _ -> i
+        Par.EAdd i _ _ _ -> i
+        Par.ERel i _ _ _ -> i
+        Par.EAnd i _ _ -> i
+        Par.EOr i _ _ -> i
 
 {-| Type class to help converting from the parser types
   to the type checker type
@@ -225,118 +285,65 @@ class Convert a b where
 instance (Convert a b) => Convert [a] [b] where
     convert = map convert
 
-instance Convert TypeSyn TypeTc where
+instance Convert Par.Type Tc.Type where
     convert = \case
-        TVarSyn pos a -> TVarTc pos a
-        FunSyn pos rt args -> FunTc pos (convert rt) (convert args)
+        Par.TVar _ t -> Tc.TVar (convert t)
+        Par.Fun _ rt argtys -> Tc.Fun (convert rt) (convert argtys)
 
-instance Convert IdSyn IdTc where
-    convert (IdSyn _ s) = IdTc s
+instance Convert Par.Id Tc.Id where
+    convert (Par.Id _ s) = Tc.Id s
 
-instance Convert MulOpSyn MulOpTc where
+instance Convert Par.MulOp Tc.MulOp where
     convert = \case
-        TimesSyn p -> TimesTc p
-        DivSyn p -> DivTc p
-        ModSyn p -> ModTc p
+        Par.Times _ -> Tc.Times
+        Par.Div _ -> Tc.Div
+        Par.Mod _ -> Tc.Mod
 
-instance Convert AddOpSyn AddOpTc where
+instance Convert Par.AddOp Tc.AddOp where
     convert = \case
-        PlusSyn p -> PlusTc p
-        MinusSyn p -> MinusTc p
+        Par.Plus _ -> Tc.Plus
+        Par.Minus _ -> Tc.Minus
 
-instance Convert RelOpSyn RelOpTc where
+instance Convert Par.RelOp Tc.RelOp where
     convert = \case
-        LTHSyn p -> LTHTc p
-        LESyn p -> LETc p
-        GTHSyn p -> GTHTc p
-        GESyn p -> GETc p
-        EQUSyn p -> EQUTc p
-        NESyn p -> NETc p
+        Par.LTH _ -> Tc.LTH
+        Par.LE _ -> Tc.LE
+        Par.GTH _ -> Tc.GTH
+        Par.GE _ -> Tc.GE
+        Par.EQU _ -> Tc.EQU
+        Par.NE _ -> Tc.NE
+
+instance Convert Par.Arg Tc.Arg where
+    convert = \case
+        Par.Argument _ typ name -> Tc.Argument (convert typ) (convert name)
 
 class TypeOf a where
-    typeOf :: a -> TypeTc
+    typeOf :: a -> Tc.Type
 
-instance TypeOf ExprTc where
-    typeOf = \case
-        EVarTc _ t -> t
-        NegTc _ t -> t
-        NotTc _ _ -> BoolTc Nothing
-        EAppTc _ rt _ -> rt
-        EMulTc _ t _ _ -> t
-        EAddTc _ t _ _ -> t
-        ERelTc {} -> BoolTc Nothing
-        EAndTc {} -> BoolTc Nothing
-        EOrTc {} -> BoolTc Nothing
+instance TypeOf Tc.Expr where
+    typeOf (t, _) = t
 
-instance TypeOf ArgSyn where
-    typeOf (ArgumentSyn _ typ _) = convert typ
+instance TypeOf Par.Arg where
+    typeOf (Par.Argument _ typ _) = convert typ
 
-unify :: (MonadError TcError m) => InfoSyn -> TypeTc -> TypeTc -> m TypeTc
-unify _ given expected
-    | delPos given == delPos expected = return given
-    | otherwise = case (given, expected) of
-        (TVarSyn _ "int", TVarSyn _ "double") -> return $ DoubleTc Nothing
-        _ -> throwError (TypeMismatch pos given [expected])
-
-isNumber :: TypeTc -> Bool
-isNumber (TVarSyn _ "int") = True
-isNumber (TVarSyn _ "double") = True
-isNumber _ = False
-
-isBool :: TypeTc -> Bool
-isBool (TVarSyn _ "boolean") = True
-isBool _ = False
-
-isInt :: TypeTc -> Bool
-isInt (TVarSyn _ "int") = True
-isInt _ = False
-
-isDouble :: TypeTc' a -> Bool
-isDouble (TVarSyn _ "double") = True
-isDouble _ = False
-
-isString :: TypeTc' a -> Bool
-isString (TVarSyn _ "string") = True
-isString _ = False
-
-isFun :: TypeTc' a -> Bool
-isFun (FunTc {}) = True
-isFun _ = False
-
-isVoid :: TypeTc' a -> Bool
-isVoid (TVarSyn _ "void") = True
-isVoid _ = False
-
-int :: TypeTc
-int = IntTc Nothing
-
-double :: TypeTc
-double = DoubleTc Nothing
-
-string :: TypeTc
-string = StringTc Nothing
-
-bool :: TypeTc
-bool = BoolTc Nothing
-
-pushExpr :: (MonadReader Ctx m) => ExprSyn -> m a -> m a
+pushExpr :: (MonadReader Ctx m) => Par.Expr -> m a -> m a
 pushExpr e = local $ \s -> s {exprStack = e : s.exprStack}
 
-pushDef :: (MonadReader Ctx m) => TopDefSyn -> m a -> m a
+pushDef :: (MonadReader Ctx m) => Par.TopDef -> m a -> m a
 pushDef d = local $ \s -> s {defStack = d : s.defStack}
 
-inBlk :: TcM a -> TcM a
-inBlk ma = do
+inBlock :: TcM a -> TcM a
+inBlock ma = do
     pushBlk
     x <- ma
     popBlk
     return x
+  where
+    pushBlk :: TcM ()
+    pushBlk = modify (\s -> s {variables = mempty : s.variables})
 
-pushBlk :: TcM ()
-pushBlk = modify (\s -> s {variables = mempty : s.variables})
-
-popBlk :: TcM ()
-popBlk = do
-    gets variables >>= \case
-        [] -> return ()
-        (_ : xs) -> modify (\s -> s {variables = xs})
+    popBlk :: TcM ()
+    popBlk =
+        gets variables >>= \case
+            [] -> return ()
+            (_ : xs) -> modify (\s -> s {variables = xs})
