@@ -2,6 +2,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use if" #-}
 
 module TC.Tc where
 
@@ -20,10 +23,11 @@ import Data.Tuple.Extra (uncurry3)
 import ParserTypes qualified as Par
 import TC.Error
 import TC.Types qualified as Tc
+import Debug.Trace (traceShowM)
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
-    ( tcProg >>> runTcM >>> flip evalStateT (addDefs p) >>> flip runReaderT (Ctx mempty mempty) >>> runExceptT >>> runIdentity >>> \case
+    ( tcProg >>> runTcM >>> flip evalStateT (addDefs p) >>> flip runReaderT (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int])) >>> runExceptT >>> runIdentity >>> \case
         Left err -> Left $ report err
         Right p -> Right p
     )
@@ -180,7 +184,7 @@ infExpr e = pushExpr e $ case e of
 newtype Env = Env {variables :: [Map Tc.Id Tc.Type]}
     deriving (Show, Eq, Ord)
 
-data Ctx = Ctx {defStack :: [Par.TopDef], exprStack :: [Par.Expr]}
+data Ctx = Ctx {defStack :: [Par.TopDef], exprStack :: [Par.Expr], subtypes :: Map Tc.Type [Tc.Type]}
     deriving (Show, Eq, Ord)
 
 newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
@@ -206,7 +210,7 @@ lookupVar info i = do
     findVar vars
   where
     findVar [] = throwError (UnboundVariable info (convert i))
-    findVar (vs:vvs) = case Map.lookup (convert i) vs of
+    findVar (vs : vvs) = case Map.lookup (convert i) vs of
         Just rt -> return rt
         Nothing -> findVar vvs
 
@@ -240,7 +244,6 @@ isNumber Tc.Double = True
 isNumber _ = False
 
 unify ::
-    (MonadError TcError m) =>
     -- | Parsing information
     Par.SynInfo ->
     -- | Expected type
@@ -248,12 +251,16 @@ unify ::
     -- | Given type
     Tc.Type ->
     -- | The type to use considering automatic type casting
-    m Tc.Type
-unify info expected given = case (expected, given) of
-    (Tc.Double, Tc.Int) -> return expected
-    _ -> do
-        unless (expected == given) $ throwError (ExpectedType info expected given)
-        return expected
+    TcM Tc.Type
+unify info expected given = do
+    tys <- getSubtypes given
+    case expected `elem` tys of
+        True -> return expected
+        False -> throwError (ExpectedType info expected given)
+
+-- | Relation for if expected is a subtype of given
+getSubtypes :: Tc.Type -> TcM [Tc.Type]
+getSubtypes expected = asks (Map.findWithDefault [expected] expected . subtypes)
 
 class HasInfo a where
     hasInfo :: a -> Par.SynInfo
