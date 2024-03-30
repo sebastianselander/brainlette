@@ -136,7 +136,7 @@ instance Report TcError where
                 pos
         ExpectedType info expected given ->
             pretty $ combine
-                [unwords ["Expected type ", quote (report expected), " but got ", quote (report given)]]
+                [unwords ["Expected type", quote (report expected), "but got", quote (report given)]]
                 info
         ExpectedNumber info ty ->
             pretty $ combine ["Expected a numeric type, but got " <> quote (report ty)] info
