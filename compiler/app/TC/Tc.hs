@@ -26,7 +26,7 @@ import TC.Types qualified as Tc
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
-     tcProg
+    tcProg
         >>> runTcM
         >>> flip evalStateT (addDefs p)
         >>> flip
@@ -37,7 +37,6 @@ tc p =
         >>> \case
             Left err -> Left $ report err
             Right p -> Right p
-    
         $ p
 
 tcProg :: Par.Prog -> TcM Tc.Prog
@@ -94,7 +93,8 @@ infStmt = \case
         return (Just (Tc.Ret (ty', expr')))
     Par.VRet pos -> do
         (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
-        unless (isVoid (convert rt)) $ throwError (IllegalEmptyReturn pos (convert rt))
+        unless (isVoid (convert rt)) $
+            throwError (IllegalEmptyReturn pos (convert rt))
         return (Just Tc.VRet)
     Par.Cond _ cond stmt -> do
         cond' <- infExpr cond
@@ -191,7 +191,11 @@ infExpr e = pushExpr e $ case e of
 newtype Env = Env {variables :: [Map Tc.Id Tc.Type]}
     deriving (Show, Eq, Ord)
 
-data Ctx = Ctx {defStack :: [Par.TopDef], exprStack :: [Par.Expr], subtypes :: Map Tc.Type [Tc.Type]}
+data Ctx = Ctx
+    { defStack :: [Par.TopDef]
+    , exprStack :: [Par.Expr]
+    , subtypes :: Map Tc.Type [Tc.Type]
+    }
     deriving (Show, Eq, Ord)
 
 newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
@@ -206,7 +210,8 @@ newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
 
 -- | Extract the types from all top level definitions '⌣'
 addDefs :: Par.Prog -> Env
-addDefs (Par.Program _ prog) = Env [Map.fromList $ map (first convert . getType) prog]
+addDefs (Par.Program _ prog) =
+    Env [Map.fromList $ map (first convert . getType) prog]
   where
     getType (Par.FnDef _ ty name args _) =
         (name, Tc.Fun (convert ty) (map typeOf args))
@@ -267,7 +272,8 @@ unify info expected given = do
 
 -- | Relation for if expected is a subtype of given
 getSubtypes :: Tc.Type -> TcM [Tc.Type]
-getSubtypes expected = asks (Map.findWithDefault [expected] expected . subtypes)
+getSubtypes expected =
+    asks (Map.findWithDefault [expected] expected . subtypes)
 
 class HasInfo a where
     hasInfo :: a -> Par.SynInfo
