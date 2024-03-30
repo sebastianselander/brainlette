@@ -2,7 +2,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# OPTIONS_GHC -fextended-default-rules #-}
 
 module TC.Tc where
 
