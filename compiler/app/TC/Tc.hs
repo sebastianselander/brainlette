@@ -23,15 +23,22 @@ import Data.Tuple.Extra (uncurry3)
 import ParserTypes qualified as Par
 import TC.Error
 import TC.Types qualified as Tc
-import Debug.Trace (traceShowM)
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
-    ( tcProg >>> runTcM >>> flip evalStateT (addDefs p) >>> flip runReaderT (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int])) >>> runExceptT >>> runIdentity >>> \case
-        Left err -> Left $ report err
-        Right p -> Right p
-    )
-        p
+     tcProg
+        >>> runTcM
+        >>> flip evalStateT (addDefs p)
+        >>> flip
+            runReaderT
+            (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int]))
+        >>> runExceptT
+        >>> runIdentity
+        >>> \case
+            Left err -> Left $ report err
+            Right p -> Right p
+    
+        $ p
 
 tcProg :: Par.Prog -> TcM Tc.Prog
 tcProg (Par.Program _ defs) = Tc.Program <$> mapM infDef defs
