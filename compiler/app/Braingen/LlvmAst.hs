@@ -2,14 +2,16 @@ module Braingen.LlvmAst where
 
 import Data.Text (Text)
 
-data Ident a = Ident a Text
-
-data FunctionAttribute
+data CallingConvention
     = NoAttribute
+
+data TailMarker = Tail | MustTail | NoTail
 
 data Type
     = I32
     | Ptr
+    | FunPtr Type [Type]
+    | CustomType Text
 
 data DebugInfo
     = DebugInfo
@@ -19,14 +21,18 @@ data DebugInfo
         }
     | NoInfo
 
-data Argument a = Argument a Type (Ident a)
+data Argument
+    = Argument Type Text
+    | ConstArgument Type Text
 
-newtype Ir a = Ir [TopDef a]
+newtype Ir = Ir [TopDef]
 
-data TopDef a
-    = Declare a Type (Ident a) FunctionAttribute
-    | Define a Type (Ident a) FunctionAttribute [Stms a]
+data TopDef
+    = Declare Type Text [Type] CallingConvention
+    | Define Type Text [Argument] CallingConvention [Stmt]
 
-data Stms a
-    = Call a Type (Ident a) [Argument a]
-    | Ret a (Argument a)
+data Stmt
+    = Call (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
+    | Ret Argument
+    | RetVoid
+    | Comment Text

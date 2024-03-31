@@ -20,6 +20,7 @@ executable brainlette
     BMM.Bmm
     Braingen.Ir
     Braingen.LlvmAst
+    Braingen.Output
     TC.Error
     TC.Tc
     TC.Types
