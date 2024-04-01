@@ -10,7 +10,7 @@ import BrainletteParser
 import Data.Text (pack)
 import TC.Tc (tc)
 import Data.Text.IO (hPutStrLn)
-import System.IO (stderr, stdout)
+import System.IO (stderr)
 
 main :: IO ()
 main = do
