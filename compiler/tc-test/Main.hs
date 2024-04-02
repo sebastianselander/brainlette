@@ -123,7 +123,7 @@ instance Arbitrary BadExpr where
     arbitrary = Bad <$> genExprBad
 
 prop_checkExpr :: GoodExpr -> Bool
-prop_checkExpr (Good e) = isRight $ Tc.run $ infExpr e
+prop_checkExpr (Good e) = isRight $ run $ infExpr e
 
 prop_failExpr :: BadExpr -> Bool
 prop_failExpr (Bad e) = isLeft $ run $ infExpr e

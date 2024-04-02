@@ -4,7 +4,7 @@ version:         0.1.0.0
 license:         MIT
 license-file:    LICENSE
 author:          sebastianselander, loafey
-maintainer:      <secret>
+maintainer:      sebastianselander, loafey
 category:        Language
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
@@ -12,11 +12,9 @@ extra-doc-files: CHANGELOG.md
 common warnings
   ghc-options: -Wall -Wextra -Wno-name-shadowing
 
-executable brainlette
+library brainlette-lib
   import:           warnings
-  main-is:          Main.hs
-  other-extensions: LambdaCase
-  other-modules:
+  exposed-modules:
     BMM.Bmm
     Braingen.Ir
     Braingen.LlvmAst
@@ -31,33 +29,38 @@ executable brainlette
     , base
     , brainlette-parser
     , containers
-    , directory
     , extra
-    , filepath
     , mtl
-    , process
     , text
     , x86-64bit
+
+  hs-source-dirs:   src
+  default-language: GHC2021
+
+executable brainlette
+  import:           warnings
+  main-is:          Main.hs
+  other-modules:
+  build-depends:
+    , base
+    , brainlette-lib
+    , brainlette-parser
+    , directory
+    , text
 
   hs-source-dirs:   app
   default-language: GHC2021
 
 test-suite tc
   type:             exitcode-stdio-1.0
-  hs-source-dirs:   tc-test, app
+  hs-source-dirs:   tc-test
   main-is:          Main.hs
   build-depends:
     , base
+    , brainlette-lib
     , brainlette-parser
     , hspec
     , QuickCheck
     , text
-    , mtl
-    , containers
-    , extra
-
-  other-modules:
-    TC.Tc
-    TC.Types
 
   default-language: GHC2021
