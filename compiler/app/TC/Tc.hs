@@ -1,10 +1,6 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Use if" #-}
 
 module TC.Tc where
 
@@ -23,7 +19,6 @@ import Data.Tuple.Extra (uncurry3)
 import ParserTypes qualified as Par
 import TC.Error
 import TC.Types qualified as Tc
-import Debug.Trace (traceShowId)
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
@@ -61,7 +56,7 @@ infDef def@(Par.FnDef _ rt name args block) = do
     let name' = convert name
     let fnType = Tc.Fun rt' (map typeOf args)
     insertVar name' fnType
-    block' <- pushDef def $ inBlock do
+    block' <- pushDef def $ inBlock $ do
         mapM_ insertArg args
         mapMaybeM infStmt block
     return (Tc.FnDef rt' name' (convert args) block')
@@ -254,7 +249,6 @@ errNotBoolean :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotBoolean info = \case
     Tc.Boolean -> return ()
     other -> throwError (ExpectedType info Tc.Boolean other)
-    . traceShowId
 
 errNotNumber :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotNumber info ty
@@ -281,9 +275,7 @@ unify ::
     TcM Tc.Type
 unify info expected given = do
     tys <- getSubtypes given
-    case expected `elem` tys of
-        True -> return expected
-        False -> throwError (ExpectedType info expected given)
+    (if expected `elem` tys then return expected else throwError (ExpectedType info expected given))
 
 -- | Relation for if expected is a subtype of given
 getSubtypes :: Tc.Type -> TcM [Tc.Type]
