@@ -10,9 +10,6 @@ import TC.Tc
 import Test.Hspec
 import Test.QuickCheck
 
--- instance Arbitrary Id where
---     arbitrary = Id NoInfo <$> arbitrary
-
 instance Arbitrary Text where
     arbitrary = pack <$> listOf (elements "abcdefghijklmnopqrstuvwxyz")
 
@@ -109,13 +106,24 @@ genExprBad =
         , EAnd NoInfo
             <$> oneof [genStringGood, genIntGood, genDoubleGood, genExprBad]
             <*> oneof [genStringGood, genIntGood, genDoubleGood, genExprBad, genBoolGood]
+        , Neg NoInfo <$> oneof [genStringGood, genExprBad, genBoolGood]
+        , Not NoInfo <$> oneof [genStringGood, genExprBad, genIntGood, genDoubleGood]
+        , do
+            let list = [oneof [genDoubleGood, genIntGood], genStringGood, genExprBad, genBoolGood]
+            let len = Prelude.length list
+            n <- elements [0 .. len - 1]
+            m <- elements (Prelude.filter (/= n) [0 .. len - 1])
+            op <- arbitrary
+            left <- list !! n
+            right <- list !! m
+            return $ ERel NoInfo left op right
         ]
 
 instance Arbitrary BadExpr where
     arbitrary = Bad <$> genExprBad
 
 prop_checkExpr :: GoodExpr -> Bool
-prop_checkExpr (Good e) = isRight $ run $ infExpr e
+prop_checkExpr (Good e) = isRight $ Tc.run $ infExpr e
 
 prop_failExpr :: BadExpr -> Bool
 prop_failExpr (Bad e) = isLeft $ run $ infExpr e
