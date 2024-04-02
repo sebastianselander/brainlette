@@ -13,9 +13,9 @@ common warnings
   ghc-options: -Wall -Wextra -Wno-name-shadowing
 
 executable brainlette
-  import:             warnings
-  main-is:            Main.hs
-  other-extensions:   LambdaCase
+  import:           warnings
+  main-is:          Main.hs
+  other-extensions: LambdaCase
   other-modules:
     BMM.Bmm
     Braingen.Ir
@@ -28,16 +28,36 @@ executable brainlette
 
   build-depends:
     , array
-    , brainlette-parser
-    , extra
     , base
+    , brainlette-parser
     , containers
     , directory
+    , extra
     , filepath
     , mtl
     , process
     , text
     , x86-64bit
 
-  hs-source-dirs:     app
-  default-language:   GHC2021
+  hs-source-dirs:   app
+  default-language: GHC2021
+
+test-suite tc
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tc-test, app
+  main-is:          Main.hs
+  build-depends:
+    , base
+    , brainlette-parser
+    , hspec
+    , QuickCheck
+    , text
+    , mtl
+    , containers
+    , extra
+
+  other-modules:
+    TC.Tc
+    TC.Types
+
+  default-language: GHC2021
