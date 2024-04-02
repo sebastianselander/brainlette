@@ -23,6 +23,7 @@ import Data.Tuple.Extra (uncurry3)
 import ParserTypes qualified as Par
 import TC.Error
 import TC.Types qualified as Tc
+import Debug.Trace (traceShowId)
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
@@ -38,6 +39,18 @@ tc p =
             Left err -> Left $ report err
             Right p -> Right p
         $ p
+
+run :: TcM a -> Either Text a
+run = runTcM
+        >>> flip evalStateT (Env mempty)
+        >>> flip
+            runReaderT
+            (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int]))
+        >>> runExceptT
+        >>> runIdentity
+        >>> \case
+            Left err -> Left $ report err
+            Right p -> Right p
 
 tcProg :: Par.Prog -> TcM Tc.Prog
 tcProg (Par.Program _ defs) = Tc.Program <$> mapM infDef defs
@@ -121,7 +134,7 @@ infExpr e = pushExpr e $ case e of
     Par.ELitDouble _ n -> return (Tc.Double, Tc.ELit (Tc.LitDouble n))
     Par.ELitTrue _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool True))
     Par.ELitFalse _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool False))
-    Par.EString _ str -> return (Tc.Boolean, Tc.ELit (Tc.LitString str))
+    Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
     Par.EVar p i -> do
         ty <- lookupVar p i
         return (ty, Tc.EVar (convert i))
@@ -168,15 +181,16 @@ infExpr e = pushExpr e $ case e of
         errNotBoolean info (typeOf r')
         return (Tc.Boolean, Tc.EOr l' r')
     Par.ERel info l op r -> do
-        l' <- infExpr l
-        r' <- infExpr r
-        ty <- case (typeOf l', typeOf r') of
+        (tl, l') <- infExpr l
+        (tr, r') <- infExpr r
+        -- TODO: refactor for adding more number types
+        ty <- case (tl, tr) of
             (Tc.Double, Tc.Int) -> return Tc.Double
             (Tc.Int, Tc.Double) -> return Tc.Double
             (l, r)
                 | l == r -> return l
                 | otherwise -> throwError (TypeMismatch info l [r])
-        return (ty, Tc.ERel l' (convert op) r')
+        return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
     Par.EApp p ident exprs -> do
         ty <- lookupVar p ident
         case ty of
@@ -240,6 +254,7 @@ errNotBoolean :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotBoolean info = \case
     Tc.Boolean -> return ()
     other -> throwError (ExpectedType info Tc.Boolean other)
+    . traceShowId
 
 errNotNumber :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotNumber info ty

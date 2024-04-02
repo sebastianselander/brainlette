@@ -65,6 +65,7 @@ class Report a where
     report :: a -> Text
 
 instance Report SynInfo where
+    report NoInfo = ""
     report i =
         unlines
             [ cons star " In '" <> i.sourceCode <> "'"
