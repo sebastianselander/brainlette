@@ -22,6 +22,7 @@ library brainlette-lib
     TypeChecker.Error
     TypeChecker.Tc
     TypeChecker.Types
+    BranchReturns
     Utils
 
   build-depends:

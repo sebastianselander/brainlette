@@ -10,6 +10,7 @@ import Control.Monad (unless)
 import BrainletteParser
 import Data.Text (pack)
 import TypeChecker.Tc (tc)
+import BranchReturns (check)
 import Data.Text.IO (hPutStrLn)
 import System.IO (stderr)
 
@@ -25,6 +26,9 @@ main = do
     text <- readFile file
     res <- case program file (pack text) of
         Left err -> print err *> exitFailure
+        Right res -> return res
+    res <- case check res of
+        Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
     res <- case tc res of
         Left err -> hPutStrLn stderr err *> exitFailure
