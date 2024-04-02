@@ -2,12 +2,12 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module TC.Error where
+module TypeChecker.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Text (Text, cons, intercalate, pack, unlines, unwords)
 import ParserTypes (SynInfo (..))
-import TC.Types
+import TypeChecker.Types
 import Prelude hiding (unlines, unwords)
 
 data TcError

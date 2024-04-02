@@ -19,9 +19,9 @@ library brainlette-lib
     Braingen.Ir
     Braingen.LlvmAst
     Braingen.Output
-    TC.Error
-    TC.Tc
-    TC.Types
+    TypeChecker.Error
+    TypeChecker.Tc
+    TypeChecker.Types
     Utils
 
   build-depends:

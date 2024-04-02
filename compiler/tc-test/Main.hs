@@ -6,7 +6,7 @@ import Data.Either (isLeft, isRight)
 import Data.Text
 import ParserTypes
 import System.Exit (exitFailure, exitSuccess)
-import TC.Tc
+import TypeChecker.Tc
 import Test.Hspec
 import Test.QuickCheck
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
-module TC.Types where
+module TypeChecker.Types where
 
 import Data.String (IsString)
 import Data.Text (Text)

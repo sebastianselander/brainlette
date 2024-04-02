@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import System.Environment
@@ -8,7 +9,7 @@ import System.Directory (doesFileExist)
 import Control.Monad (unless)
 import BrainletteParser
 import Data.Text (pack)
-import TC.Tc (tc)
+import TypeChecker.Tc (tc)
 import Data.Text.IO (hPutStrLn)
 import System.IO (stderr)
 
