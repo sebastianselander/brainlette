@@ -79,6 +79,7 @@ instance OutputIr Stmt where
                 , ", "
                 , outputIr a2
                 ]
+        Label text -> text <> ":"
 
 instance OutputIr Arithmetic where
     outputIr :: Arithmetic -> Text

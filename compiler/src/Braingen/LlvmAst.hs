@@ -59,5 +59,6 @@ data Stmt
     | Arith Arithmetic Type Argument Argument
     | Ret Argument
     | RetVoid
+    | Label Text
     | Comment Text
     deriving (Show)
