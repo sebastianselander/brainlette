@@ -69,8 +69,8 @@ braingenStm = \case
     B.Break -> do
         output . Comment $ "TODO     BREAK"
 
-braingenExpr :: B.Expr -> BgM (Text, [Stmt])
-braingenExpr = pure . pure ("TODO", [Comment "TODO Expr"])
+braingenExpr :: B.Expr -> BgM Text
+braingenExpr _ = pure "TODO"
 
 ----------------------------------- Helper functions -----------------------------------
 
