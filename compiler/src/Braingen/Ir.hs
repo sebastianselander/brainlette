@@ -67,6 +67,7 @@ braingenStm = \case
     B.CondElse cexpr a'stmt b'stmt -> pure . pure . Comment $ "TODO cond else"
     B.Loop stmt -> pure . pure . Comment $ "TODO loop"
     B.SExp expr -> pure . pure . Comment $ "TODO sexp"
+    B.Break -> pure . pure . Comment $ "TODO break"
 
 braingenTopDef :: B.TopDef -> BgM TopDef
 braingenTopDef (B.FnDef ret (B.Id i) a s) = do
