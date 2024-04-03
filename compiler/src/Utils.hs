@@ -2,6 +2,8 @@
 
 module Utils where
 
+import Data.Text (Text, pack)
+
 {-# WARNING TODO "TODO" #-}
 pattern TODO :: a
 pattern TODO <- _
@@ -11,3 +13,7 @@ pattern TODO <- _
 -- | Map with flipped arguments
 for :: [a] -> (a -> b) -> [b]
 for = flip map
+
+-- | Show but text :)
+thow :: (Show a) => a -> Text
+thow = pack . show
