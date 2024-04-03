@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Internal.ExprParser where
 
 import Internal.Language
@@ -11,7 +12,7 @@ import Internal.Language
       commaSep,
       info )
 import ParserTypes
-import Text.Parsec ( choice, try )
+import Text.Parsec ( choice, try, chainl1 )
 import Text.Parsec.Expr
     ( buildExpressionParser,
       Assoc(AssocLeft, AssocNone),
@@ -57,8 +58,9 @@ atom =
         , var
         ]
 
+
 expr :: Parser Expr
-expr = buildExpressionParser table atom
+expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
         [
@@ -90,6 +92,23 @@ expr = buildExpressionParser table atom
             ]
         ]
       where
-        add op i l = EAdd i l (op NoInfo)
-        mul op i l = EMul i l (op NoInfo)
-        rel op i l = ERel i l (op NoInfo)
+        add op i l = EAdd NoInfo l (op i)
+        mul op i l = EMul NoInfo l (op i)
+        rel op i l = ERel NoInfo l (op i)
+
+putInfo :: SynInfo -> Expr -> Expr
+putInfo i = \case
+    EVar _ a -> EVar i a
+    ELitInt _ a -> ELitInt i a
+    ELitDouble _ a -> ELitDouble i a
+    ELitTrue _  -> ELitTrue i
+    ELitFalse _  -> ELitFalse i
+    EApp _  a b -> EApp i a b
+    EString _  a -> EString i a
+    Neg _  a -> Neg i a
+    Not _  a -> Not i a
+    EMul _  a b c -> EMul i a b c
+    EAdd _  a b c -> EAdd i a b c
+    ERel _  a b c -> ERel i a b c
+    EAnd _  a b -> EAnd i a b
+    EOr _  a b -> EOr i a b

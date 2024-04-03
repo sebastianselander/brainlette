@@ -10,7 +10,7 @@ build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
 common warnings
-  ghc-options: -Wall -Wextra
+  ghc-options: -Wall -Wextra -Wunused-packages
 
 library
   import:           warnings
