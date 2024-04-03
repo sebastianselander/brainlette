@@ -71,6 +71,7 @@ instance ToBmm [T.Stmt] [Stmt] where
         T.CondElse e s1 s2 -> [CondElse (toBmm e) (toBmm [s1]) (toBmm [s2])]
         T.While e s -> [Loop (CondElse (toBmm e) [Break] [] : toBmm [s])]
         T.SExp e -> [SExp (toBmm e)]
+        T.Break -> [Break]
 
 itemDeclToBmm :: T.Type -> T.Item -> [Stmt]
 itemDeclToBmm t = \case
