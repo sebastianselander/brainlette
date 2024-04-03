@@ -26,6 +26,7 @@ data Stmt
     | CondElse Expr Stmt Stmt
     | While Expr Stmt
     | SExp Expr
+    | Break
     deriving (Eq, Ord, Show, Read)
 
 data Item = NoInit Id | Init Id Expr

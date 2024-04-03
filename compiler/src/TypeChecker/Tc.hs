@@ -127,6 +127,8 @@ infStmt = \case
         stmt' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt
         return (Just (Tc.While cond' stmt'))
     Par.SExp _ expr -> Just . Tc.SExp <$> infExpr expr
+    Par.Break _ -> return $ Just Tc.Break
+
 
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of

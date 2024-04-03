@@ -2,16 +2,20 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module BranchReturns where
 
 import BrainletteParser
-import Control.Monad.Extra (anyM)
-import Control.Monad.State (MonadState, State, execState, get, put)
+import Control.Monad.Except (Except, MonadError, runExcept, throwError)
+import Control.Monad.Extra (anyM, unless)
+import Control.Monad.Reader (MonadReader, local, ReaderT (runReaderT), ask)
+import Control.Monad.State (MonadState, StateT, execStateT, get, put)
 import Data.Fixed (mod')
 import Data.Functor (($>))
 import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
+import Data.String.Interpolate
 import Data.Text (Text, concat, pack, takeWhile, unlines)
 import ParserTypes
 import Prelude hiding (concat, takeWhile, unlines)
@@ -19,13 +23,14 @@ import Prelude hiding (concat, takeWhile, unlines)
 data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}
     deriving (Show)
 
-newtype Br a = Br {runBr :: State Env a}
-    deriving (Functor, Applicative, Monad, MonadState Env)
+newtype Br a = Br {runBr :: StateT Env (ReaderT Bool (Except Text)) a}
+    deriving (Functor, Applicative, Monad, MonadState Env, MonadReader Bool, MonadError Text)
 
 check :: Prog -> Either Text Prog
-check p = case flip execState (Env mempty mempty) $ runBr $ branchReturns p of
-    Env [] [] -> Right p
-    Env stmts topdefs ->
+check p = case runExcept $ flip runReaderT False $ flip execStateT (Env mempty mempty) $ runBr $ branchReturns p of
+    Left err -> Left err
+    Right (Env [] []) -> Right p
+    Right (Env stmts topdefs) ->
         Left $
             concat (intersperse "\n\n" $ map errUnreachable stmts)
                 <> unlines (map errMissingRet topdefs)
@@ -74,7 +79,31 @@ missingFn fn = do
     put (env {missingReturn = fn : env.missingReturn})
 
 branchReturns :: Prog -> Br ()
-branchReturns (Program _ topdefs) = mapM_ retDefs topdefs
+branchReturns (Program _ topdefs) = mapM_ breakDefs topdefs >> mapM_ retDefs topdefs
+
+breakDefs :: TopDef -> Br ()
+breakDefs (FnDef _ _ _ _ stmts) = mapM_ breaks stmts
+
+-- TODO: Fix much prettier error msg
+breaks :: Stmt -> Br ()
+breaks = \case
+    Empty _ -> return ()
+    BStmt _ stmts -> mapM_ breaks stmts
+    Decl {} -> return ()
+    Ass {} -> return ()
+    Incr {} -> return ()
+    Decr {} -> return ()
+    Ret _ _ -> return ()
+    VRet _ -> return ()
+    Cond _ _ stmt -> breaks stmt
+    CondElse _ _ stmt1 stmt2 -> breaks stmt1 >> breaks stmt2
+    While _ _ stmt -> local (const True) $ breaks stmt
+    SExp _ _ -> return ()
+    Break info -> do
+        b <- ask
+        unless b $
+            throwError
+                [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
 
 retDefs :: TopDef -> Br ()
 retDefs self@(FnDef _ _ _ _ stmts) =
@@ -114,6 +143,7 @@ returnsStmt = \case
             then unreachable stmt $> False
             else (always expr &&) <$> returnsStmt stmt
     SExp _ _ -> return False
+    Break _ -> return False
 
 always :: Expr -> Bool
 always e = case interpret e of
