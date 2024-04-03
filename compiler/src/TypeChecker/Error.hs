@@ -7,7 +7,7 @@ module TypeChecker.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate
-import Data.Text (Text, cons, intercalate, unlines, unwords)
+import Data.Text (Text, cons, intercalate, unlines)
 import ParserTypes (SynInfo (..))
 import TypeChecker.Types
 import Prelude hiding (unlines, unwords)
