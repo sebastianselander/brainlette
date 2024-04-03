@@ -89,6 +89,7 @@ instance OutputIr Type where
         I32 -> "i32"
         F64 -> "f64"
         Ptr -> "ptr"
+        I1 -> "i1"
         FunPtr t ts -> outputIr t <> "(" <> outputIr ts <> ")*"
         CustomType t -> "%" <> t
 
