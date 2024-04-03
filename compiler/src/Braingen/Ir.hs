@@ -7,78 +7,133 @@ import BMM.Bmm qualified as B
 import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
-import Control.Monad.Except (Except, MonadError, runExceptT)
-import Control.Monad.Identity (Identity (runIdentity))
-import Control.Monad.Reader (ReaderT (runReaderT))
-import Control.Monad.Reader.Class (MonadReader)
-import Control.Monad.State (StateT)
-import Control.Monad.State.Lazy (MonadState, evalStateT)
+import Control.Monad.State (MonadState (get, put), State, runState)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text (Text, pack)
 
-data Env = Env {}
-    deriving (Show, Eq, Ord)
-
-data Ctx = Ctx {}
-    deriving (Show, Eq, Ord)
+data Env = Env
+    { instructions :: [Stmt]
+    , labelCounter :: Integer
+    , tempVariables :: Map Text Integer
+    }
+    deriving (Show)
 
 data BraingenError
     deriving (Show)
 
-newtype BgM a = BG {runBgM :: StateT Env (ReaderT Ctx (Except BraingenError)) a}
-    deriving (Functor, Applicative, Monad, MonadReader Ctx, MonadState Env, MonadError BraingenError)
+type BgM = State Env
 
 -- | Pump those wrinkles 🧠
 braingen :: B.Prog -> Either Text Text
 braingen =
-    braingenProg
-        >>> runBgM
-        >>> flip evalStateT Env
-        >>> flip runReaderT Ctx
-        >>> runExceptT
-        >>> runIdentity
-        >>> \case
-            Left err -> Left . pack . show $ err
-            Right p -> Right $ outputIr p
+    braingenProg >>> \case
+        Left err -> Left . pack $ "The impossible happened: " <> show err
+        Right p -> Right $ outputIr p
 
-braingenProg :: B.Prog -> BgM Ir
+braingenProg :: B.Prog -> Either Text Ir
 braingenProg (B.Program tp) = Ir <$> mapM braingenTopDef tp
 
-braingenType :: B.Type -> BgM Type
-braingenType t = case t of
-    B.Int -> pure I32
-    B.Boolean -> pure I1
-    B.Double -> pure F64
-    B.Void -> error "TODO: braingen type void"
-    B.TVar (B.Id x) -> pure $ CustomType x
-    B.Fun t ts -> do
-        ret <- braingenType t
-        args <- mapM braingenType ts
-        pure $ FunPtr ret args
-
-braingenArg :: B.Arg -> BgM Argument
-braingenArg (B.Argument t (B.Id i)) = flip Argument i <$> braingenType t
-
-braingenStm :: B.Stmt -> BgM [Stmt]
-braingenStm = \case
-    B.BStmt block -> pure . pure . Comment $ "TODO block"
-    B.Decl t (B.Id i) -> pure . pure . Comment $ "TODO decl"
-    B.Ass (B.Id a) expr -> pure . pure . Comment $ "TODO assign"
-    B.Ret expr -> pure . pure . Comment $ "TODO return"
-    B.CondElse cexpr a'stmt b'stmt -> pure . pure . Comment $ "TODO cond else"
-    B.Loop stmt -> pure . pure . Comment $ "TODO loop"
-    B.SExp expr -> pure . pure . Comment $ "TODO sexp"
-    B.Break -> pure . pure . Comment $ "TODO break"
-
-braingenTopDef :: B.TopDef -> BgM TopDef
-braingenTopDef (B.FnDef ret (B.Id i) a s) = do
-    ret <- braingenType ret
-    args <- mapM braingenArg a
-    stmts <- concat <$> mapM braingenStm s
+braingenTopDef :: B.TopDef -> Either Text TopDef
+braingenTopDef (B.FnDef rt (B.Id i) a s) = do
+    let ret = braingenType rt
+    let args = map braingenArg a
+    stmts <- braingenStmts s
     pure $ Define ret i args NoAttribute stmts
 
-braingenExpr :: B.Expr -> BgM Stmt
-braingenExpr = undefined
+braingenStmts :: [B.Stmt] -> Either Text [Stmt]
+braingenStmts =
+    mapM_ braingenStm
+        >>> flip runState (Env [] 0 Map.empty)
+        >>> \(_, e) -> Right $ instructions e
 
+braingenStm :: B.Stmt -> BgM ()
+braingenStm = \case
+    B.BStmt block -> do
+        output . Comment $ "TODO block"
+    B.Decl t (B.Id i) -> do
+        output . Comment $ "TODO decl"
+    B.Ass (B.Id a) expr -> do
+        output . Comment $ "TODO assign"
+    B.Ret (Just expr) -> do
+        output . Comment $ "TODO return"
+    B.Ret Nothing -> do
+        output RetVoid
+    B.CondElse cexpr s1 s2 -> do
+        output . Comment $ "TODO cond else"
+    B.Loop stmt -> do
+        output . Comment $ "TODO loop"
+    B.SExp expr -> do
+        output . Comment $ "TODO sexp"
+    B.Break -> do
+        output . Comment $ "TODO break"
+
+braingenExpr :: B.Expr -> BgM (Text, [Stmt])
+braingenExpr = pure . pure ("TODO", [Comment "TODO Expr"])
+
+----------------------------------- Helper functions -----------------------------------
+
+-- | Push a statement onto the state
+output :: Stmt -> BgM ()
+output s = do
+    state <- get
+    let insts = instructions state
+    put (state {instructions = insts ++ [s]})
+
+-- | Return a label suffixed with a unique label to avoid label collisions.
+getLabel :: Text -> BgM Text
+getLabel t = do
+    state <- get
+    let current = labelCounter state
+    put (state {labelCounter = current + 1})
+    pure $ t <> "." <> (pack . show $ current)
+
+{-| Return a temp variable, useful when calculating intermediate values.
+
+For example: @int x = 1 + 2 + 3@ might generate:
+
+@
+%x.0 = add i32 1 2
+@
+
+@
+%x = add i32 %x.0 3
+@
+
+And @x.0@ can be obtained by calling @getTempVariable "x"@.
+-}
+getTempVariable :: Text -> BgM Text
+getTempVariable t = do
+    state <- get
+    let vars = tempVariables state
+    case Map.lookup t vars of
+        Just val -> do
+            let vars' = Map.insert t (val + 1) vars
+            put (state {tempVariables = vars'})
+            pure $ t <> "." <> (pack . show $ val)
+        Nothing -> do
+            let vars' = Map.insert t 0 vars
+            put (state {tempVariables = vars'})
+            pure $ t <> ".0"
+
+-- | Convert a BMM type to an IR type
+braingenType :: B.Type -> Type
+braingenType t = case t of
+    B.Int -> I32
+    B.Boolean -> I1
+    B.Double -> F64
+    B.Void -> error "TODO: braingen type void"
+    B.TVar (B.Id x) -> CustomType x
+    B.Fun t ts -> do
+        let ret = braingenType t
+        let args = map braingenType ts
+        FunPtr ret args
+
+-- | Convert a BMM argument to an IR argument
+braingenArg :: B.Arg -> Argument
+braingenArg (B.Argument t (B.Id i)) = Argument (braingenType t) i
+
+----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog
 testProg =
     B.Program
