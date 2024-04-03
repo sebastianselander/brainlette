@@ -119,7 +119,7 @@ instance Report TcError where
         ExpectedFn pos typ ->
             pretty $
                 combine
-                    [i|Expected a function type, but go '#{report typ}'|]
+                    [i|Expected a function type, but got '#{report typ}'|]
                     pos
         NotComparable info op typ ->
             pretty $
@@ -134,7 +134,7 @@ instance Report TcError where
         ExpectedType info expected given ->
             pretty $
                 combine
-                    [i|Expected type '#{report expected}' but go '#{report given}'|]
+                    [i|Expected type '#{report expected}' but got '#{report given}'|]
                     info
         ExpectedNumber info ty ->
             pretty $
