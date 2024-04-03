@@ -1,11 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module TypeChecker.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.Text (Text, cons, intercalate, pack, unlines, unwords)
+import Data.String.Interpolate
+import Data.Text (Text, cons, intercalate, unlines, unwords)
 import ParserTypes (SynInfo (..))
 import TypeChecker.Types
 import Prelude hiding (unlines, unwords)
@@ -72,15 +74,10 @@ class Report a where
 
 instance Report SynInfo where
     report NoInfo = ""
-    report i =
-        unlines
-            [ cons star " In '" <> i.sourceCode <> "'"
-            , cons star " At "
-                <> pack (show i.sourceLine)
-                <> ":"
-                <> pack (show i.sourceColumn)
-            , cons star " In the module " <> quote i.sourceName
-            ]
+    report info =
+        [iii|#{star} In '#{sourceCode info}'
+                     \n#{star} At #{sourceLine info}:#{sourceColumn info}
+                     \n#{star} In the module '#{sourceName info}'|]
 
 instance Report Id where
     report (Id a) = a
@@ -110,73 +107,41 @@ instance Report RelOp where
 instance Report TcError where
     report = \case
         UnboundVariable info (Id name) ->
-            pretty $ combine ["Unbound variable '" <> name <> "'"] info
-        TypeMismatch pos given expected ->
-            pretty $
-                combine
-                    [ "Type "
-                        <> quote (report given)
-                        <> " does not match with "
-                        <> quote
-                            ( case expected of
-                                (x :| []) -> "'" <> report x <> "'"
-                                (x :| xs) -> "one of " <> report (x : xs)
-                            )
-                    ]
-                    pos
+            pretty $ combine [i|Unbound variable'#{name}'|] info
+        TypeMismatch info given expected ->
+            let one = case expected of
+                    (x :| []) -> "'" <> report x <> "'"
+                    (x :| xs) -> "one of " <> report (x : xs)
+             in pretty $ combine [i|Type '#{report given}' does not match with #{one}|] info
         ExpectedFn pos typ ->
             pretty $
                 combine
-                    [ "Expected a function type, but got "
-                        <> quote (report typ)
-                    ]
+                    [i|Expected a function type, but go '#{report typ}'|]
                     pos
         NotComparable info op typ ->
             pretty $
                 combine
-                    [ "Can't perform "
-                        <> quote (report op)
-                        <> " on type "
-                        <> quote (report typ)
-                    ]
+                    [i|Can't perform '#{report op}' on tyoe '#{report typ}'|]
                     info
         IllegalEmptyReturn pos typ ->
             pretty $
                 combine
-                    [ "Can not use empty return where a return type of "
-                        <> quote (report typ)
-                        <> " is expected"
-                    ]
+                    [i|Can't use empty return where a return type of '#{report typ}' is expected|]
                     pos
         ExpectedType info expected given ->
             pretty $
                 combine
-                    [ unwords
-                        [ "Expected type"
-                        , quote (report expected)
-                        , "but got"
-                        , quote (report given)
-                        ]
-                    ]
+                    [i|Expected type '#{report expected}' but go '#{report given}'|]
                     info
         ExpectedNumber info ty ->
             pretty $
                 combine
-                    [ unwords
-                        [ "Expected a numeric type, but got"
-                        , quote (report ty)
-                        ]
-                    ]
+                    [i|Expected a numeric type, but got '#{report ty}'|]
                     info
         BoundVariable info id ->
             pretty $
                 combine
-                    [ unwords
-                        [ "Variable"
-                        , quote (report id)
-                        , "already declared earlier"
-                        ]
-                    ]
+                    [i|Variable '#{report id}' already declared earlier|]
                     info
 
 quote :: Text -> Text
@@ -190,12 +155,8 @@ pretty (x : xs) = unlines (bold x : xs)
 bold :: Text -> Text
 bold s = s
 
-combine :: (Report a) => [Text] -> a -> [Text]
-combine xs info = go xs <> [report info]
-  where
-    go :: [Text] -> [Text]
-    go [] = []
-    go (x : xs) = cons star (cons ' ' x) : go xs
+combine :: (Report a) => Text -> a -> [Text]
+combine xs info = (star `cons` ' ' `cons` xs) : [report info]
 
 star :: Char
 star = '•'
