@@ -1,6 +1,5 @@
-{-# LANGUAGE StarIsType #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module BMM.Bmm where
 
@@ -69,3 +68,20 @@ data RelOp
 
 -- Identifier
 newtype Id = Id Text deriving (Show)
+
+
+pattern Int :: Type
+pattern Int <- TVar (Id "int")
+  where Int = TVar (Id "int")
+
+pattern Boolean :: Type
+pattern Boolean <- TVar (Id "boolean")
+  where Boolean = TVar (Id "boolean")
+
+pattern Void :: Type
+pattern Void <- TVar (Id "void")
+  where Void = TVar (Id "void")
+
+pattern Double :: Type
+pattern Double <- TVar (Id "double")
+  where Double = TVar (Id "double")
