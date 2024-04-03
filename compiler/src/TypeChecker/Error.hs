@@ -59,6 +59,12 @@ data TcError
         SynInfo
         -- | The given type
         Type
+    | -- | Constructor for an already bound variable
+      BoundVariable
+        -- | The source code position of the error
+        SynInfo
+        -- | Name of the bound variable
+        Id
     deriving (Show)
 
 class Report a where
@@ -69,7 +75,10 @@ instance Report SynInfo where
     report i =
         unlines
             [ cons star " In '" <> i.sourceCode <> "'"
-            , cons star " At " <> pack (show i.sourceLine) <> ":" <> pack (show i.sourceColumn)
+            , cons star " At "
+                <> pack (show i.sourceLine)
+                <> ":"
+                <> pack (show i.sourceColumn)
             , cons star " In the module " <> quote i.sourceName
             ]
 
@@ -103,51 +112,79 @@ instance Report TcError where
         UnboundVariable info (Id name) ->
             pretty $ combine ["Unbound variable '" <> name <> "'"] info
         TypeMismatch pos given expected ->
-            pretty $ combine
-                [ "Type "
-                    <> quote (report given)
-                    <> " does not match with "
-                    <> quote
-                        ( case expected of
-                            (x :| []) -> "'" <> report x <> "'"
-                            (x :| xs) -> "one of " <> report (x : xs)
-                        )
-                ]
-                pos
+            pretty $
+                combine
+                    [ "Type "
+                        <> quote (report given)
+                        <> " does not match with "
+                        <> quote
+                            ( case expected of
+                                (x :| []) -> "'" <> report x <> "'"
+                                (x :| xs) -> "one of " <> report (x : xs)
+                            )
+                    ]
+                    pos
         ExpectedFn pos typ ->
-            pretty $ combine
-                [ "Expected a function type, but got "
-                    <> quote (report typ)
-                ]
-                pos
+            pretty $
+                combine
+                    [ "Expected a function type, but got "
+                        <> quote (report typ)
+                    ]
+                    pos
         NotComparable info op typ ->
-            pretty $ combine
-                [ "Can't perform "
-                    <> quote (report op)
-                    <> " on type "
-                    <> quote (report typ)
-                ]
-                info
+            pretty $
+                combine
+                    [ "Can't perform "
+                        <> quote (report op)
+                        <> " on type "
+                        <> quote (report typ)
+                    ]
+                    info
         IllegalEmptyReturn pos typ ->
-            pretty $ combine
-                [ "Can not use empty return where a return type of "
-                    <> quote (report typ)
-                    <> " is expected"
-                ]
-                pos
+            pretty $
+                combine
+                    [ "Can not use empty return where a return type of "
+                        <> quote (report typ)
+                        <> " is expected"
+                    ]
+                    pos
         ExpectedType info expected given ->
-            pretty $ combine
-                [unwords ["Expected type", quote (report expected), "but got", quote (report given)]]
-                info
+            pretty $
+                combine
+                    [ unwords
+                        [ "Expected type"
+                        , quote (report expected)
+                        , "but got"
+                        , quote (report given)
+                        ]
+                    ]
+                    info
         ExpectedNumber info ty ->
-            pretty $ combine ["Expected a numeric type, but got " <> quote (report ty)] info
+            pretty $
+                combine
+                    [ unwords
+                        [ "Expected a numeric type, but got"
+                        , quote (report ty)
+                        ]
+                    ]
+                    info
+        BoundVariable info id ->
+            pretty $
+                combine
+                    [ unwords
+                        [ "Variable"
+                        , quote (report id)
+                        , "already declared earlier"
+                        ]
+                    ]
+                    info
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"
 
 pretty :: [Text] -> Text
 pretty [] = ""
-pretty (x:xs) = unlines (bold x : xs)
+pretty (x : xs) = unlines (bold x : xs)
 
 -- TODO: Implement
 bold :: Text -> Text

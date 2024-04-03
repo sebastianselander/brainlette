@@ -5,7 +5,7 @@
 module TypeChecker.Tc where
 
 import Control.Arrow (first, (>>>))
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Control.Monad.Except
 import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
@@ -13,7 +13,7 @@ import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Text (Text)
 import Data.Tuple.Extra (uncurry3)
 import ParserTypes qualified as Par
@@ -36,7 +36,8 @@ tc p =
         $ p
 
 run :: TcM a -> Either Text a
-run = runTcM
+run =
+    runTcM
         >>> flip evalStateT (Env mempty)
         >>> flip
             runReaderT
@@ -64,21 +65,25 @@ infDef def@(Par.FnDef _ rt name args block) = do
 infStmt :: Par.Stmt -> TcM (Maybe Tc.Stmt)
 infStmt = \case
     Par.Empty _ -> return Nothing
-    Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM infStmt stmts
-    Par.Decl _ typ items -> do
+    Par.BStmt _ stmts -> Just . Tc.BStmt <$> inBlock (mapMaybeM infStmt stmts)
+    Par.Decl info typ items -> do
         let typ' = convert typ
-         in Just . Tc.Decl typ' <$> mapM (tcItem typ') items
+         in Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
       where
-        tcItem :: Tc.Type -> Par.Item -> TcM Tc.Item
-        tcItem expected = \case
+        tcItem :: Par.SynInfo -> Tc.Type -> Par.Item -> TcM Tc.Item
+        tcItem info expected = \case
             Par.NoInit _ name -> do
                 let name' = convert name
+                exist <- doesVariableExist name'
+                when exist $ throwError (BoundVariable info name')
                 insertVar name' expected
                 return $ Tc.NoInit name'
-            Par.Init info name expr -> do
+            Par.Init _ name expr -> do
+                let name' = convert name
+                exist <- doesVariableExist name'
+                when exist $ throwError (BoundVariable info name')
                 (ty, expr') <- infExpr expr
                 ty' <- unify info expected ty
-                let name' = convert name
                 insertVar name' ty
                 return $ Tc.Init name' (ty', expr')
     Par.Ass info ident expr -> do
@@ -235,6 +240,10 @@ lookupVar info i = do
         Just rt -> return rt
         Nothing -> findVar vvs
 
+doesVariableExist :: Tc.Id -> TcM Bool
+doesVariableExist name =
+    gets (maybe False (Map.member name) . listToMaybe . variables)
+
 insertArg :: Par.Arg -> TcM ()
 insertArg (Par.Argument _ typ name) = insertVar (convert name) (convert typ)
 
@@ -275,7 +284,9 @@ unify ::
     TcM Tc.Type
 unify info expected given = do
     tys <- getSubtypes given
-    (if expected `elem` tys then return expected else throwError (ExpectedType info expected given))
+    if expected `elem` tys
+        then return expected
+        else throwError $ ExpectedType info expected given
 
 -- | Relation for if expected is a subtype of given
 getSubtypes :: Tc.Type -> TcM [Tc.Type]
