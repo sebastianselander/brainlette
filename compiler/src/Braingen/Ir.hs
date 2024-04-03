@@ -11,6 +11,7 @@ import Control.Monad.State (MonadState (get, put), State, runState)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Text (Text, pack)
+import Utils (thow)
 
 data Env = Env
     { instructions :: [Stmt]
@@ -50,23 +51,23 @@ braingenStmts =
 braingenStm :: B.Stmt -> BgM ()
 braingenStm = \case
     B.BStmt block -> do
-        output . Comment $ "TODO block"
+        output . Comment $ "TODO     BLOCK: " <> thow block
     B.Decl t (B.Id i) -> do
-        output . Comment $ "TODO decl"
+        output . Comment $ "TODO      DECL: " <> i <> " := " <> thow t
     B.Ass (B.Id a) expr -> do
-        output . Comment $ "TODO assign"
+        output . Comment $ "TODO    ASSIGN: " <> a <> " = " <> thow expr
     B.Ret (Just expr) -> do
-        output . Comment $ "TODO return"
+        output . Comment $ "TODO    RETURN: " <> thow expr
     B.Ret Nothing -> do
         output RetVoid
     B.CondElse cexpr s1 s2 -> do
-        output . Comment $ "TODO cond else"
+        output . Comment $ "TODO COND ELSE: if " <> thow cexpr <> " ? " <> thow s1 <> " : " <> thow s2
     B.Loop stmt -> do
-        output . Comment $ "TODO loop"
+        output . Comment $ "TODO      LOOP: " <> thow stmt
     B.SExp expr -> do
-        output . Comment $ "TODO sexp"
+        output . Comment $ "TODO      EXPR: " <> thow expr
     B.Break -> do
-        output . Comment $ "TODO break"
+        output . Comment $ "TODO     BREAK"
 
 braingenExpr :: B.Expr -> BgM (Text, [Stmt])
 braingenExpr = pure . pure ("TODO", [Comment "TODO Expr"])
@@ -86,7 +87,7 @@ getLabel t = do
     state <- get
     let current = labelCounter state
     put (state {labelCounter = current + 1})
-    pure $ t <> "." <> (pack . show $ current)
+    pure $ t <> "." <> (thow current)
 
 {-| Return a temp variable, useful when calculating intermediate values.
 
@@ -110,7 +111,7 @@ getTempVariable t = do
         Just val -> do
             let vars' = Map.insert t (val + 1) vars
             put (state {tempVariables = vars'})
-            pure $ t <> "." <> (pack . show $ val)
+            pure $ t <> "." <> (thow val)
         Nothing -> do
             let vars' = Map.insert t 0 vars
             put (state {tempVariables = vars'})
