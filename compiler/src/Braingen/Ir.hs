@@ -26,7 +26,7 @@ newtype BgM a = BG {runBgM :: StateT Env (ReaderT Ctx (Except BraingenError)) a}
     deriving (Functor, Applicative, Monad, MonadReader Ctx, MonadState Env, MonadError BraingenError)
 
 -- | Pump those wrinkles 🧠
-braingen :: B.Prog a -> Either String Ir
+braingen :: B.Prog -> Either String Ir
 braingen =
     braingenProg
         >>> runBgM
@@ -38,33 +38,33 @@ braingen =
             Left err -> Left $ show err
             Right p -> Right p
 
-braingenProg :: B.Prog a -> BgM Ir
+braingenProg :: B.Prog -> BgM Ir
 braingenProg (B.Program tp) = Ir <$> mapM braingenTopDef tp
 
-braingenType :: B.Type a -> BgM Type
+braingenType :: B.Type -> BgM Type
 braingenType t = case t of
-    B.TVar (B.Id _ "int") -> pure I32
-    B.TVar (B.Id _ x) -> pure $ CustomType x
+    B.TVar (B.Id "int") -> pure I32
+    B.TVar (B.Id x) -> pure $ CustomType x
     B.Fun t ts -> do
         ret <- braingenType t
         args <- mapM braingenType ts
         pure $ FunPtr ret args
 
-braingenArg :: B.Arg a -> BgM Argument
-braingenArg (B.Argument _ t (B.Id _ i)) = flip Argument i <$> braingenType t
+braingenArg :: B.Arg -> BgM Argument
+braingenArg (B.Argument t (B.Id i)) = flip Argument i <$> braingenType t
 
-braingenStm :: B.Stmt a -> BgM [Stmt]
+braingenStm :: B.Stmt -> BgM [Stmt]
 braingenStm = \case
-    B.BStmt _ block -> pure . pure . Comment $ "TODO block"
-    B.Decl _ t (B.Id _ i) -> pure . pure . Comment $ "TODO decl"
-    B.Ass _ (B.Id _ a) expr -> pure . pure . Comment $ "TODO assign"
-    B.Ret _ expr -> pure . pure . Comment $ "TODO return"
-    B.CondElse _ cexpr a'stmt b'stmt -> pure . pure . Comment $ "TODO cond else"
-    B.Loop _ stmt -> pure . pure . Comment $ "TODO loop"
-    B.SExp _ expr -> pure . pure . Comment $ "TODO sexp"
+    B.BStmt block -> pure . pure . Comment $ "TODO block"
+    B.Decl t (B.Id i) -> pure . pure . Comment $ "TODO decl"
+    B.Ass (B.Id a) expr -> pure . pure . Comment $ "TODO assign"
+    B.Ret expr -> pure . pure . Comment $ "TODO return"
+    B.CondElse cexpr a'stmt b'stmt -> pure . pure . Comment $ "TODO cond else"
+    B.Loop stmt -> pure . pure . Comment $ "TODO loop"
+    B.SExp expr -> pure . pure . Comment $ "TODO sexp"
 
-braingenTopDef :: B.TopDef a -> BgM TopDef
-braingenTopDef (B.FnDef ret (B.Id _ i) a s) = do
+braingenTopDef :: B.TopDef -> BgM TopDef
+braingenTopDef (B.FnDef ret (B.Id i) a s) = do
     ret <- braingenType ret
     args <- mapM braingenArg a
     stmts <- concat <$> mapM braingenStm s
