@@ -1,39 +1,67 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module BranchReturns where
 
+import BrainletteParser
 import Control.Monad.Extra (anyM)
-import Control.Monad.State (MonadState, State, get, put, execState)
+import Control.Monad.State (MonadState, State, execState, get, put)
 import Data.Fixed (mod')
 import Data.Functor (($>))
+import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
-import Data.Text (Text, pack, unlines)
+import Data.Text (Text, concat, pack, takeWhile, unlines)
 import ParserTypes
--- TODO: Move hasInfo to parser
-import Prelude hiding (unlines)
+import Prelude hiding (concat, takeWhile, unlines)
 
 data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}
     deriving (Show)
 
-newtype Br a = Br { runBr :: State Env a }
+newtype Br a = Br {runBr :: State Env a}
     deriving (Functor, Applicative, Monad, MonadState Env)
 
 check :: Prog -> Either Text Prog
 check p = case flip execState (Env mempty mempty) $ runBr $ branchReturns p of
     Env [] [] -> Right p
-    Env stmts topdefs -> Left $ unlines (map errUnreachable stmts) <> unlines (map errMissingRet topdefs)
+    Env stmts topdefs ->
+        Left $
+            concat (intersperse "\n\n" $ map errUnreachable stmts)
+                <> unlines (map errMissingRet topdefs)
 
 errUnreachable :: Stmt -> Text
-errUnreachable stmt = "unreachable statement somewhere"
+errUnreachable stmt = "unreachable statement\n" <> reportStmt stmt
+
+reportStmt :: Stmt -> Text
+reportStmt stmt =
+    let info = hasInfo stmt
+     in quote (takeWhile (/= '\n') info.sourceCode)
+            <> " at "
+            <> pack (show info.sourceLine)
+            <> ":"
+            <> pack (show info.sourceColumn)
 
 errMissingRet :: TopDef -> Text
-errMissingRet (FnDef _ _ (Id info name) _ _) = "missing return in " <> name <> report info
-  where
-    report NoInfo = ""
-    report info = " at " <> pack (show info.sourceLine) <> ":" <> pack (show info.sourceColumn)
+errMissingRet (FnDef info _ _ _ stmts) = case stmts of
+    [] ->
+        "missing return in\n"
+            <> info.sourceCode
+            <> "\n"
+            <> "at "
+            <> pack (show info.sourceLine)
+            <> ":"
+            <> pack (show info.sourceColumn)
+    xs ->
+        "missing return in function "
+            <> quote info.sourceName
+            <> "\ngot "
+            <> "\n  "
+            <> reportStmt (last xs)
+            <> "\nexpected\n  a return statement"
+
+quote :: Text -> Text
+quote s = "'" <> s <> "'"
 
 unreachable :: Stmt -> Br ()
 unreachable s = do
@@ -139,8 +167,10 @@ interpret = \case
         r' <- interpret r
         case (l', r') of
             (IsInt n, IsInt m) -> Just $ IsInt $ addOp op n m
-            (IsDouble n, IsInt m) -> Just $ IsDouble $ addOp op n (fromInteger m)
-            (IsInt n, IsDouble m) -> Just $ IsDouble $ addOp op (fromInteger n) m
+            (IsDouble n, IsInt m) ->
+                Just $ IsDouble $ addOp op n (fromInteger m)
+            (IsInt n, IsDouble m) ->
+                Just $ IsDouble $ addOp op (fromInteger n) m
             (IsDouble n, IsDouble m) -> Just $ IsDouble $ addOp op n m
             _ -> Nothing
     EOr _ l r -> do
@@ -162,8 +192,10 @@ interpret = \case
             (IsString s1, IsString s2) -> Just $ IsBool $ relOp op s1 s2
             (IsDouble n, IsDouble m) -> Just $ IsBool $ relOp op n m
             (IsInt n, IsInt m) -> Just $ IsBool $ relOp op n m
-            (IsInt n, IsDouble m) -> Just $ IsBool $ relOp op (fromInteger n) m
-            (IsDouble n, IsInt m) -> Just $ IsBool $ relOp op n (fromInteger m)
+            (IsInt n, IsDouble m) ->
+                Just $ IsBool $ relOp op (fromInteger n) m
+            (IsDouble n, IsInt m) ->
+                Just $ IsBool $ relOp op n (fromInteger m)
             _ -> Nothing
 
 relOp :: RelOp -> ((Ord a) => a -> a -> Bool)
