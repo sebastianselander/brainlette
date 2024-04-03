@@ -5,6 +5,7 @@ module Braingen.Ir where
 
 import BMM.Bmm qualified as B
 import Braingen.LlvmAst
+import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
 import Control.Monad.Except (Except, MonadError, runExceptT)
 import Control.Monad.Identity (Identity (runIdentity))
@@ -12,6 +13,7 @@ import Control.Monad.Reader (ReaderT (runReaderT))
 import Control.Monad.Reader.Class (MonadReader)
 import Control.Monad.State (StateT)
 import Control.Monad.State.Lazy (MonadState, evalStateT)
+import Data.Text (Text, pack)
 
 data Env = Env {}
     deriving (Show, Eq, Ord)
@@ -26,7 +28,7 @@ newtype BgM a = BG {runBgM :: StateT Env (ReaderT Ctx (Except BraingenError)) a}
     deriving (Functor, Applicative, Monad, MonadReader Ctx, MonadState Env, MonadError BraingenError)
 
 -- | Pump those wrinkles 🧠
-braingen :: B.Prog -> Either String Ir
+braingen :: B.Prog -> Either Text Text
 braingen =
     braingenProg
         >>> runBgM
@@ -35,8 +37,8 @@ braingen =
         >>> runExceptT
         >>> runIdentity
         >>> \case
-            Left err -> Left $ show err
-            Right p -> Right p
+            Left err -> Left . pack . show $ err
+            Right p -> Right $ outputIr p
 
 braingenProg :: B.Prog -> BgM Ir
 braingenProg (B.Program tp) = Ir <$> mapM braingenTopDef tp

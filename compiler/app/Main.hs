@@ -3,10 +3,11 @@
 module Main where
 
 import BMM.TcToBmm (bmm)
+import Braingen.Ir (braingen)
 import BrainletteParser
 import BranchReturns (check)
 import Control.Monad (unless)
-import Data.Text (pack)
+import Data.Text (pack, unpack)
 import Data.Text.IO (hPutStrLn)
 import System.Directory (doesFileExist)
 import System.Environment
@@ -36,5 +37,8 @@ main = do
     res <- case bmm res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
+    res <- case braingen res of
+        Left err -> hPutStrLn stderr err *> exitFailure
+        Right res -> return res
 
-    print res
+    putStrLn $ unpack res
