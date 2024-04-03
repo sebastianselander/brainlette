@@ -25,14 +25,15 @@ void = primType "void"
 boolean :: Parser Type
 boolean = primType "boolean"
 
-typ :: Parser Type
-typ = choice [try boolean, try int, try double, try string, void]
+atom :: Parser Type
+atom = choice [try (parens typ), try boolean, try int, try double, try string, void]
 
--- fun :: Parser Type
--- fun = do
---     traceShowM "fun"
---     (i, (ty, tys)) <- info $ do
---         ty <- typ
---         tys <- parens (commaSep typ)
---         return (ty, tys)
---     return $ Fun i ty tys
+typ :: Parser Type
+typ = choice [ try $ do
+    (i, (ty, tys)) <- info $ do
+        ty <- atom
+        tys <- parens (commaSep typ)
+        return (ty, tys)
+    return $ Fun i ty tys
+    , atom
+    ]
