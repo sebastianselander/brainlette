@@ -69,6 +69,31 @@ instance OutputIr Stmt where
                 ConstArgument t i -> outputIr t <> " " <> i
         RetVoid -> "ret void"
         Comment t -> "; " <> t
+        Arith ar t a1 a2 ->
+            concat
+                [ outputIr ar
+                , " "
+                , outputIr t
+                , " "
+                , outputIr a1
+                , ", "
+                , outputIr a2
+                ]
+
+instance OutputIr Arithmetic where
+    outputIr :: Arithmetic -> Text
+    outputIr = \case
+        Add -> "add"
+        Sub -> "sub"
+        FAdd -> "fadd"
+        FSub -> "fsub"
+        Mul -> "mul"
+        FMul -> "fmul"
+        UDiv -> "udiv"
+        SDiv -> "sdiv"
+        FDiv -> "fdiv"
+        URem -> "urem"
+        FRem -> "frem"
 
 instance OutputIr [Stmt] where
     outputIr :: [Stmt] -> Text
