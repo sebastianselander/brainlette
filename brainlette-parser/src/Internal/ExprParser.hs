@@ -12,7 +12,7 @@ import Internal.Language
       commaSep,
       info )
 import ParserTypes
-import Text.Parsec ( choice, try, chainl1 )
+import Text.Parsec ( choice, try)
 import Text.Parsec.Expr
     ( buildExpressionParser,
       Assoc(AssocLeft, AssocNone),
