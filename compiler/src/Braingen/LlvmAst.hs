@@ -40,8 +40,23 @@ data TopDef
     | Define Type Text [Argument] CallingConvention [Stmt]
     deriving (Show)
 
+data Arithmetic
+    = Add
+    | Sub
+    | FAdd
+    | FSub
+    | Mul
+    | FMul
+    | UDiv
+    | SDiv
+    | FDiv
+    | URem
+    | FRem
+    deriving (Show)
+
 data Stmt
     = Call (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
+    | Arith Arithmetic Type Argument Argument
     | Ret Argument
     | RetVoid
     | Comment Text
