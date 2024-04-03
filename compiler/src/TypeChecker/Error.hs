@@ -69,6 +69,9 @@ data TcError
         Id
     deriving (Show)
 
+parens :: Text -> Text
+parens s = "(" <> s <> ")"
+
 class Report a where
     report :: a -> Text
 
@@ -85,15 +88,15 @@ instance Report Id where
 instance Report Type where
     report = \case
         TVar id -> report id
-        Fun rt argTys -> intercalate " ->" (map report (argTys ++ [rt]))
+        Fun rt argTys -> report rt <> parens (report argTys)
 
 instance {-# OVERLAPPING #-} Report Text where
     report = id
 
 instance (Report a) => Report [a] where
     report [] = ""
-    report [x] = "'" <> report x <> "'"
-    report (x : xs) = "'" <> report x <> "', " <> report xs
+    report [x] = report x
+    report (x : xs) = report x <> ", " <> report xs
 
 instance Report RelOp where
     report = \case
