@@ -90,4 +90,3 @@ testProg =
             [ B.Ret $ Just (B.EAdd (B.ELitInt 123) B.Plus (B.ELitInt 123))
             ]
         ]
-

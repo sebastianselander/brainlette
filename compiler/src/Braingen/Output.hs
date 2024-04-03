@@ -87,6 +87,7 @@ instance OutputIr Type where
     outputIr :: Type -> Text
     outputIr = \case
         I32 -> "i32"
+        F64 -> "f64"
         Ptr -> "ptr"
         FunPtr t ts -> outputIr t <> "(" <> outputIr ts <> ")*"
         CustomType t -> "%" <> t

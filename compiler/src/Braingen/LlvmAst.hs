@@ -11,8 +11,12 @@ data TailMarker = Tail | MustTail | NoTail
 
 data Type
     = I32
+<<<<<<< Updated upstream
     | I1
     | Double
+=======
+    | F64
+>>>>>>> Stashed changes
     | Ptr
     | FunPtr Type [Type]
     | CustomType Text
