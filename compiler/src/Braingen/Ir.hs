@@ -45,7 +45,10 @@ braingenProg (B.Program tp) = Ir <$> mapM braingenTopDef tp
 
 braingenType :: B.Type -> BgM Type
 braingenType t = case t of
-    B.TVar (B.Id "int") -> pure I32
+    B.Int -> pure I32
+    B.Boolean -> pure I1
+    B.Double -> pure Double
+    B.Void -> error "TODO: braingen type void"
     B.TVar (B.Id x) -> pure $ CustomType x
     B.Fun t ts -> do
         ret <- braingenType t
@@ -71,3 +74,20 @@ braingenTopDef (B.FnDef ret (B.Id i) a s) = do
     args <- mapM braingenArg a
     stmts <- concat <$> mapM braingenStm s
     pure $ Define ret i args NoAttribute stmts
+
+braingenExpr :: B.Expr -> BgM Expr
+braingenExpr = undefined
+
+testProg :: B.Prog
+testProg =
+    B.Program
+        [ B.FnDef
+            B.Int
+            (B.Id "add")
+            [ B.Argument B.Int (B.Id "x")
+            , B.Argument B.Int (B.Id "y")
+            ]
+            [ B.Ret $ Just (B.EAdd (B.ELitInt 123) B.Plus (B.ELitInt 123))
+            ]
+        ]
+
