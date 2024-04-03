@@ -16,9 +16,10 @@ data Stmt
     | Decl Type Id
     | Ass Id Expr
     | Ret (Maybe Expr)
-    | CondElse Expr Stmt Stmt
-    | Loop Stmt
+    | CondElse Expr [Stmt] [Stmt]
+    | Loop [Stmt]
     | SExp Expr
+    | Break
     deriving (Show)
 
 data Type
@@ -26,21 +27,26 @@ data Type
     | Fun Type [Type]
     deriving (Show)
 
-data Expr
+type Expr = (Type, Expr')
+
+data Expr'
     = EVar Id
-    | ELitInt Integer
-    | ELitDouble Double
-    | ELitTrue
-    | ELitFalse
+    | ELit Lit
     | EApp Id [Expr]
     | EString Text
-    | Neg Expr
     | Not Expr
     | EMul Expr MulOp Expr
     | EAdd Expr AddOp Expr
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
+    deriving (Show)
+
+data Lit
+    = LitInt Integer
+    | LitDouble Double
+    | LitBool Bool
+    | LitString Text
     deriving (Show)
 
 {- Additive Operator -}
@@ -69,19 +75,22 @@ data RelOp
 -- Identifier
 newtype Id = Id Text deriving (Show)
 
-
 pattern Int :: Type
 pattern Int <- TVar (Id "int")
-  where Int = TVar (Id "int")
+    where
+        Int = TVar (Id "int")
 
 pattern Boolean :: Type
 pattern Boolean <- TVar (Id "boolean")
-  where Boolean = TVar (Id "boolean")
+    where
+        Boolean = TVar (Id "boolean")
 
 pattern Void :: Type
 pattern Void <- TVar (Id "void")
-  where Void = TVar (Id "void")
+    where
+        Void = TVar (Id "void")
 
 pattern Double :: Type
 pattern Double <- TVar (Id "double")
-  where Double = TVar (Id "double")
+    where
+        Double = TVar (Id "double")

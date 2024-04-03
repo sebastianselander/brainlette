@@ -16,6 +16,7 @@ library brainlette-lib
   import:           warnings
   exposed-modules:
     BMM.Bmm
+    BMM.TcToBmm
     Braingen.Ir
     Braingen.LlvmAst
     Braingen.Output
