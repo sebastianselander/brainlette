@@ -87,7 +87,7 @@ getLabel t = do
     state <- get
     let current = labelCounter state
     put (state {labelCounter = current + 1})
-    pure $ t <> "." <> (thow current)
+    pure $ t <> "." <> thow current
 
 {-| Return a temp variable, useful when calculating intermediate values.
 
@@ -111,7 +111,7 @@ getTempVariable t = do
         Just val -> do
             let vars' = Map.insert t (val + 1) vars
             put (state {tempVariables = vars'})
-            pure $ t <> "." <> (thow val)
+            pure $ t <> "." <> thow val
         Nothing -> do
             let vars' = Map.insert t 0 vars
             put (state {tempVariables = vars'})
