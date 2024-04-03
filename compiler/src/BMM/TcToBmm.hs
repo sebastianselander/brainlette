@@ -52,7 +52,7 @@ instance ToBmm [T.Stmt] [Stmt] where
                 , EAdd
                     (toBmm t, EVar (toBmm id))
                     Plus
-                    (TVar $ Id "Int", ELit (LitInt 1))
+                    (TVar $ Id "int", ELit (LitInt 1))
                 )
             ]
         T.Decr t id ->
@@ -62,7 +62,7 @@ instance ToBmm [T.Stmt] [Stmt] where
                 , EAdd
                     (toBmm t, EVar (toBmm id))
                     Minus
-                    (TVar $ Id "Int", ELit (LitInt 1))
+                    (TVar $ Id "int", ELit (LitInt 1))
                 )
             ]
         T.Ret e -> [Ret . Just . toBmm $ e]
@@ -90,7 +90,7 @@ instance ToBmm T.Expr' Expr' where
             EMul
                 (toBmm e)
                 Times
-                (TVar . Id $ "Int", ELit . LitInt $ (-1))
+                (TVar . Id $ "int", ELit . LitInt $ (-1))
         T.Not e -> Not (toBmm e)
         T.EMul e1 op e2 -> EMul (toBmm e1) (toBmm op) (toBmm e2)
         T.EAdd e1 op e2 -> EAdd (toBmm e1) (toBmm op) (toBmm e2)
