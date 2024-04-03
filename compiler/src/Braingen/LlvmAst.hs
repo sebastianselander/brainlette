@@ -4,23 +4,19 @@ import Data.Text (Text)
 
 data CallingConvention
     = NoAttribute
-    deriving Show
+    deriving (Show)
 
 data TailMarker = Tail | MustTail | NoTail
-    deriving Show
+    deriving (Show)
 
 data Type
     = I32
-<<<<<<< Updated upstream
     | I1
-    | Double
-=======
     | F64
->>>>>>> Stashed changes
     | Ptr
     | FunPtr Type [Type]
     | CustomType Text
-    deriving Show
+    deriving (Show)
 
 data DebugInfo
     = DebugInfo
@@ -29,24 +25,24 @@ data DebugInfo
         , text :: Text
         }
     | NoInfo
-    deriving Show
+    deriving (Show)
 
 data Argument
     = Argument Type Text
     | ConstArgument Type Text
-    deriving Show
+    deriving (Show)
 
 newtype Ir = Ir [TopDef]
-    deriving Show
+    deriving (Show)
 
 data TopDef
     = Declare Type Text [Type] CallingConvention
     | Define Type Text [Argument] CallingConvention [Stmt]
-    deriving Show
+    deriving (Show)
 
 data Stmt
     = Call (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
     | Ret Argument
     | RetVoid
     | Comment Text
-    deriving Show
+    deriving (Show)

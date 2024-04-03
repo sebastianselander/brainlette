@@ -47,7 +47,7 @@ braingenType :: B.Type -> BgM Type
 braingenType t = case t of
     B.Int -> pure I32
     B.Boolean -> pure I1
-    B.Double -> pure Double
+    B.Double -> pure F64
     B.Void -> error "TODO: braingen type void"
     B.TVar (B.Id x) -> pure $ CustomType x
     B.Fun t ts -> do
@@ -75,7 +75,7 @@ braingenTopDef (B.FnDef ret (B.Id i) a s) = do
     stmts <- concat <$> mapM braingenStm s
     pure $ Define ret i args NoAttribute stmts
 
-braingenExpr :: B.Expr -> BgM Expr
+braingenExpr :: B.Expr -> BgM Stmt
 braingenExpr = undefined
 
 testProg :: B.Prog
@@ -87,6 +87,13 @@ testProg =
             [ B.Argument B.Int (B.Id "x")
             , B.Argument B.Int (B.Id "y")
             ]
-            [ B.Ret $ Just (B.EAdd (B.ELitInt 123) B.Plus (B.ELitInt 123))
+            [ B.Ret $
+                Just
+                    ( B.TVar $ B.Id "Int"
+                    , B.EAdd
+                        (B.TVar $ B.Id "Int", B.ELit $ B.LitInt 123)
+                        B.Plus
+                        (B.TVar $ B.Id "Int", B.ELit $ B.LitInt 123)
+                    )
             ]
         ]
