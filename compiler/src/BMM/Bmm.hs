@@ -40,6 +40,7 @@ data Expr'
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
+    | Cast Expr
     deriving (Show)
 
 data Lit
