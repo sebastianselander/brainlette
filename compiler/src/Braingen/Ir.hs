@@ -57,8 +57,9 @@ braingenStm = \case
     B.Ass (B.Id a) expr@(t, _) -> do
         result <- braingenExpr expr
         output $ Store (Argument (braingenType t) result) a
-    B.Ret (Just expr) -> do
-        output . Comment $ "TODO    RETURN: " <> thow expr
+    B.Ret (Just expr@(t, _)) -> do
+        result <- braingenExpr expr
+        output $ Ret (Argument (braingenType t) result)
     B.Ret Nothing -> do
         output RetVoid
     B.CondElse cexpr s1 s2 -> do
