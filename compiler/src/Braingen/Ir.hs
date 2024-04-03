@@ -53,9 +53,10 @@ braingenStm = \case
     B.BStmt block -> do
         output . Comment $ "TODO     BLOCK: " <> thow block
     B.Decl t (B.Id i) -> do
-        output . Comment $ "TODO      DECL: " <> i <> " := " <> thow t
-    B.Ass (B.Id a) expr -> do
-        output . Comment $ "TODO    ASSIGN: " <> a <> " = " <> thow expr
+        output $ Alloca i (braingenType t)
+    B.Ass (B.Id a) expr@(t, _) -> do
+        result <- braingenExpr expr
+        output $ Store (Argument (braingenType t) result) a
     B.Ret (Just expr) -> do
         output . Comment $ "TODO    RETURN: " <> thow expr
     B.Ret Nothing -> do
@@ -70,7 +71,9 @@ braingenStm = \case
         output . Comment $ "TODO     BREAK"
 
 braingenExpr :: B.Expr -> BgM Text
-braingenExpr _ = pure "TODO"
+braingenExpr e = do
+    output . Comment $ "EXPR-TODO: " <> thow e
+    pure "TODO"
 
 ----------------------------------- Helper functions -----------------------------------
 

@@ -54,11 +54,18 @@ data Arithmetic
     | FRem
     deriving (Show)
 
+type Variable = Text
+
+type Label = Text
+
 data Stmt
     = Call (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
     | Arith Arithmetic Type Argument Argument
+    | Alloca Variable Type
+    | Store Argument Variable
+    | Load Variable Type Variable
     | Ret Argument
     | RetVoid
-    | Label Text
+    | Label Label
     | Comment Text
     deriving (Show)
