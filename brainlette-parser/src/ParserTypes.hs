@@ -55,6 +55,7 @@ data Stmt' a
     | Cond a (Expr' a) (Stmt' a)
     | CondElse a (Expr' a) (Stmt' a) (Stmt' a)
     | While a (Expr' a) (Stmt' a)
+    | Break a
     | SExp a (Expr' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 

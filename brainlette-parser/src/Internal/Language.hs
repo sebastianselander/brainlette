@@ -55,6 +55,7 @@ brainletteDef =
             , "boolean"
             , "void"
             , "string"
+            , "break"
             ]
         , opStart = oneOf ""
         , opLetter = oneOf ""

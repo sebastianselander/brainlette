@@ -6,7 +6,7 @@ import Internal.TypeParser
 import ParserTypes
 import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
-import Prelude hiding (id, init)
+import Prelude hiding (id, init, break)
 import Text.ParserCombinators.Parsec (many)
 
 -- Items
@@ -41,11 +41,15 @@ stmt =
         , try decr
         , try blk
         , try sexp
+        , try break
         , empty
         ]
 
 empty :: Parser Stmt
 empty = Empty . fst <$> info (reservedOp ";")
+
+break :: Parser Stmt
+break = Break . fst <$> info (reserved "break")
 
 blk :: Parser Stmt
 blk = uncurry BStmt <$> info (braces (many stmt))
