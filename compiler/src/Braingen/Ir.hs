@@ -13,7 +13,6 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Text (Text, pack)
 import Utils (thow)
-import Data.DList hiding (map)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -58,10 +57,10 @@ braingenStm breakpoint = \case
         output $ Alloca i (braingenType t)
     B.Ass (B.Id a) expr@(t, _) -> do
         result <- braingenExpr expr
-        output $ Store (Argument (braingenType t) result) a
+        output $ Store (Argument (pure $ braingenType t) result) a
     B.Ret (Just expr@(t, _)) -> do
         result <- braingenExpr expr
-        output $ Ret (Argument (braingenType t) result)
+        output $ Ret (Argument (pure $ braingenType t) result)
     B.Ret Nothing -> do
         output RetVoid
     B.CondElse expr s1 s2 -> do
@@ -101,6 +100,11 @@ braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
     B.EVar (B.Id ident) -> return ident
     B.ELit lit -> braingenLit lit
+    B.Not e -> do
+        exprVar <- braingenExpr e
+        var <- getTempVariable "bool_not"
+        output $ ICmp var Eq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitInt 0))
+        return var
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
         pure "TODO"
@@ -110,18 +114,18 @@ braingenLit = \case
     B.LitInt n -> do
         var <- getTempVariable "int_lit"
         output $ Alloca var I32
-        output $ Store (ConstArgument I32 (LitInt n)) var
+        output $ Store (ConstArgument (pure I32) (LitInt n)) var
         return var
     B.LitDouble n -> do
         var <- getTempVariable "double_lit"
         output $ Alloca var F64
-        output $ Store (ConstArgument F64 (LitDouble n)) var
+        output $ Store (ConstArgument (pure F64) (LitDouble n)) var
         return var
-    B.LitString str -> error "TODO: String literal"
+    B.LitString _ -> error "TODO: String literal"
     B.LitBool b -> do
         var <- getTempVariable "bool_lit"
         output $ Alloca var I1
-        output $ Store (ConstArgument I1 (LitBool b)) var
+        output $ Store (ConstArgument (pure I1) (LitBool b)) var
         return var
 
         
@@ -186,7 +190,7 @@ braingenType t = case t of
 
 -- | Convert a BMM argument to an IR argument
 braingenArg :: B.Arg -> Argument
-braingenArg (B.Argument t (B.Id i)) = Argument (braingenType t) i
+braingenArg (B.Argument t (B.Id i)) = Argument (pure $ braingenType t) i
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog
