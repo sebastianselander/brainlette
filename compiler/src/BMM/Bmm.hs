@@ -74,7 +74,7 @@ data RelOp
     deriving (Show)
 
 -- Identifier
-newtype Id = Id Text deriving (Show)
+newtype Id = Id Text deriving (Show, Eq, Ord)
 
 pattern Int :: Type
 pattern Int <- TVar (Id "int")
