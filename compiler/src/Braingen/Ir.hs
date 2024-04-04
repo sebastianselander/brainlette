@@ -97,10 +97,34 @@ braingenStm breakpoint = \case
                 Nothing -> error "break outside loop, report as INSERT BUG HERE :)"
         output . Jump $ bp
 
-braingenExpr :: B.Expr -> BgM Text
-braingenExpr e = do
-    output . Comment $ "EXPR-TODO: " <> thow e
-    pure "TODO"
+braingenExpr :: B.Expr -> BgM Variable
+braingenExpr (ty, e) = case e of
+    B.EVar (B.Id ident) -> return ident
+    B.ELit lit -> braingenLit lit
+    _ -> do
+        output . Comment $ "EXPR-TODO: " <> thow e
+        pure "TODO"
+
+braingenLit :: B.Lit -> BgM Variable
+braingenLit = \case
+    B.LitInt n -> do
+        var <- getTempVariable "int_lit"
+        output $ Alloca var I32
+        output $ Store (ConstArgument I32 (LitInt n)) var
+        return var
+    B.LitDouble n -> do
+        var <- getTempVariable "double_lit"
+        output $ Alloca var F64
+        output $ Store (ConstArgument F64 (LitDouble n)) var
+        return var
+    B.LitString str -> error "TODO: String literal"
+    B.LitBool b -> do
+        var <- getTempVariable "bool_lit"
+        output $ Alloca var I1
+        output $ Store (ConstArgument I1 (LitBool b)) var
+        return var
+
+        
 
 ----------------------------------- Helper functions -----------------------------------
 
@@ -133,7 +157,7 @@ For example: @int x = 1 + 2 + 3@ might generate:
 
 And @x.0@ can be obtained by calling @getTempVariable "x"@.
 -}
-getTempVariable :: Text -> BgM Text
+getTempVariable :: Text -> BgM Variable
 getTempVariable t = do
     state <- get
     let vars = tempVariables state

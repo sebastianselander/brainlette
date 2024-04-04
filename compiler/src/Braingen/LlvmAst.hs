@@ -29,7 +29,7 @@ data DebugInfo
 
 data Argument
     = Argument Type Text
-    | ConstArgument Type Text
+    | ConstArgument Type Lit
     deriving (Show)
 
 newtype Ir = Ir [TopDef]
@@ -70,4 +70,11 @@ data Stmt
     | Comment Text
     | Br Variable Label Label
     | Jump Label
+    deriving (Show)
+
+data Lit
+    = LitInt Integer
+    | LitDouble Double
+    | LitBool Bool
+    | LitString Text
     deriving (Show)

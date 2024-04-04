@@ -6,6 +6,7 @@ module Braingen.Output where
 import Braingen.LlvmAst
 import Data.Text (Text, concat, intercalate, unwords)
 import Prelude hiding (concat, unwords)
+import Utils (thow)
 
 class OutputIr a where
     outputIr :: a -> Text
@@ -66,7 +67,7 @@ instance OutputIr Stmt where
         Ret arg ->
             "ret " <> case arg of
                 Argument t i -> outputIr t <> " %" <> i
-                ConstArgument t i -> outputIr t <> " " <> i
+                ConstArgument t i -> outputIr t <> " " <> outputIr i
         RetVoid -> "ret void"
         Comment t -> "; " <> t
         Arith ar t a1 a2 ->
@@ -107,12 +108,20 @@ instance OutputIr [Stmt] where
 
 instance OutputIr Argument where
     outputIr :: Argument -> Text
-    outputIr (ConstArgument t i) = outputIr t <> " " <> i
+    outputIr (ConstArgument t i) = outputIr t <> " " <> outputIr i
     outputIr (Argument t i) = outputIr t <> " %" <> i
 
 instance OutputIr [Argument] where
     outputIr :: [Argument] -> Text
     outputIr as = intercalate ", " $ map outputIr as
+
+instance OutputIr Lit where
+    outputIr = \case
+        LitInt n -> thow n
+        LitDouble n -> thow n
+        LitBool True -> "1"
+        LitBool False -> "0"
+        LitString str -> error "TODO: String literal"
 
 instance OutputIr Type where
     outputIr :: Type -> Text
