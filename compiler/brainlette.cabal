@@ -37,6 +37,7 @@ library brainlette-lib
     , text
     , x86-64bit
     , string-interpolate
+    , dlist
 
   hs-source-dirs:   src
   default-language: GHC2021

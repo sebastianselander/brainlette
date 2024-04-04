@@ -8,13 +8,15 @@ import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
 import Control.Monad.State (MonadState (get, put), State, runState)
+import Data.DList hiding (map)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Text (Text, pack)
 import Utils (thow)
+import Data.DList hiding (map)
 
 data Env = Env
-    { instructions :: [Stmt]
+    { instructions :: DList Stmt
     , labelCounter :: Integer
     , tempVariables :: Map Text Integer
     }
@@ -45,8 +47,8 @@ braingenTopDef (B.FnDef rt (B.Id i) a s) = do
 braingenStmts :: [B.Stmt] -> Either Text [Stmt]
 braingenStmts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env [] 0 Map.empty)
-        >>> \(_, e) -> Right $ instructions e
+        >>> flip runState (Env mempty 0 Map.empty)
+        >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint = \case
@@ -107,7 +109,7 @@ output :: Stmt -> BgM ()
 output s = do
     state <- get
     let insts = instructions state
-    put (state {instructions = insts ++ [s]})
+    put (state {instructions = insts `snoc` s})
 
 -- | Return a label suffixed with a unique label to avoid label collisions.
 getLabel :: Text -> BgM Text
