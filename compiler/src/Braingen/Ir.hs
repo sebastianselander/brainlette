@@ -44,12 +44,12 @@ braingenTopDef (B.FnDef rt (B.Id i) a s) = do
 
 braingenStmts :: [B.Stmt] -> Either Text [Stmt]
 braingenStmts =
-    mapM_ braingenStm
+    mapM_ (braingenStm Nothing)
         >>> flip runState (Env [] 0 Map.empty)
         >>> \(_, e) -> Right $ instructions e
 
-braingenStm :: B.Stmt -> BgM ()
-braingenStm = \case
+braingenStm :: Maybe Text -> B.Stmt -> BgM ()
+braingenStm breakpoint = \case
     B.BStmt block -> do
         output . Comment $ "TODO     BLOCK: " <> thow block
     B.Decl t (B.Id i) -> do
@@ -72,11 +72,11 @@ braingenStm = \case
         output $ Br result "IfTrue" "IfFalse"
         -- if true
         output $ Label lTrue
-        mapM_ braingenStm s1
+        mapM_ (braingenStm (Just lDone)) s1
         output $ Jump lDone
         -- if false
         output $ Label lFalse
-        mapM_ braingenStm s2
+        mapM_ (braingenStm (Just lDone)) s2
         output $ Jump lDone
         -- if done
         output $ Label lDone
@@ -85,7 +85,10 @@ braingenStm = \case
     B.SExp expr -> do
         output . Comment $ "TODO      EXPR: " <> thow expr
     B.Break -> do
-        output . Comment $ "TODO     BREAK"
+        let bp = case breakpoint of
+                Just bp -> bp
+                Nothing -> error "break outside loop, report as INSERT BUG HERE :)"
+        output . Jump $ bp
 
 braingenExpr :: B.Expr -> BgM Text
 braingenExpr e = do
