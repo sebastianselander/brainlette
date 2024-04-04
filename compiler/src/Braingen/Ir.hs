@@ -62,8 +62,24 @@ braingenStm = \case
         output $ Ret (Argument (braingenType t) result)
     B.Ret Nothing -> do
         output RetVoid
-    B.CondElse cexpr s1 s2 -> do
-        output . Comment $ "TODO COND ELSE: if " <> thow cexpr <> " ? " <> thow s1 <> " : " <> thow s2
+    B.CondElse expr s1 s2 -> do
+        result <- braingenExpr expr
+        lTrue <- getLabel "IfTrue"
+        lFalse <- getLabel "IfFalse"
+        lDone <- getLabel "IfDone"
+
+        -- if
+        output $ Br result "IfTrue" "IfFalse"
+        -- if true
+        output $ Label lTrue
+        mapM_ braingenStm s1
+        output $ Jump lDone
+        -- if false
+        output $ Label lFalse
+        mapM_ braingenStm s2
+        output $ Jump lDone
+        -- if done
+        output $ Label lDone
     B.Loop stmt -> do
         output . Comment $ "TODO      LOOP: " <> thow stmt
     B.SExp expr -> do

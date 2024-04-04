@@ -83,6 +83,8 @@ instance OutputIr Stmt where
         Alloca v t -> concat ["%" <> v <> " = alloca ", outputIr t]
         Store val var -> concat ["store ", outputIr val, ", ptr %", var]
         Load var t ptr -> concat ["%", var, " = load ", outputIr t, ", ptr %", ptr]
+        Br cond l1 l2 -> concat ["br i1 %", cond, ", label %", l1, ", label %", l2]
+        Jump l -> concat ["br label %", l]
 
 instance OutputIr Arithmetic where
     outputIr :: Arithmetic -> Text

@@ -68,4 +68,6 @@ data Stmt
     | RetVoid
     | Label Label
     | Comment Text
+    | Br Variable Label Label
+    | Jump Label
     deriving (Show)
