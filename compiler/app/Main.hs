@@ -14,6 +14,7 @@ import System.Environment
 import System.Exit
 import System.IO (stderr)
 import TypeChecker.Tc (tc)
+import Utils (ePrint, ePutStrLn)
 
 main :: IO ()
 main = do
@@ -28,15 +29,31 @@ main = do
     res <- case program file (pack text) of
         Left err -> print err *> exitFailure
         Right res -> return res
+
+    ePutStrLn "--- Parse output ---"
+    ePrint res
+
     res <- case check res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
+
+    ePutStrLn "--- Check output ---"
+    ePrint res
+
     res <- case tc res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
+
+    ePutStrLn "--- Typecheck output ---"
+    ePrint res
+
     res <- case bmm res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
+
+    ePutStrLn "--- BMM output ---"
+    ePrint res
+
     res <- case braingen res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res

@@ -3,6 +3,8 @@
 module Utils where
 
 import Data.Text (Text, pack)
+import Data.Text.IO (hPutStrLn)
+import System.IO (hPrint, stderr)
 
 {-# WARNING TODO "TODO" #-}
 pattern TODO :: a
@@ -17,3 +19,10 @@ for = flip map
 -- | Show but text :)
 thow :: (Show a) => a -> Text
 thow = pack . show
+
+-- | Print string to stdErr
+ePutStrLn :: Text -> IO ()
+ePutStrLn = hPutStrLn stderr
+
+ePrint :: (Show a) => a -> IO ()
+ePrint = hPrint stderr
