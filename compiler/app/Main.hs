@@ -37,25 +37,27 @@ main = do
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
 
-    ePutStrLn "--- Check output ---"
+    ePutStrLn "\n--- Check output ---"
     ePrint res
 
     res <- case tc res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
 
-    ePutStrLn "--- Typecheck output ---"
+    ePutStrLn "\n--- Typecheck output ---"
     ePrint res
 
     res <- case bmm res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
 
-    ePutStrLn "--- BMM output ---"
+    ePutStrLn "\n--- BMM output ---"
     ePrint res
 
     res <- case braingen res of
         Left err -> hPutStrLn stderr err *> exitFailure
         Right res -> return res
+
+    ePutStrLn "\n--- LLVM IR output ---"
 
     putStrLn $ unpack res
