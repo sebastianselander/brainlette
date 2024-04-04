@@ -107,6 +107,9 @@ semiSep = lexeme . P.semiSep bl
 braces :: Parser a -> Parser a
 braces = lexeme . P.braces bl
 
+whiteSpace :: Parser ()
+whiteSpace = P.whiteSpace bl
+
 info :: Parser a -> Parser (SynInfo, a)
 info p = do
     before <- getInput
