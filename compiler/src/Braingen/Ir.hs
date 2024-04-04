@@ -81,7 +81,12 @@ braingenStm breakpoint = \case
         -- if done
         output $ Label lDone
     B.Loop stmt -> do
-        output . Comment $ "TODO      LOOP: " <> thow stmt
+        loopPoint <- getLabel "loop"
+        breakpoint <- getLabel "breakpoint"
+        output . Label $ loopPoint
+        mapM_ (braingenStm (Just breakpoint)) stmt
+        output . Jump $ loopPoint
+        output . Label $ breakpoint
     B.SExp expr -> do
         output . Comment $ "TODO      EXPR: " <> thow expr
     B.Break -> do
