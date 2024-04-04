@@ -54,6 +54,18 @@ data Arithmetic
     | FRem
     deriving (Show)
 
+data Condition
+    = Eq
+    | Ne
+    | Ugt
+    | Ult
+    | Ule
+    | Sgt
+    | Sge
+    | Slt
+    | Sle
+    deriving (Show)
+
 type Variable = Text
 
 type Label = Text
@@ -61,6 +73,7 @@ type Label = Text
 data Stmt
     = Call Variable (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
     | Arith Variable Arithmetic Type Argument Argument
+    | ICmp Variable Condition Type Argument Argument
     | Alloca Variable Type
     | Store Argument Variable
     | Load Variable Type Variable
