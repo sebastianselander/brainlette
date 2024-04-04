@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -5,8 +6,9 @@ module Braingen.Output where
 
 import Braingen.LlvmAst
 import Data.Text (Text, concat, intercalate, unwords)
-import Prelude hiding (concat, unwords)
 import Utils (thow)
+import Prelude hiding (concat, unwords)
+import Data.String.Interpolate
 
 class OutputIr a where
     outputIr :: a -> Text
@@ -18,6 +20,9 @@ instance OutputIr Ir where
 instance OutputIr [TopDef] where
     outputIr :: [TopDef] -> Text
     outputIr tds = intercalate "\n\n" $ map outputIr tds
+
+instance OutputIr a => OutputIr (Maybe a) where
+    outputIr = maybe "" outputIr 
 
 instance OutputIr TopDef where
     outputIr :: TopDef -> Text
@@ -44,7 +49,7 @@ instance OutputIr TopDef where
 instance OutputIr Stmt where
     outputIr :: Stmt -> Text
     outputIr = \case
-        Call tail cconv t i args -> do
+        Call var tail cconv t i args -> do
             let tail' = case tail of
                     Just t -> outputIr t <> " "
                     Nothing -> ""
@@ -54,7 +59,9 @@ instance OutputIr Stmt where
                     Nothing -> ""
             let args' = outputIr args
             concat
-                [ tail'
+                [ var
+                , " = "
+                , tail'
                 , "call "
                 , cconv'
                 , t'
@@ -70,9 +77,11 @@ instance OutputIr Stmt where
                 ConstArgument t i -> outputIr t <> " " <> outputIr i
         RetVoid -> "ret void"
         Comment t -> "; " <> t
-        Arith ar t a1 a2 ->
+        Arith var ar t a1 a2 ->
             concat
-                [ outputIr ar
+                [ var
+                , " ="
+                , outputIr ar
                 , " "
                 , outputIr t
                 , " "
@@ -85,7 +94,21 @@ instance OutputIr Stmt where
         Store val var -> concat ["store ", outputIr val, ", ptr %", var]
         Load var t ptr -> concat ["%", var, " = load ", outputIr t, ", ptr %", ptr]
         Br cond l1 l2 -> concat ["br i1 %", cond, ", label %", l1, ", label %", l2]
-        Jump l -> concat ["br label %", l]
+        Jump l -> [i|br label %#{l}|]
+        ICmp var op ty l r -> [i|#{var} = #{outputIr op} #{outputIr ty} #{outputIr l} #{outputIr r}|]
+
+instance OutputIr Condition where
+    outputIr :: Condition -> Text
+    outputIr = \case
+        Eq -> "eq"
+        Ne -> "ne"
+        Ugt -> "ugt"
+        Ult -> "ult"
+        Ule -> "ule"
+        Sgt -> "sgt"
+        Sge -> "sge"
+        Slt -> "slt"
+        Sle -> "sle"
 
 instance OutputIr Arithmetic where
     outputIr :: Arithmetic -> Text
