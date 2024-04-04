@@ -28,8 +28,8 @@ data DebugInfo
     deriving (Show)
 
 data Argument
-    = Argument Type Text
-    | ConstArgument Type Lit
+    = Argument (Maybe Type) Text
+    | ConstArgument (Maybe Type) Lit
     deriving (Show)
 
 newtype Ir = Ir [TopDef]
