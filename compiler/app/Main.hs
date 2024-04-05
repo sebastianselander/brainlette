@@ -13,6 +13,8 @@ import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
 import Utils (ePrint, ePutStrLn)
+import Frontend.Renamer (rename)
+import Data.Functor (void)
 
 main :: IO ()
 main = do
@@ -24,19 +26,29 @@ main = do
             unless b $ ePutStrLn "brainlette: file does not exist" >> exitFailure
             return file
     text <- readFile file
+
+    ePutStrLn "--- Parse output ---"
+
     res <- case program file (pack text) of
         Left err -> print err *> exitFailure
         Right res -> return res
 
-    ePutStrLn "--- Parse output ---"
-    ePrint res
+    ePrint (void res)
+
+    ePutStrLn "--- Renamer output ---"
+
+    res <- case rename res of
+        Left err -> ePutStrLn err *> exitFailure
+        Right res -> return res
+
+    ePrint (void res)
 
     res <- case check res of
         Left err -> ePutStrLn err *> exitFailure
         Right res -> return res
 
     ePutStrLn "\n--- Check output ---"
-    ePrint res
+    ePrint (void res)
 
     res <- case tc res of
         Left err -> ePutStrLn err *> exitFailure
