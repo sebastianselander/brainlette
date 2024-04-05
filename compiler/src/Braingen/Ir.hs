@@ -44,7 +44,7 @@ braingenTopDef (B.FnDef rt (B.Id i) a s) = do
 braingenStmts :: [B.Stmt] -> Either Text [Stmt]
 braingenStmts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 0)
+        >>> flip runState (Env mempty 0 1)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
@@ -86,7 +86,8 @@ braingenStm breakpoint = \case
         output . Jump $ loopPoint
         output . Label $ breakpoint
     B.SExp expr -> do
-        output . Comment $ "TODO      EXPR: " <> thow expr
+        _ <- braingenExpr expr
+        output . Comment $ thow expr
     B.Break -> do
         let bp = case breakpoint of
                 Just bp -> bp
@@ -105,6 +106,11 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         output $ ICmp var Eq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitInt 0))
         return var
+    B.EApp (B.Id func) args -> do
+        args <- mapM (\e@(t, _) -> Argument (Just $ braingenType t) <$> braingenExpr e) args
+        result <- getTempVariable
+        output $ Call result Nothing Nothing (braingenType ty) func args
+        return result
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
         pure (Variable "TODO")

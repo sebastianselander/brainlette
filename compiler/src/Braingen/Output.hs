@@ -5,11 +5,11 @@
 module Braingen.Output where
 
 import Braingen.LlvmAst
+import Data.Coerce (coerce)
 import Data.String.Interpolate
 import Data.Text (Text, concat, intercalate, unwords)
 import Utils (thow)
 import Prelude hiding (concat, unwords)
-import Data.Coerce (coerce)
 
 class OutputIr a where
     outputIr :: a -> Text
@@ -60,7 +60,8 @@ instance OutputIr Stmt where
                     Nothing -> ""
             let args' = outputIr args
             concat
-                [ outputIr var
+                [ "%"
+                , outputIr var
                 , " = "
                 , tail'
                 , "call "
