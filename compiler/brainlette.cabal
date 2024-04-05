@@ -24,6 +24,7 @@ library brainlette-lib
     TypeChecker.Error
     TypeChecker.Tc
     TypeChecker.Types
+    Interpreter.Interpreter
     BranchReturns
     Utils
 
