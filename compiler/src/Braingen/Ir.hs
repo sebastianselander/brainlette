@@ -41,7 +41,7 @@ braingenTopDef (B.FnDef rt (B.Id i) a s) = do
     let ret = braingenType rt
     let args = map braingenArg a
     stmts <- braingenStmts s
-    pure $ Define ret i args NoAttribute stmts
+    pure $ Define ret i args Nothing stmts
 
 braingenStmts :: [B.Stmt] -> Either Text [Stmt]
 braingenStmts =
@@ -136,8 +136,6 @@ braingenLit = \case
         var <- getTempVariable "bool_lit"
         output $ Load var ty intermediate
         return var
-
-        
 
 ----------------------------------- Helper functions -----------------------------------
 

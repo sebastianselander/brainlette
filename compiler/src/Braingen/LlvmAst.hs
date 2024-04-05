@@ -36,8 +36,8 @@ newtype Ir = Ir [TopDef]
     deriving (Show)
 
 data TopDef
-    = Declare Type Text [Type] CallingConvention
-    | Define Type Text [Argument] CallingConvention [Stmt]
+    = Declare Type Text [Type] (Maybe CallingConvention)
+    | Define Type Text [Argument] (Maybe CallingConvention) [Stmt]
     deriving (Show)
 
 data Arithmetic
