@@ -7,7 +7,7 @@ import BMM.Bmm qualified as B
 import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
-import Control.Monad.State (MonadState (get, put), State, runState, gets, modify)
+import Control.Monad.State (MonadState (get, put), State, gets, modify, runState)
 import Data.DList hiding (map)
 import Data.Text (Text, pack)
 import Utils (thow)
@@ -103,7 +103,7 @@ braingenExpr (ty, e) = case e of
     B.ELit lit -> braingenLit lit
     B.Not e -> do
         exprVar <- braingenExpr e
-        var <- getTempVariable "bool_not"
+        var <- getTempVariable
         output $ ICmp var Eq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitInt 0))
         return var
     _ -> do
@@ -172,7 +172,7 @@ And @%0@ can be obtained by calling @getTempVariable@.
 getTempVariable :: BgM Variable
 getTempVariable = do
     v <- gets varCounter
-    modify (\s -> s { varCounter = v + 1})
+    modify (\s -> s {varCounter = v + 1})
     return (Variable $ thow v)
 
 -- | Convert a BMM type to an IR type
