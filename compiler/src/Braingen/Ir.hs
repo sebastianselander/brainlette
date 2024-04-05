@@ -17,7 +17,7 @@ import Utils (thow)
 data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
-    , tempVariables :: Map Text Integer
+    , tempVariables :: Map Text Int
     }
     deriving (Show)
 
@@ -112,20 +112,29 @@ braingenExpr (ty, e) = case e of
 braingenLit :: B.Lit -> BgM Variable
 braingenLit = \case
     B.LitInt n -> do
+        let ty = I32
+        intermediate <- getTempVariable "int_lit"
+        output $ Alloca intermediate ty
+        output $ Store (ConstArgument (pure ty) (LitInt n)) intermediate
         var <- getTempVariable "int_lit"
-        output $ Alloca var I32
-        output $ Store (ConstArgument (pure I32) (LitInt n)) var
+        output $ Load var ty intermediate
         return var
     B.LitDouble n -> do
+        let ty = F64
+        intermediate <- getTempVariable "double_lit"
+        output $ Alloca intermediate ty
+        output $ Store (ConstArgument (pure ty) (LitDouble n)) intermediate
         var <- getTempVariable "double_lit"
-        output $ Alloca var F64
-        output $ Store (ConstArgument (pure F64) (LitDouble n)) var
+        output $ Load var ty intermediate
         return var
     B.LitString _ -> error "TODO: String literal"
     B.LitBool b -> do
+        let ty = I1
+        intermediate <- getTempVariable "bool_lit"
+        output $ Alloca intermediate ty
+        output $ Store (ConstArgument (pure ty) (LitBool b)) intermediate
         var <- getTempVariable "bool_lit"
-        output $ Alloca var I1
-        output $ Store (ConstArgument (pure I1) (LitBool b)) var
+        output $ Load var ty intermediate
         return var
 
         
@@ -169,11 +178,12 @@ getTempVariable t = do
         Just val -> do
             let vars' = Map.insert t (val + 1) vars
             put (state {tempVariables = vars'})
-            pure $ t <> "." <> thow val
+            pure $ t <> "." <> thow (val + 1)
         Nothing -> do
-            let vars' = Map.insert t 0 vars
-            put (state {tempVariables = vars'})
-            pure $ t <> ".0"
+            let val = 0
+            let vars' = Map.insert t val vars
+            put state {tempVariables = vars'}
+            pure $ t <> "." <> thow val
 
 -- | Convert a BMM type to an IR type
 braingenType :: B.Type -> Type
