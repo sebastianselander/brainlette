@@ -1,14 +1,14 @@
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Braingen.Output where
 
 import Braingen.LlvmAst
+import Data.String.Interpolate
 import Data.Text (Text, concat, intercalate, unwords)
 import Utils (thow)
 import Prelude hiding (concat, unwords)
-import Data.String.Interpolate
 
 class OutputIr a where
     outputIr :: a -> Text
@@ -21,8 +21,8 @@ instance OutputIr [TopDef] where
     outputIr :: [TopDef] -> Text
     outputIr tds = intercalate "\n\n" $ map outputIr tds
 
-instance OutputIr a => OutputIr (Maybe a) where
-    outputIr = maybe "" outputIr 
+instance (OutputIr a) => OutputIr (Maybe a) where
+    outputIr = maybe "" outputIr
 
 instance OutputIr TopDef where
     outputIr :: TopDef -> Text
@@ -150,7 +150,7 @@ instance OutputIr Type where
     outputIr :: Type -> Text
     outputIr = \case
         I32 -> "i32"
-        F64 -> "f64"
+        F64 -> "double"
         Ptr -> "ptr"
         I1 -> "i1"
         FunPtr t ts -> outputIr t <> "(" <> outputIr ts <> ")*"
