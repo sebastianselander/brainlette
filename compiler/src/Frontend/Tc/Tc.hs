@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module TypeChecker.Tc where
+module Frontend.Tc.Tc where
 
 import Control.Arrow (first, (>>>))
 import Control.Monad (unless, when)
@@ -17,8 +17,8 @@ import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Text (Text)
 import Data.Tuple.Extra (uncurry3)
 import ParserTypes qualified as Par
-import TypeChecker.Error
-import TypeChecker.Types qualified as Tc
+import Frontend.Error
+import Frontend.Tc.Types qualified as Tc
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =

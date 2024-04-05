@@ -3,13 +3,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module TypeChecker.Error where
+module Frontend.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate
-import Data.Text (Text, cons, intercalate, unlines)
+import Data.Text (Text, cons, unlines)
 import ParserTypes (SynInfo (..))
-import TypeChecker.Types
+import Frontend.Tc.Types
 import Prelude hiding (unlines, unwords)
 
 data TcError

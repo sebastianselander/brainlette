@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
-module TypeChecker.Types where
+module Frontend.Tc.Types where
 
 import Data.String (IsString)
 import Data.Text (Text)

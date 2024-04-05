@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module BranchReturns where
+module Frontend.BranchReturns where
 
 import BrainletteParser
 import Control.Monad.Except (Except, MonadError, runExcept, throwError)

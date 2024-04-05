@@ -4,7 +4,7 @@ module BMM.TcToBmm (bmm) where
 
 import BMM.Bmm
 import Data.Text (Text)
-import TypeChecker.Types qualified as T
+import Frontend.Tc.Types qualified as T
 import Utils (for)
 
 bmm :: T.Prog -> Either Text Prog

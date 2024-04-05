@@ -5,13 +5,13 @@ module Main where
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import BrainletteParser
-import BranchReturns (check)
 import Control.Monad (unless)
 import Data.Text (pack, unpack)
+import Frontend.BranchReturns (check)
+import Frontend.Tc.Tc (tc)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
-import TypeChecker.Tc (tc)
 import Utils (ePrint, ePutStrLn)
 
 main :: IO ()
