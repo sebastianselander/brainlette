@@ -7,10 +7,12 @@ module Frontend.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate
-import Data.Text (Text, cons, unlines)
-import ParserTypes (SynInfo (..))
+import Data.Text (Text, cons, unlines, pack, takeWhile)
 import Frontend.Tc.Types
-import Prelude hiding (unlines, unwords)
+import BrainletteParser (hasInfo)
+import ParserTypes (SynInfo (..))
+import ParserTypes qualified as Par
+import Prelude hiding (unlines, unwords, takeWhile)
 
 data FEError
     = -- | Constructor for an unbound variable error
@@ -74,11 +76,11 @@ data FEError
     | -- | Constructor for unreachable statements outside a loop
       UnreachableStatement
         -- | The unreachable statement
-        Stmt
+        Par.Stmt
     | -- | Constructor for functions missing a return statement
       MissingReturn
-        -- | The function missing a return
-        TopDef
+        -- | The function missing return
+        Par.TopDef
     deriving (Show)
 
 parens :: Text -> Text
@@ -122,7 +124,7 @@ instance Report RelOp where
 instance Report FEError where
     report = \case
         UnboundVariable info (Id name) ->
-            pretty $ combine [i|Unbound variable'#{name}'|] info
+            pretty $ combine [i|Unbound variable '#{name}'|] info
         TypeMismatch info given expected ->
             let one = case expected of
                     (x :| []) -> "'" <> report x <> "'"
@@ -161,13 +163,13 @@ instance Report FEError where
         BreakNotInLoop info ->
             [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
         UnreachableStatement stmt -> [i|unreachable statement\n #{report stmt}|]
-        MissingReturn ret -> errMissingRet ret
+        MissingReturn def -> errMissingRet def
 
-errMissingRet :: TopDef -> Text
-errMissingRet (FnDef info _ _ _ stmts) = case stmts of
+errMissingRet :: Par.TopDef -> Text
+errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
     [] ->
-        "missing return in\n"
-            <> info.sourceCode
+        "missing return in function "
+            <> takeWhile (/= '\n') info.sourceCode
             <> "\n"
             <> "at "
             <> pack (show info.sourceLine)
@@ -175,13 +177,13 @@ errMissingRet (FnDef info _ _ _ stmts) = case stmts of
             <> pack (show info.sourceColumn)
     xs ->
         "missing return in function "
-            <> quote info.sourceName
+            <> takeWhile (/= '\n') info.sourceCode
             <> "\ngot "
             <> "\n  "
             <> report (last xs)
             <> "\nexpected\n  a return statement"
 
-instance Report Stmt where
+instance Report Par.Stmt where
     report stmt =
         let info = hasInfo stmt
          in quote (takeWhile (/= '\n') info.sourceCode)
@@ -206,3 +208,44 @@ combine xs info = (star `cons` ' ' `cons` xs) : [report info]
 
 star :: Char
 star = '•'
+
+{-| Type class to help converting from the parser types
+  to the type checker type
+-}
+class Convert a b where
+    convert :: a -> b
+
+instance (Convert a b) => Convert [a] [b] where
+    convert = map convert
+
+instance Convert Par.Type Type where
+    convert = \case
+        Par.TVar _ t -> TVar (convert t)
+        Par.Fun _ rt argtys -> Fun (convert rt) (convert argtys)
+
+instance Convert Par.Id Id where
+    convert (Par.Id _ s) = Id s
+
+instance Convert Par.MulOp MulOp where
+    convert = \case
+        Par.Times _ -> Times
+        Par.Div _ -> Div
+        Par.Mod _ -> Mod
+
+instance Convert Par.AddOp AddOp where
+    convert = \case
+        Par.Plus _ -> Plus
+        Par.Minus _ -> Minus
+
+instance Convert Par.RelOp RelOp where
+    convert = \case
+        Par.LTH _ -> LTH
+        Par.LE _ -> LE
+        Par.GTH _ -> GTH
+        Par.GE _ -> GE
+        Par.EQU _ -> EQU
+        Par.NE _ -> NE
+
+instance Convert Par.Arg Arg where
+    convert = \case
+        Par.Argument _ typ name -> Argument (convert typ) (convert name)

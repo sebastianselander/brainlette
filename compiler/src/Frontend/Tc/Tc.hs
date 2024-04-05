@@ -315,46 +315,6 @@ instance HasInfo Par.Expr where
         Par.EAnd i _ _ -> i
         Par.EOr i _ _ -> i
 
-{-| Type class to help converting from the parser types
-  to the type checker type
--}
-class Convert a b where
-    convert :: a -> b
-
-instance (Convert a b) => Convert [a] [b] where
-    convert = map convert
-
-instance Convert Par.Type Tc.Type where
-    convert = \case
-        Par.TVar _ t -> Tc.TVar (convert t)
-        Par.Fun _ rt argtys -> Tc.Fun (convert rt) (convert argtys)
-
-instance Convert Par.Id Tc.Id where
-    convert (Par.Id _ s) = Tc.Id s
-
-instance Convert Par.MulOp Tc.MulOp where
-    convert = \case
-        Par.Times _ -> Tc.Times
-        Par.Div _ -> Tc.Div
-        Par.Mod _ -> Tc.Mod
-
-instance Convert Par.AddOp Tc.AddOp where
-    convert = \case
-        Par.Plus _ -> Tc.Plus
-        Par.Minus _ -> Tc.Minus
-
-instance Convert Par.RelOp Tc.RelOp where
-    convert = \case
-        Par.LTH _ -> Tc.LTH
-        Par.LE _ -> Tc.LE
-        Par.GTH _ -> Tc.GTH
-        Par.GE _ -> Tc.GE
-        Par.EQU _ -> Tc.EQU
-        Par.NE _ -> Tc.NE
-
-instance Convert Par.Arg Tc.Arg where
-    convert = \case
-        Par.Argument _ typ name -> Tc.Argument (convert typ) (convert name)
 
 class TypeOf a where
     typeOf :: a -> Tc.Type

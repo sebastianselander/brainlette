@@ -2,68 +2,48 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
 
 module Frontend.BranchReturns where
 
-import BrainletteParser
 import Control.Monad.Except (Except, MonadError, runExcept, throwError)
 import Control.Monad.Extra (anyM, unless)
-import Control.Monad.Reader (MonadReader, local, ReaderT (runReaderT), ask)
+import Control.Monad.Reader (MonadReader, ReaderT (runReaderT), ask, local)
 import Control.Monad.State (MonadState, StateT, execStateT, get, put)
 import Data.Fixed (mod')
 import Data.Functor (($>))
 import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
-import Data.String.Interpolate
-import Data.Text (Text, concat, pack, takeWhile, unlines)
+import Data.Text (Text, concat, unlines)
+import Frontend.Error (FEError (..), report)
 import ParserTypes
 import Prelude hiding (concat, takeWhile, unlines)
 
 data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}
     deriving (Show)
 
-newtype Br a = Br {runBr :: StateT Env (ReaderT Bool (Except Text)) a}
-    deriving (Functor, Applicative, Monad, MonadState Env, MonadReader Bool, MonadError Text)
+newtype Br a = Br {runBr :: StateT Env (ReaderT Bool (Except FEError)) a}
+    deriving
+        ( Functor
+        , Applicative
+        , Monad
+        , MonadState Env
+        , MonadReader Bool
+        , MonadError FEError
+        )
 
 check :: Prog -> Either Text Prog
-check p = case runExcept $ flip runReaderT False $ flip execStateT (Env mempty mempty) $ runBr $ branchReturns p of
-    Left err -> Left err
+check p = case runExcept $
+    flip runReaderT False $
+        flip execStateT (Env mempty mempty) $
+            runBr $
+                branchReturns p of
+    Left err -> Left (report err)
     Right (Env [] []) -> Right p
     Right (Env stmts topdefs) ->
         Left $
-            concat (intersperse "\n\n" $ map errUnreachable stmts)
-                <> unlines (map errMissingRet topdefs)
+            concat (intersperse "\n\n" $ map (report . UnreachableStatement) stmts)
+                <> unlines (map (report . MissingReturn) topdefs)
 
-errUnreachable :: Stmt -> Text
-errUnreachable stmt = "unreachable statement\n" <> reportStmt stmt
-
-reportStmt :: Stmt -> Text
-reportStmt stmt =
-    let info = hasInfo stmt
-     in quote (takeWhile (/= '\n') info.sourceCode)
-            <> " at "
-            <> pack (show info.sourceLine)
-            <> ":"
-            <> pack (show info.sourceColumn)
-
-errMissingRet :: TopDef -> Text
-errMissingRet (FnDef info _ _ _ stmts) = case stmts of
-    [] ->
-        "missing return in\n"
-            <> info.sourceCode
-            <> "\n"
-            <> "at "
-            <> pack (show info.sourceLine)
-            <> ":"
-            <> pack (show info.sourceColumn)
-    xs ->
-        "missing return in function "
-            <> quote info.sourceName
-            <> "\ngot "
-            <> "\n  "
-            <> reportStmt (last xs)
-            <> "\nexpected\n  a return statement"
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"
@@ -101,9 +81,7 @@ breaks = \case
     SExp _ _ -> return ()
     Break info -> do
         b <- ask
-        unless b $
-            throwError
-                [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
+        unless b $ throwError (BreakNotInLoop info)
 
 retDefs :: TopDef -> Br ()
 retDefs self@(FnDef _ _ _ _ stmts) =
