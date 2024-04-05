@@ -28,7 +28,7 @@ data DebugInfo
     deriving (Show)
 
 data Argument
-    = Argument (Maybe Type) Text
+    = Argument (Maybe Type) Variable
     | ConstArgument (Maybe Type) Lit
     deriving (Show)
 
@@ -66,7 +66,8 @@ data Condition
     | Sle
     deriving (Show)
 
-type Variable = Text
+newtype Variable = Variable Text
+    deriving (Show)
 
 type Label = Text
 

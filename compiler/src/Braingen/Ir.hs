@@ -7,17 +7,15 @@ import BMM.Bmm qualified as B
 import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
-import Control.Monad.State (MonadState (get, put), State, runState)
+import Control.Monad.State (MonadState (get, put), State, runState, gets, modify)
 import Data.DList hiding (map)
-import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Text (Text, pack)
 import Utils (thow)
 
 data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
-    , tempVariables :: Map Text Int
+    , varCounter :: Int
     }
     deriving (Show)
 
@@ -46,7 +44,7 @@ braingenTopDef (B.FnDef rt (B.Id i) a s) = do
 braingenStmts :: [B.Stmt] -> Either Text [Stmt]
 braingenStmts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 Map.empty)
+        >>> flip runState (Env mempty 0 0)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
@@ -54,10 +52,10 @@ braingenStm breakpoint = \case
     B.BStmt block -> do
         output . Comment $ "TODO     BLOCK: " <> thow block
     B.Decl t (B.Id i) -> do
-        output $ Alloca i (braingenType t)
+        output $ Alloca (Variable i) (braingenType t)
     B.Ass (B.Id a) expr@(t, _) -> do
         result <- braingenExpr expr
-        output $ Store (Argument (pure $ braingenType t) result) a
+        output $ Store (Argument (pure $ braingenType t) result) (Variable a)
     B.Ret (Just expr@(t, _)) -> do
         result <- braingenExpr expr
         output $ Ret (Argument (pure $ braingenType t) result)
@@ -98,7 +96,10 @@ braingenStm breakpoint = \case
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
-    B.EVar (B.Id ident) -> return ident
+    B.EVar (B.Id ident) -> do
+        var <- getTempVariable
+        output $ Load var (braingenType ty) (Variable ident)
+        return var
     B.ELit lit -> braingenLit lit
     B.Not e -> do
         exprVar <- braingenExpr e
@@ -107,33 +108,33 @@ braingenExpr (ty, e) = case e of
         return var
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
-        pure "TODO"
+        pure (Variable "TODO")
 
 braingenLit :: B.Lit -> BgM Variable
 braingenLit = \case
     B.LitInt n -> do
         let ty = I32
-        intermediate <- getTempVariable "int_lit"
+        intermediate <- getTempVariable
         output $ Alloca intermediate ty
         output $ Store (ConstArgument (pure ty) (LitInt n)) intermediate
-        var <- getTempVariable "int_lit"
+        var <- getTempVariable
         output $ Load var ty intermediate
         return var
     B.LitDouble n -> do
         let ty = F64
-        intermediate <- getTempVariable "double_lit"
+        intermediate <- getTempVariable
         output $ Alloca intermediate ty
         output $ Store (ConstArgument (pure ty) (LitDouble n)) intermediate
-        var <- getTempVariable "double_lit"
+        var <- getTempVariable
         output $ Load var ty intermediate
         return var
     B.LitString _ -> error "TODO: String literal"
     B.LitBool b -> do
         let ty = I1
-        intermediate <- getTempVariable "bool_lit"
+        intermediate <- getTempVariable
         output $ Alloca intermediate ty
         output $ Store (ConstArgument (pure ty) (LitBool b)) intermediate
-        var <- getTempVariable "bool_lit"
+        var <- getTempVariable
         output $ Load var ty intermediate
         return var
 
@@ -159,29 +160,20 @@ getLabel t = do
 For example: @int x = 1 + 2 + 3@ might generate:
 
 @
-%x.0 = add i32 1 2
+%0 = add i32 1 2
 @
 
 @
-%x = add i32 %x.0 3
+%x = add i32 %0 3
 @
 
-And @x.0@ can be obtained by calling @getTempVariable "x"@.
+And @%0@ can be obtained by calling @getTempVariable@.
 -}
-getTempVariable :: Text -> BgM Variable
-getTempVariable t = do
-    state <- get
-    let vars = tempVariables state
-    case Map.lookup t vars of
-        Just val -> do
-            let vars' = Map.insert t (val + 1) vars
-            put (state {tempVariables = vars'})
-            pure $ t <> "." <> thow (val + 1)
-        Nothing -> do
-            let val = 0
-            let vars' = Map.insert t val vars
-            put state {tempVariables = vars'}
-            pure $ t <> "." <> thow val
+getTempVariable :: BgM Variable
+getTempVariable = do
+    v <- gets varCounter
+    modify (\s -> s { varCounter = v + 1})
+    return (Variable $ thow v)
 
 -- | Convert a BMM type to an IR type
 braingenType :: B.Type -> Type
@@ -198,7 +190,7 @@ braingenType t = case t of
 
 -- | Convert a BMM argument to an IR argument
 braingenArg :: B.Arg -> Argument
-braingenArg (B.Argument t (B.Id i)) = Argument (pure $ braingenType t) i
+braingenArg (B.Argument t (B.Id i)) = Argument (pure $ braingenType t) (Variable i)
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog

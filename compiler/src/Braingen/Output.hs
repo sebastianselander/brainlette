@@ -9,6 +9,7 @@ import Data.String.Interpolate
 import Data.Text (Text, concat, intercalate, unwords)
 import Utils (thow)
 import Prelude hiding (concat, unwords)
+import Data.Coerce (coerce)
 
 class OutputIr a where
     outputIr :: a -> Text
@@ -59,7 +60,7 @@ instance OutputIr Stmt where
                     Nothing -> ""
             let args' = outputIr args
             concat
-                [ var
+                [ outputIr var
                 , " = "
                 , tail'
                 , "call "
@@ -73,13 +74,13 @@ instance OutputIr Stmt where
                 ]
         Ret arg ->
             "ret " <> case arg of
-                Argument t i -> outputIr t <> " %" <> i
+                Argument t i -> outputIr t <> " %" <> outputIr i
                 ConstArgument t i -> outputIr t <> " " <> outputIr i
         RetVoid -> "ret void"
         Comment t -> "; " <> t
         Arith var ar t a1 a2 ->
             concat
-                [ var
+                [ outputIr var
                 , " ="
                 , outputIr ar
                 , " "
@@ -90,10 +91,10 @@ instance OutputIr Stmt where
                 , outputIr a2
                 ]
         Label text -> text <> ":"
-        Alloca v t -> concat ["%" <> v <> " = alloca ", outputIr t]
-        Store val var -> concat ["store ", outputIr val, ", ptr %", var]
-        Load var t ptr -> concat ["%", var, " = load ", outputIr t, ", ptr %", ptr]
-        Br cond l1 l2 -> concat ["br i1 %", cond, ", label %", l1, ", label %", l2]
+        Alloca v t -> concat ["%" <> outputIr v <> " = alloca ", outputIr t]
+        Store val var -> concat ["store ", outputIr val, ", ptr %", outputIr var]
+        Load var t ptr -> concat ["%", outputIr var, " = load ", outputIr t, ", ptr %", outputIr ptr]
+        Br cond l1 l2 -> concat ["br i1 %", outputIr cond, ", label %", l1, ", label %", l2]
         Jump l -> [i|br label %#{l}|]
         ICmp var op ty l r -> [i|#{var} = #{outputIr op} #{outputIr ty} #{outputIr l} #{outputIr r}|]
 
@@ -132,7 +133,11 @@ instance OutputIr [Stmt] where
 instance OutputIr Argument where
     outputIr :: Argument -> Text
     outputIr (ConstArgument t i) = outputIr t <> " " <> outputIr i
-    outputIr (Argument t i) = outputIr t <> " %" <> i
+    outputIr (Argument t i) = outputIr t <> " %" <> outputIr i
+
+instance OutputIr Variable where
+    outputIr :: Variable -> Text
+    outputIr = coerce
 
 instance OutputIr [Argument] where
     outputIr :: [Argument] -> Text
