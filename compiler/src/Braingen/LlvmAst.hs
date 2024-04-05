@@ -84,6 +84,7 @@ data Stmt
     | Comment Text
     | Br Variable Label Label
     | Jump Label
+    | SiToFp Variable Type Variable Type
     deriving (Show)
 
 data Lit

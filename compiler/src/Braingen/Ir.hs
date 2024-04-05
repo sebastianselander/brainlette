@@ -139,6 +139,13 @@ braingenExpr (ty, e) = case e of
         res <- getTempVariable
         output $ Arith res op' t (Argument Nothing r1) (Argument Nothing r2)
         pure res
+    B.Cast e@(t, _) -> do
+        let ty' = braingenType ty
+        let t' = braingenType t
+        val <- braingenExpr e
+        res <- getTempVariable
+        output $ SiToFp res t' val ty'
+        pure res
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
         pure (Variable "TODO")

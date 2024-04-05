@@ -99,6 +99,7 @@ instance OutputIr Stmt where
         Br cond l1 l2 -> concat ["br i1 %", outputIr cond, ", label %", l1, ", label %", l2]
         Jump l -> [i|br label %#{l}|]
         ICmp var op ty l r -> [i|#{var} = #{outputIr op} #{outputIr ty} #{outputIr l} #{outputIr r}|]
+        SiToFp var t1 v2 t2 -> [i|%#{var} = sitofp #{outputIr t1} %#{v2} to #{outputIr t2}|]
 
 instance OutputIr Condition where
     outputIr :: Condition -> Text
