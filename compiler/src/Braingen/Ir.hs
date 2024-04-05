@@ -49,8 +49,7 @@ braingenStmts =
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint = \case
-    B.BStmt block -> do
-        output . Comment $ "TODO     BLOCK: " <> thow block
+    B.BStmt block -> mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> do
         output $ Alloca (Variable i) (braingenType t)
     B.Ass (B.Id a) expr@(t, _) -> do
