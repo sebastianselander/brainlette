@@ -9,6 +9,8 @@ import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
 import Control.Monad.State (MonadState (get, put), State, gets, modify, runState)
 import Data.DList hiding (map)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text, pack)
 import Utils (thow)
 
@@ -16,6 +18,7 @@ data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
     , varCounter :: Int
+    , arguments :: Set Text
     }
     deriving (Show)
 
@@ -38,13 +41,14 @@ braingenTopDef :: B.TopDef -> Either Text TopDef
 braingenTopDef (B.FnDef rt (B.Id i) a s) = do
     let ret = braingenType rt
     let args = map braingenArg a
-    stmts <- braingenStmts s
+
+    stmts <- braingenStmts (Set.fromList (map (\(B.Argument _ (B.Id t)) -> t) a)) s
     pure $ Define ret i args Nothing stmts
 
-braingenStmts :: [B.Stmt] -> Either Text [Stmt]
-braingenStmts =
+braingenStmts :: Set Text -> [B.Stmt] -> Either Text [Stmt]
+braingenStmts args =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 1)
+        >>> flip runState (Env mempty 0 1 args)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
@@ -87,7 +91,7 @@ braingenStm breakpoint = \case
         output . Label $ breakpoint
     B.SExp expr -> do
         _ <- braingenExpr expr
-        output . Comment $ thow expr
+        return ()
     B.Break -> do
         let bp = case breakpoint of
                 Just bp -> bp
@@ -96,10 +100,15 @@ braingenStm breakpoint = \case
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
-    B.EVar (B.Id ident) -> do
-        var <- getTempVariable
-        output $ Load var (braingenType ty) (Variable ident)
-        return (Variable ident)
+    B.EVar (B.Id ident) ->
+        -- 🫏-solution
+        isArg ident >>= \case
+            True -> do
+                return (Variable ident)
+            False -> do
+                var <- getTempVariable
+                output $ Load var (braingenType ty) (Variable ident)
+                return var
     B.ELit lit -> braingenLit lit
     B.Not e -> do
         exprVar <- braingenExpr e
@@ -200,6 +209,12 @@ braingenType t = case t of
         let ret = braingenType t
         let args = map braingenType ts
         FunPtr ret args
+
+-- | Returns whetever the inputed variable is an argument
+isArg :: Text -> BgM Bool
+isArg t = do
+    args <- gets arguments
+    return $ Set.member t args
 
 -- | Convert a BMM argument to an IR argument
 braingenArg :: B.Arg -> Argument
