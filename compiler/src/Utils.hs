@@ -16,6 +16,9 @@ pattern TODO <- _
 for :: [a] -> (a -> b) -> [b]
 for = flip map
 
+concatFor :: [a] -> (a -> [b]) -> [b]
+concatFor = flip concatMap
+
 -- | Show but text :)
 thow :: (Show a) => a -> Text
 thow = pack . show

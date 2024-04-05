@@ -9,16 +9,13 @@ import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
 import Control.Monad.State (MonadState (get, put), State, gets, modify, runState)
 import Data.DList hiding (map)
-import Data.Set (Set)
-import Data.Set qualified as Set
 import Data.Text (Text, pack)
-import Utils (thow)
+import Utils (concatFor, for, thow)
 
 data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
     , varCounter :: Int
-    , arguments :: Set Text
     }
     deriving (Show)
 
@@ -40,15 +37,26 @@ braingenProg (B.Program tp) = Ir <$> mapM braingenTopDef tp
 braingenTopDef :: B.TopDef -> Either Text TopDef
 braingenTopDef (B.FnDef rt (B.Id i) a s) = do
     let ret = braingenType rt
-    let args = map braingenArg a
+    let args = map (appendArgName "arg" . braingenArg) a
+    let argStmts = concatFor a argToStmts
 
-    stmts <- braingenStmts (Set.fromList (map (\(B.Argument _ (B.Id t)) -> t) a)) s
-    pure $ Define ret i args Nothing stmts
+    stmts <- braingenStmts s
+    pure $ Define ret i args Nothing (argStmts <> stmts)
+  where
+    argToStmts = \case
+        B.Argument t (B.Id n) ->
+            [ Alloca (Variable n) (braingenType t)
+            , Store
+                ( appendArgName "arg" $
+                    Argument (Just $ braingenType t) (Variable n)
+                )
+                (Variable n)
+            ]
 
-braingenStmts :: Set Text -> [B.Stmt] -> Either Text [Stmt]
-braingenStmts args =
+braingenStmts :: [B.Stmt] -> Either Text [Stmt]
+braingenStmts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 1 args)
+        >>> flip runState (Env mempty 0 1)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
@@ -100,15 +108,10 @@ braingenStm breakpoint = \case
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
-    B.EVar (B.Id ident) ->
-        -- 🫏-solution
-        isArg ident >>= \case
-            True -> do
-                return (Variable ident)
-            False -> do
-                var <- getTempVariable
-                output $ Load var (braingenType ty) (Variable ident)
-                return var
+    B.EVar (B.Id ident) -> do
+        var <- getTempVariable
+        output $ Load var (braingenType ty) (Variable ident)
+        return var
     B.ELit lit -> braingenLit lit
     B.Not e -> do
         exprVar <- braingenExpr e
@@ -199,7 +202,7 @@ getTempVariable = do
 
 -- | Convert a BMM type to an IR type
 braingenType :: B.Type -> Type
-braingenType t = case t of
+braingenType = \case
     B.Int -> I32
     B.Boolean -> I1
     B.Double -> F64
@@ -210,11 +213,11 @@ braingenType t = case t of
         let args = map braingenType ts
         FunPtr ret args
 
--- | Returns whetever the inputed variable is an argument
-isArg :: Text -> BgM Bool
-isArg t = do
-    args <- gets arguments
-    return $ Set.member t args
+-- | Append a text to argument name
+appendArgName :: Text -> Argument -> Argument
+appendArgName text = \case
+    Argument t (Variable n) -> Argument t (Variable $ n <> "." <> text)
+    x -> x
 
 -- | Convert a BMM argument to an IR argument
 braingenArg :: B.Arg -> Argument
