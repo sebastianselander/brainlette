@@ -131,6 +131,14 @@ braingenExpr (ty, e) = case e of
         res <- getTempVariable
         output $ Arith res op' t (Argument Nothing r1) (Argument Nothing r2)
         pure res
+    B.EMul e1 op e2 -> do
+        let t = braingenType ty
+        r1 <- braingenExpr e1
+        r2 <- braingenExpr e2
+        let op' = braingenMulOp t op
+        res <- getTempVariable
+        output $ Arith res op' t (Argument Nothing r1) (Argument Nothing r2)
+        pure res
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
         pure (Variable "TODO")
@@ -232,6 +240,19 @@ braingenAddOp = \case
     F64 -> \case
         B.Plus -> FAdd
         B.Minus -> FSub
+    _ -> error "error: report bug as a typeerror"
+
+-- | Convert a BMM add op to an IR Arithmetic instructions
+braingenMulOp :: Type -> B.MulOp -> Arithmetic
+braingenMulOp = \case
+    I32 -> \case
+        B.Times -> Mul
+        B.Div -> SDiv
+        B.Mod -> URem
+    F64 -> \case
+        B.Times -> FMul
+        B.Div -> FDiv
+        B.Mod -> FRem
     _ -> error "error: report bug as a typeerror"
 
 ----------------------------------- Test cases -----------------------------------
