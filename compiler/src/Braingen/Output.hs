@@ -81,8 +81,9 @@ instance OutputIr Stmt where
         Comment t -> "; " <> t
         Arith var ar t a1 a2 ->
             concat
-                [ outputIr var
-                , " ="
+                [ "%"
+                , outputIr var
+                , " = "
                 , outputIr ar
                 , " "
                 , outputIr t

@@ -99,7 +99,7 @@ braingenExpr (ty, e) = case e of
     B.EVar (B.Id ident) -> do
         var <- getTempVariable
         output $ Load var (braingenType ty) (Variable ident)
-        return var
+        return (Variable ident)
     B.ELit lit -> braingenLit lit
     B.Not e -> do
         exprVar <- braingenExpr e
@@ -111,6 +111,14 @@ braingenExpr (ty, e) = case e of
         result <- getTempVariable
         output $ Call result Nothing Nothing (braingenType ty) func args
         return result
+    B.EAdd e1 op e2 -> do
+        let t = braingenType ty
+        r1 <- braingenExpr e1
+        r2 <- braingenExpr e2
+        let op' = braingenAddOp t op
+        res <- getTempVariable
+        output $ Arith res op' t (Argument Nothing r1) (Argument Nothing r2)
+        pure res
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
         pure (Variable "TODO")
@@ -196,6 +204,17 @@ braingenType t = case t of
 -- | Convert a BMM argument to an IR argument
 braingenArg :: B.Arg -> Argument
 braingenArg (B.Argument t (B.Id i)) = Argument (pure $ braingenType t) (Variable i)
+
+-- | Convert a BMM add op to an IR Arithmetic instructions
+braingenAddOp :: Type -> B.AddOp -> Arithmetic
+braingenAddOp = \case
+    I32 -> \case
+        B.Plus -> Add
+        B.Minus -> Sub
+    F64 -> \case
+        B.Plus -> FAdd
+        B.Minus -> FSub
+    _ -> error "error: report bug as a typeerror"
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog
