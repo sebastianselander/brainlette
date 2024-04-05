@@ -214,14 +214,14 @@ data Ctx = Ctx
     }
     deriving (Show, Eq, Ord)
 
-newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except TcError)) a}
+newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except FEError)) a}
     deriving
         ( Functor
         , Applicative
         , Monad
         , MonadReader Ctx
         , MonadState Env
-        , MonadError TcError
+        , MonadError FEError
         )
 
 -- | Extract the types from all top level definitions '⌣'
@@ -256,12 +256,12 @@ insertVar name typ = do
         [] -> modify (\s -> s {variables = [Map.singleton name typ]})
         (x : xs) -> modify (\s -> s {variables = Map.insert name typ x : xs})
 
-errNotBoolean :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
+errNotBoolean :: (MonadError FEError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotBoolean info = \case
     Tc.Boolean -> return ()
     other -> throwError (ExpectedType info Tc.Boolean other)
 
-errNotNumber :: (MonadError TcError m) => Par.SynInfo -> Tc.Type -> m ()
+errNotNumber :: (MonadError FEError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotNumber info ty
     | isNumber ty = return ()
     | otherwise = throwError (ExpectedNumber info ty)

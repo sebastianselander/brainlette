@@ -12,7 +12,7 @@ import ParserTypes (SynInfo (..))
 import Frontend.Tc.Types
 import Prelude hiding (unlines, unwords)
 
-data TcError
+data FEError
     = -- | Constructor for an unbound variable error
       UnboundVariable
         -- | The source code position of the error
@@ -67,6 +67,18 @@ data TcError
         SynInfo
         -- | Name of the bound variable
         Id
+    | -- | Constructor for break statement outside a loop
+      BreakNotInLoop
+        -- | The source code position of the error
+        SynInfo
+    | -- | Constructor for unreachable statements outside a loop
+      UnreachableStatement
+        -- | The unreachable statement
+        Stmt
+    | -- | Constructor for functions missing a return statement
+      MissingReturn
+        -- | The function missing a return
+        TopDef
     deriving (Show)
 
 parens :: Text -> Text
@@ -107,7 +119,7 @@ instance Report RelOp where
         EQU -> "=="
         NE -> "!="
 
-instance Report TcError where
+instance Report FEError where
     report = \case
         UnboundVariable info (Id name) ->
             pretty $ combine [i|Unbound variable'#{name}'|] info
@@ -146,6 +158,37 @@ instance Report TcError where
                 combine
                     [i|Variable '#{report id}' already declared earlier|]
                     info
+        BreakNotInLoop info ->
+            [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
+        UnreachableStatement stmt -> [i|unreachable statement\n #{report stmt}|]
+        MissingReturn ret -> errMissingRet ret
+
+errMissingRet :: TopDef -> Text
+errMissingRet (FnDef info _ _ _ stmts) = case stmts of
+    [] ->
+        "missing return in\n"
+            <> info.sourceCode
+            <> "\n"
+            <> "at "
+            <> pack (show info.sourceLine)
+            <> ":"
+            <> pack (show info.sourceColumn)
+    xs ->
+        "missing return in function "
+            <> quote info.sourceName
+            <> "\ngot "
+            <> "\n  "
+            <> report (last xs)
+            <> "\nexpected\n  a return statement"
+
+instance Report Stmt where
+    report stmt =
+        let info = hasInfo stmt
+         in quote (takeWhile (/= '\n') info.sourceCode)
+                <> " at "
+                <> pack (show info.sourceLine)
+                <> ":"
+                <> pack (show info.sourceColumn)
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"

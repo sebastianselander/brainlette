@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module ParserTypes where
@@ -16,7 +18,13 @@ data SynInfo
         , sourceCode :: !Text
         }
     | NoInfo
-    deriving (Show, Eq, Ord, Generic)
+    deriving (Show, Generic)
+
+instance Eq SynInfo where
+    _ == _ = True
+
+instance Ord SynInfo where
+    compare _ _ = EQ
 
 type Expr = Expr' SynInfo
 type AddOp = AddOp' SynInfo
@@ -103,3 +111,23 @@ data RelOp' a
 
 data Id' a = Id a Text
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+
+pattern Int :: Type
+pattern Int <- TVar _ (Id _ "int")
+  where Int = TVar NoInfo (Id NoInfo "int")
+
+pattern Double :: Type
+pattern Double <- TVar _ (Id _ "double")
+  where Double = TVar NoInfo(Id NoInfo "double")
+
+pattern String :: Type
+pattern String <- TVar _ (Id _ "string")
+  where String = TVar NoInfo (Id NoInfo "string")
+
+pattern Boolean :: Type
+pattern Boolean <- TVar _ (Id _ "boolean")
+  where Boolean = TVar NoInfo (Id NoInfo "boolean")
+
+pattern Void :: Type
+pattern Void <- TVar _ (Id _ "void")
+  where Void = TVar NoInfo (Id NoInfo "void")
