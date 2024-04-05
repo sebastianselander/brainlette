@@ -30,13 +30,13 @@ data Type
 type Expr = (Type, Expr')
 
 data Expr'
-    = EVar Id
-    | ELit Lit
-    | EApp Id [Expr]
+    = EVar Id -- implemented
+    | ELit Lit -- implemented
+    | EApp Id [Expr] -- implemented
     | EString Text
     | Not Expr
-    | EMul Expr MulOp Expr
-    | EAdd Expr AddOp Expr
+    | EMul Expr MulOp Expr -- implemented
+    | EAdd Expr AddOp Expr -- implemented
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
