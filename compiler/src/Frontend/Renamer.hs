@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Frontend.Renamer (rename) where
 
@@ -8,25 +8,31 @@ import Control.Monad.Except
 import Control.Monad.State
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Frontend.Error (FEError (..), convert, Report (report))
-import ParserTypes
-import Utils
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Debug.Trace (traceShowM)
+import Frontend.Error (FEError (..), Report (report), convert)
+import ParserTypes
+import Utils
 
 -- Make mapping from old names to new names as well
-data Env = Env {variables :: Map Id Id, varCounter :: Int}
+data Env = Env {variables :: Map Id Id, varCounter :: Int, functions :: Set Id}
 
 newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
     deriving (Functor, Applicative, Monad, MonadError FEError, MonadState Env)
 
 rename :: Prog -> Either Text Prog
-rename p = case runExcept $ flip evalStateT (Env mempty 0) $ runRm $ rnProg p of
+rename p = case runExcept $ flip evalStateT (Env mempty 0 mempty) $ runRm $ rnProg p of
     Left err -> Left $ report err
     Right res -> return res
 
 rnProg :: Prog -> RnM Prog
-rnProg (Program i defs) = Program i <$> mapM rnDef defs
+rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
+  where
+    addDef :: TopDef -> RnM ()
+    addDef (FnDef _ _ name _ _) =
+        modify $ \s -> s {functions = Set.insert name s.functions}
 
 rnDef :: TopDef -> RnM TopDef
 rnDef (FnDef info ty name args stmts) = do
@@ -42,12 +48,13 @@ rnType = return
 
 rnId :: SynInfo -> Id -> RnM Id
 rnId info id = do
-    vs <- gets variables
-    traceShowM vs
-    mby <- gets (Map.lookup id . variables)
-    case mby of
-        Nothing -> throwError $ UnboundVariable info (convert id)
-        Just id -> return id
+    gets (Set.member id . functions) >>= \case
+        True -> return id
+        False -> do
+            mby <- gets (Map.lookup id . variables)
+            case mby of
+                Nothing -> throwError $ UnboundVariable info (convert id)
+                Just id -> return id
 
 rnArg :: Arg -> RnM Arg
 rnArg (Argument info ty id) =
@@ -98,7 +105,7 @@ rnItem = \case
             Just id -> throwError $ BoundVariable info (convert id)
 
 newId :: Id -> Int -> Id
-newId (Id info i) n = Id info (thow n <> "$" <> i)
+newId (Id info i) n = Id info (i <> "$" <> thow n)
 
 rnExpr :: Expr -> RnM Expr
 rnExpr = \case
