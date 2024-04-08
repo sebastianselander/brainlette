@@ -104,7 +104,7 @@ instance Report Type where
         TVar id -> report id
         Fun rt argTys -> report rt <> parens (report argTys)
 
-instance {-# OVERLAPPING #-} Report Text where
+instance Report Text where
     report = id
 
 instance (Report a) => Report [a] where
