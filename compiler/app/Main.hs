@@ -5,6 +5,7 @@ module Main where
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import BrainletteParser
+import ParserTypes
 import Control.Monad (unless)
 import Data.Text (pack, unpack)
 import Frontend.BranchReturns (check)
@@ -33,7 +34,7 @@ main = do
         Left err -> print err *> exitFailure
         Right res -> return res
 
-    ePrint (void res)
+    ePutStrLn (pretty 0 res)
 
     ePutStrLn "--- Renamer output ---"
 
@@ -41,14 +42,14 @@ main = do
         Left err -> ePutStrLn err *> exitFailure
         Right res -> return res
 
-    ePrint (void res)
+    ePutStrLn (pretty 0 res)
 
     res <- case check res of
         Left err -> ePutStrLn err *> exitFailure
         Right res -> return res
 
     ePutStrLn "\n--- Check output ---"
-    ePrint (void res)
+    ePutStrLn (pretty 0 res)
 
     res <- case tc res of
         Left err -> ePutStrLn err *> exitFailure
