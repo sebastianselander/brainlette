@@ -18,6 +18,7 @@ library brainlette-lib
     BMM.Bmm
     BMM.Optimize
     BMM.TcToBmm
+    BMM.StringToTop
     Braingen.Ir
     Braingen.LlvmAst
     Braingen.Output
