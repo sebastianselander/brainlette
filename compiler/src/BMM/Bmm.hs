@@ -36,7 +36,6 @@ data Expr'
     = EVar Id -- implemented
     | ELit Lit -- implemented
     | EApp Id [Expr] -- implemented
-    | EString Text
     | Not Expr
     | EMul Expr MulOp Expr -- implemented
     | EAdd Expr AddOp Expr -- implemented

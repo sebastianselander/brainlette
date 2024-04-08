@@ -58,9 +58,6 @@ fixStmt = \case
 
 fixExpr :: Expr -> St Expr
 fixExpr (t, e) = case e of
-    EString str -> do
-        var <- addString str
-        pure (t, EVar (Id var))
     ELit (LitString str) -> do
         var <- addString str
         pure (t, EVar (Id var))
