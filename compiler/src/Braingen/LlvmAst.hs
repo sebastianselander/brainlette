@@ -12,9 +12,11 @@ data TailMarker = Tail | MustTail | NoTail
 data Type
     = I32
     | I1
+    | I8
     | F64
     | Ptr
     | FunPtr Type [Type]
+    | Array Int Type
     | CustomType Text
     deriving (Show)
 
@@ -38,6 +40,7 @@ newtype Ir = Ir [TopDef]
 data TopDef
     = Declare Type Text [Type] (Maybe CallingConvention)
     | Define Type Text [Argument] (Maybe CallingConvention) [Stmt]
+    | Constant Text Type Lit
     deriving (Show)
 
 data Arithmetic
@@ -66,7 +69,7 @@ data Condition
     | Sle
     deriving (Show)
 
-newtype Variable = Variable Text
+data Variable = Variable Text | ConstVariable Text
     deriving (Show)
 
 type Label = Text

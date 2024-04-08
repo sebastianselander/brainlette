@@ -7,7 +7,10 @@ import Data.Text (Text)
 
 newtype Prog = Program [TopDef] deriving (Show)
 
-data TopDef = FnDef Type Id [Arg] [Stmt] deriving (Show)
+data TopDef
+    = FnDef Type Id [Arg] [Stmt]
+    | StringGlobal Text Text
+    deriving (Show)
 
 data Arg = Argument Type Id deriving (Show)
 

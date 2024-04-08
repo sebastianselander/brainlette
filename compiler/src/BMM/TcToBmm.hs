@@ -3,6 +3,7 @@
 module BMM.TcToBmm (bmm) where
 
 import BMM.Bmm
+import BMM.StringToTop (moveStringsToTop)
 import Data.Text (Text)
 import Frontend.Tc.Types qualified as T
 import Utils (for)
@@ -14,7 +15,7 @@ class ToBmm a b where
     toBmm :: a -> b
 
 instance ToBmm T.Prog Prog where
-    toBmm (T.Program defs) = Program (map toBmm defs)
+    toBmm (T.Program defs) = moveStringsToTop $ Program (map toBmm defs)
 
 instance ToBmm T.TopDef TopDef where
     toBmm :: T.TopDef -> TopDef

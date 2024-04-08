@@ -7,15 +7,18 @@ import BMM.Bmm qualified as B
 import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
-import Control.Monad.State (MonadState (get, put), State, gets, modify, runState)
+import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (map)
-import Data.Text (Text, pack)
-import Utils (concatFor, for, thow)
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.Text (Text, pack, unpack)
+import Utils (concatFor, thow)
 
 data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
     , varCounter :: Int
+    , constants :: Set Text
     }
     deriving (Show)
 
@@ -32,15 +35,23 @@ braingen =
         Right p -> Right $ outputIr p
 
 braingenProg :: B.Prog -> Either Text Ir
-braingenProg (B.Program tp) = Ir <$> mapM braingenTopDef tp
+braingenProg (B.Program tp) = do
+    let consts = getConsts tp
+    Ir <$> mapM (braingenTopDef consts) tp
 
-braingenTopDef :: B.TopDef -> Either Text TopDef
-braingenTopDef (B.FnDef rt (B.Id i) a s) = do
+braingenTopDef :: Set Text -> B.TopDef -> Either Text TopDef
+braingenTopDef _ (B.StringGlobal name string) =
+    pure $
+        Constant
+            name
+            (Array (length (unpack string) + 1) I8)
+            (LitString string)
+braingenTopDef consts (B.FnDef rt (B.Id i) a s) = do
     let ret = braingenType rt
     let args = map (appendArgName "arg" . braingenArg) a
     let argStmts = concatFor a argToStmts
 
-    stmts <- braingenStmts s
+    stmts <- braingenStmts consts s
     pure $ Define ret i args Nothing (argStmts <> stmts)
   where
     argToStmts = \case
@@ -53,10 +64,10 @@ braingenTopDef (B.FnDef rt (B.Id i) a s) = do
                 (Variable n)
             ]
 
-braingenStmts :: [B.Stmt] -> Either Text [Stmt]
-braingenStmts =
+braingenStmts :: Set Text -> [B.Stmt] -> Either Text [Stmt]
+braingenStmts consts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 1)
+        >>> flip runState (Env mempty 0 1 consts)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
@@ -110,7 +121,11 @@ braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
     B.EVar (B.Id ident) -> do
         var <- getTempVariable
-        output $ Load var (braingenType ty) (Variable ident)
+        ident <-
+            flip fmap (isConst ident) $ \case
+                True -> ConstVariable ident
+                False -> Variable ident
+        output $ Load var (braingenType ty) ident
         return var
     B.ELit lit -> braingenLit lit
     B.Not e -> do
@@ -222,6 +237,7 @@ braingenType = \case
     B.Boolean -> I1
     B.Double -> F64
     B.Void -> error "TODO: braingen type void"
+    B.TVar (B.Id "string") -> Ptr
     B.TVar (B.Id x) -> CustomType x
     B.Fun t ts -> do
         let ret = braingenType t
@@ -261,6 +277,23 @@ braingenMulOp = \case
         B.Div -> FDiv
         B.Mod -> FRem
     _ -> error "error: report bug as a typeerror"
+
+-- | Gets all constants
+getConsts :: [B.TopDef] -> Set Text
+getConsts td =
+    Set.fromList $
+        concatFor
+            td
+            ( \case
+                B.StringGlobal n _ -> [n]
+                _ -> []
+            )
+
+-- | Check if variable is a constant
+isConst :: Text -> BgM Bool
+isConst t = do
+    set <- gets constants
+    pure $ Set.member t set
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog
