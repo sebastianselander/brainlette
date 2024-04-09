@@ -45,7 +45,7 @@ errorExit :: forall a. Text -> IO a
 #if DEBUG
 errorExit err = ePutStrLn err *> exitFailure
 #else
-errorExit _ = ePutStrLn "ERROR" *> exitFailure
+errorExit _ = hPutStrLn stderr "ERROR" *> exitFailure
 #endif
 
 -- | Print OK
