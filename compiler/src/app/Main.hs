@@ -7,7 +7,7 @@ module Main where
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import Control.Monad (unless)
-import Data.Text (pack, unpack)
+import Data.Text (pack, unpack, Text)
 import Frontend.BranchReturns (check)
 import Frontend.Parser.BrainletteParser
 import Frontend.Parser.ParserTypes
@@ -18,6 +18,7 @@ import System.Environment
 import System.Exit
 import Utils (ePrint, ePutStrLn)
 import Data.String.Interpolate
+import Utils (thow)
 
 main :: IO ()
 main = do
@@ -36,7 +37,7 @@ main = do
     ePutStrLn "--- Parse output ---"
 #endif
     res <- case program file (pack text') of
-        Left err -> print err *> exitFailure
+        Left err -> errorExit (thow err)
         Right res -> return res
 #if DEBUG
     ePutStrLn (pretty 0 res)
@@ -46,14 +47,14 @@ main = do
     ePutStrLn "--- Renamer output ---"
 #endif
     res <- case rename res of
-        Left err -> ePutStrLn err *> exitFailure
+        Left err -> errorExit err
         Right res -> return res
 
 #if DEBUG
     ePutStrLn (pretty 0 res)
 #endif
     res <- case check res of
-        Left err -> ePutStrLn err *> exitFailure
+        Left err -> errorExit err
         Right res -> return res
 
 #if DEBUG
@@ -61,7 +62,7 @@ main = do
 #endif    ePutStrLn (pretty 0 res)
 
     res <- case tc res of
-        Left err -> ePutStrLn err *> exitFailure
+        Left err -> errorExit err
         Right res -> return res
 
 #if DEBUG
@@ -70,7 +71,7 @@ main = do
 #endif
 
     res <- case bmm res of
-        Left err -> ePutStrLn err *> exitFailure
+        Left err -> errorExit err
         Right res -> return res
 
 #if DEBUG
@@ -79,7 +80,7 @@ main = do
 #endif
 
     res <- case braingen res of
-        Left err -> ePutStrLn err *> exitFailure
+        Left err -> errorExit err
         Right res -> return res
 
 #if DEBUG
@@ -88,6 +89,13 @@ main = do
 #endif
     ePutStrLn "OK"
     return ()
+
+errorExit :: forall a . Text -> IO a
+#if DEBUG
+errorExit err = ePutStrLn err *> exitFailure
+#else
+errorExit _ = ePutStrLn "ERROR" *> exitFailure
+#endif
 
 
 prelude :: String
