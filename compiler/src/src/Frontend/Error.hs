@@ -170,7 +170,7 @@ instance Report FEError where
             [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
         UnreachableStatement stmt -> [i|unreachable statement\n #{report stmt}|]
         MissingReturn def -> errMissingRet def
-        NotStatement info expr -> pretty $ combine "" info
+        NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
