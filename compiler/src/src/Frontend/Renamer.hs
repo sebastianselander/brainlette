@@ -11,19 +11,20 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
-import Debug.Trace (traceShowM)
 import Frontend.Error (FEError (..), Report (report), convert)
 import Frontend.Parser.ParserTypes
 import Utils
+import Data.List.NonEmpty
+import Prelude hiding (head)
 
 -- Make mapping from old names to new names as well
-data Env = Env {variables :: Map Id Id, varCounter :: Int, functions :: Set Id}
+data Env = Env {variables :: NonEmpty (Map Id Id), varCounter :: Int, functions :: Set Id}
 
 newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
     deriving (Functor, Applicative, Monad, MonadError FEError, MonadState Env)
 
 rename :: Prog -> Either Text Prog
-rename p = case runExcept $ flip evalStateT (Env mempty 0 mempty) $ runRm $ rnProg p of
+rename p = case runExcept $ flip evalStateT (Env (singleton mempty) 0 mempty) $ runRm $ rnProg p of
     Left err -> Left $ report err
     Right res -> return res
 
@@ -51,17 +52,23 @@ rnId info id = do
     gets (Set.member id . functions) >>= \case
         True -> return id
         False -> do
-            mby <- gets (Map.lookup id . variables)
-            case mby of
+            (x :| xs) <- gets variables
+            case findVar id (x:xs) of
                 Nothing -> throwError $ UnboundVariable info (convert id)
                 Just id -> return id
+  where
+    findVar :: Id -> [Map Id Id] -> Maybe Id
+    findVar _ [] = Nothing
+    findVar ident (x:xs) = case Map.lookup ident x of
+        Nothing -> findVar ident xs
+        Just ident' -> return ident'
 
 rnArg :: Arg -> RnM Arg
 rnArg (Argument info ty id) =
     Argument info <$> rnType ty <*> do
         n <- counter
         let id' = newId id n
-        modify $ \s -> s {variables = Map.insert id id' s.variables}
+        insertVar id id'
         return id'
 
 rnStmt :: Stmt -> RnM Stmt
@@ -88,21 +95,26 @@ rnStmt = \case
 rnItem :: Item -> RnM Item
 rnItem = \case
     Init info id expr -> do
-        gets (Map.lookup id . variables) >>= \case
+        gets (Map.lookup id . head . variables) >>= \case
             Nothing -> do
                 i <- counter
                 let id' = newId id i
-                modify $ \s -> s {variables = Map.insert id id' s.variables}
+                insertVar id id'
                 Init info id' <$> rnExpr expr
             Just id -> throwError $ BoundVariable info (convert id)
     NoInit info id -> do
-        gets (Map.lookup id . variables) >>= \case
+        gets (Map.lookup id . head . variables) >>= \case
             Nothing -> do
                 i <- counter
                 let id' = newId id i
-                modify $ \s -> s {variables = Map.insert id id' s.variables}
+                insertVar id id'
                 return (NoInit info id')
             Just id -> throwError $ BoundVariable info (convert id)
+
+insertVar :: Id -> Id -> RnM ()
+insertVar old new = do
+    (h :| rest) <- gets variables
+    modify (\s -> s {variables = Map.insert old new h :| rest})
 
 newId :: Id -> Int -> Id
 newId (Id info i) n = Id info (i <> "$" <> thow n)
@@ -127,7 +139,7 @@ rnExpr = \case
 newBlock :: (MonadState Env m) => m a -> m a
 newBlock ma = do
     before <- gets variables
-    modify $ \s -> s {variables = mempty}
+    modify $ \s -> s {variables = mempty <| before}
     a <- ma
     modify $ \s -> s {variables = before}
     return a

@@ -84,10 +84,13 @@ breaks = \case
         unless b $ throwError (BreakNotInLoop info)
 
 retDefs :: TopDef -> Br ()
-retDefs self@(FnDef _ _ _ _ stmts) =
-    returns stmts >>= \case
-        True -> return ()
-        False -> missingFn self
+retDefs self@(FnDef _ ty _ _ stmts) =
+    case ty of
+        Void -> return ()
+        _ -> do
+            returns stmts >>= \case
+                True -> return ()
+                False -> missingFn self
   where
     returns :: [Stmt] -> Br Bool
     returns [] = return False
