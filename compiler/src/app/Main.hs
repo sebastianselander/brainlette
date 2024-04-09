@@ -4,28 +4,28 @@ module Main where
 
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
-import Frontend.Parser.BrainletteParser
-import Frontend.Parser.ParserTypes
 import Control.Monad (unless)
 import Data.Text (pack, unpack)
 import Frontend.BranchReturns (check)
+import Frontend.Parser.BrainletteParser
+import Frontend.Parser.ParserTypes
+import Frontend.Renamer (rename)
 import Frontend.Tc.Tc (tc)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
 import Utils (ePrint, ePutStrLn)
-import Frontend.Renamer (rename)
 
 main :: IO ()
 main = do
     args <- getArgs
-    file <- case args of
-        [] -> ePutStrLn "brainlette: no input file" >> exitFailure
+    (file, text) <- case args of
+        [] -> ("stdin",) <$> getLine
         (file : _) -> do
             b <- doesFileExist file
             unless b $ ePutStrLn "brainlette: file does not exist" >> exitFailure
-            return file
-    text <- readFile file
+            text <- readFile file
+            return (file, text)
 
     ePutStrLn "--- Parse output ---"
 
