@@ -7,12 +7,12 @@ module Frontend.Error where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate
-import Data.Text (Text, cons, unlines, pack, takeWhile)
-import Frontend.Tc.Types
+import Data.Text (Text, cons, pack, takeWhile, unlines)
 import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes (SynInfo (..))
 import Frontend.Parser.ParserTypes qualified as Par
-import Prelude hiding (unlines, unwords, takeWhile)
+import Frontend.Tc.Types
+import Prelude hiding (takeWhile, unlines, unwords)
 
 data FEError
     = -- | Constructor for an unbound variable error
@@ -81,11 +81,16 @@ data FEError
       MissingReturn
         -- | The function missing return
         Par.TopDef
-    -- | Constructor for an expression that is not a statement
-    | NotStatement 
+    | -- | Constructor for an expression that is not a statement
+      NotStatement
         -- | The source code position of the error
         SynInfo
         -- | The expression that is not a statement
+        Par.Expr
+    | ArgumentMismatch
+        -- | The source code position of the error
+        SynInfo
+        -- | The expression that has an invalid amount of arguments
         Par.Expr
     deriving (Show)
 
@@ -171,6 +176,7 @@ instance Report FEError where
         UnreachableStatement stmt -> [i|unreachable statement\n #{report stmt}|]
         MissingReturn def -> errMissingRet def
         NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
+        ArgumentMismatch info _ -> pretty $ combine [i|argument mismatch|] info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of

@@ -16,8 +16,8 @@ import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Tuple.Extra (uncurry3)
-import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Error
+import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 
 tc :: Par.Prog -> Either Text Tc.Prog
@@ -130,7 +130,6 @@ infStmt = \case
     Par.SExp info expr -> throwError (NotStatement info expr)
     Par.Break _ -> return $ Just Tc.Break
 
-
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
     Par.ELitInt _ n -> return (Tc.Int, Tc.ELit (Tc.LitInt n))
@@ -194,12 +193,13 @@ infExpr e = pushExpr e $ case e of
                 | l == r -> return l
                 | otherwise -> throwError (TypeMismatch info l [r])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
-    Par.EApp p ident exprs -> do
+    app@(Par.EApp p ident exprs) -> do
         ty <- lookupVar p ident
         case ty of
             Tc.Fun rt argtys -> do
                 let infos = map hasInfo exprs
                 exprs' <- mapM infExpr exprs
+                unless (length exprs' == length argtys) $ throwError (ArgumentMismatch p app)
                 let infoTys = zip3 infos argtys (map typeOf exprs')
                 mapM_ (uncurry3 unify) infoTys
                 return (rt, Tc.EApp (convert ident) exprs')
@@ -246,7 +246,7 @@ insertArg :: Par.Arg -> TcM ()
 insertArg (Par.Argument _ typ name) = insertVar (convert name) (convert typ)
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()
-insertVar name typ = modify (\s -> s {variables = Map.insert name typ s.variables })
+insertVar name typ = modify (\s -> s {variables = Map.insert name typ s.variables})
 
 errNotBoolean :: (MonadError FEError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotBoolean info = \case
@@ -306,7 +306,6 @@ instance HasInfo Par.Expr where
         Par.ERel i _ _ _ -> i
         Par.EAnd i _ _ -> i
         Par.EOr i _ _ -> i
-
 
 class TypeOf a where
     typeOf :: a -> Tc.Type
