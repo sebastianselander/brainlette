@@ -58,7 +58,6 @@ executable brainlette
   import:             warnings
   main-is:            Main.hs
   other-modules:
-  cpp-options: -DDEBUG
   build-depends:
     , base
     , brainlette-lib
