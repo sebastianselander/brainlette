@@ -15,7 +15,6 @@ import System.Environment
 import System.Exit
 import Utils (ePrint, ePutStrLn)
 import Frontend.Renamer (rename)
-import Data.Functor (void)
 
 main :: IO ()
 main = do
