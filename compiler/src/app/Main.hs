@@ -18,7 +18,7 @@ import Frontend.Tc.Tc (tc)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
-import System.IO (stderr, getContents)
+import System.IO (stderr)
 import Utils (thow)
 
 main :: IO ()
