@@ -126,7 +126,8 @@ infStmt = \case
         errNotBoolean (hasInfo cond) (typeOf cond')
         stmt' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt
         return (Just (Tc.While cond' stmt'))
-    Par.SExp _ expr -> Just . Tc.SExp <$> infExpr expr
+    Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
+    Par.SExp info expr -> throwError (NotStatement info expr)
     Par.Break _ -> return $ Just Tc.Break
 
 

@@ -81,6 +81,12 @@ data FEError
       MissingReturn
         -- | The function missing return
         Par.TopDef
+    -- | Constructor for an expression that is not a statement
+    | NotStatement 
+        -- | The source code position of the error
+        SynInfo
+        -- | The expression that is not a statement
+        Par.Expr
     deriving (Show)
 
 parens :: Text -> Text
@@ -164,6 +170,7 @@ instance Report FEError where
             [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
         UnreachableStatement stmt -> [i|unreachable statement\n #{report stmt}|]
         MissingReturn def -> errMissingRet def
+        NotStatement info expr -> pretty $ combine "" info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
