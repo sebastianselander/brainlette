@@ -18,14 +18,14 @@ import Frontend.Tc.Tc (tc)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
-import System.IO (stderr)
+import System.IO (stderr, getContents)
 import Utils (thow)
 
 main :: IO ()
 main = do
     args <- getArgs
     (file, text) <- case args of
-        [] -> ("stdin",) <$> getLine
+        [] -> ("stdin",) <$> getContents
         (file : _) -> do
             b <- doesFileExist file
             unless b $ ePutStrLn "brainlette: file does not exist" >> exitFailure
@@ -72,7 +72,7 @@ main = do
 
     ePutStrLn "\n--- LLVM IR output ---"
     ePutStrLn res
-    ePutStrLn "OK"
+    ok
     return ()
 
 prelude :: String
