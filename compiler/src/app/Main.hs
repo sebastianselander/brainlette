@@ -28,7 +28,6 @@ main = do
             return (file, text)
 
     ePutStrLn "--- Parse output ---"
-
     res <- case program file (pack text) of
         Left err -> print err *> exitFailure
         Right res -> return res
