@@ -57,4 +57,4 @@ ok = hPutStrLn stderr "OK"
 #endif
 
 ePrint :: (Show a) => a -> IO ()
-ePrint = hPrint stderr
+ePrint = ePutStrLn . thow
