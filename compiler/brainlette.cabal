@@ -29,11 +29,19 @@ library brainlette-lib
     Frontend.Tc.Types
     Interpreter.Interpreter
     Utils
+    Frontend.Parser.BrainletteParser
+    Frontend.Parser.ArgumentParser
+    Frontend.Parser.ExprParser
+    Frontend.Parser.Language
+    Frontend.Parser.ProgramParser
+    Frontend.Parser.StmtParser
+    Frontend.Parser.TopDefParser
+    Frontend.Parser.TypeParser
+    Frontend.Parser.ParserTypes
 
   build-depends:
     , array
     , base
-    , brainlette-parser
     , containers
     , dlist
     , extra
@@ -41,6 +49,7 @@ library brainlette-lib
     , string-interpolate
     , text
     , x86-64bit
+    , parsec
 
   hs-source-dirs:   src
   default-language: GHC2021
@@ -52,7 +61,6 @@ executable brainlette
   build-depends:
     , base
     , brainlette-lib
-    , brainlette-parser
     , directory
     , text
 
@@ -66,7 +74,6 @@ test-suite tc
   build-depends:
     , base
     , brainlette-lib
-    , brainlette-parser
     , hspec
     , QuickCheck
     , text

@@ -4,8 +4,8 @@ module Main where
 
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
-import BrainletteParser
-import ParserTypes
+import Frontend.Parser.BrainletteParser
+import Frontend.Parser.ParserTypes
 import Control.Monad (unless)
 import Data.Text (pack, unpack)
 import Frontend.BranchReturns (check)

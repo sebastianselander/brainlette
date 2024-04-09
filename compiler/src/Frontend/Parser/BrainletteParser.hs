@@ -1,4 +1,4 @@
-module BrainletteParser (
+module Frontend.Parser.BrainletteParser (
     arg,
     expr,
     program,
@@ -8,13 +8,13 @@ module BrainletteParser (
     HasInfo(..)
 ) where
 
-import Internal.ArgumentParser (arg)
-import Internal.ExprParser (expr)
-import Internal.ProgramParser (program)
-import Internal.StmtParser (stmt)
-import Internal.TopDefParser (topdef)
-import Internal.TypeParser (typ)
-import ParserTypes
+import Frontend.Parser.ArgumentParser (arg)
+import Frontend.Parser.ExprParser (expr)
+import Frontend.Parser.ProgramParser (program)
+import Frontend.Parser.StmtParser (stmt)
+import Frontend.Parser.TopDefParser (topdef)
+import Frontend.Parser.TypeParser (typ)
+import Frontend.Parser.ParserTypes
 
 class HasInfo a where
     hasInfo :: a -> SynInfo

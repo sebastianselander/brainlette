@@ -16,7 +16,7 @@ import Data.Map qualified as Map
 import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Text (Text)
 import Data.Tuple.Extra (uncurry3)
-import ParserTypes qualified as Par
+import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Error
 import Frontend.Tc.Types qualified as Tc
 

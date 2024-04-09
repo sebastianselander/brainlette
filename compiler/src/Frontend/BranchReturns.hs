@@ -15,7 +15,7 @@ import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, concat, unlines)
 import Frontend.Error (FEError (..), report)
-import ParserTypes
+import Frontend.Parser.ParserTypes
 import Prelude hiding (concat, takeWhile, unlines)
 
 data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}

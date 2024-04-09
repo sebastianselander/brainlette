@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE LambdaCase #-}
 
-module ParserTypes where
+module Frontend.Parser.ParserTypes where
 
 import Data.Text (Text, pack, intercalate, cons, unwords, unlines, replicate)
 import Text.Parsec (Parsec)

@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Internal.TopDefParser where
+module Frontend.Parser.TopDefParser where
 
-import Internal.ArgumentParser (arg)
-import Internal.ExprParser (id)
-import Internal.Language (braces, commaSep, info, parens, reserved)
-import Internal.StmtParser (stmt)
-import Internal.TypeParser (typ)
-import ParserTypes
+import Frontend.Parser.ArgumentParser (arg)
+import Frontend.Parser.ExprParser (id)
+import Frontend.Parser.Language (braces, commaSep, info, parens, reserved)
+import Frontend.Parser.StmtParser (stmt)
+import Frontend.Parser.TypeParser (typ)
+import Frontend.Parser.ParserTypes
 import Prelude hiding (id)
 import Text.Parsec ((<|>), many)
 

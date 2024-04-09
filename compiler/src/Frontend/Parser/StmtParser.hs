@@ -1,9 +1,9 @@
-module Internal.StmtParser where
+module Frontend.Parser.StmtParser where
 
-import Internal.ExprParser
-import Internal.Language
-import Internal.TypeParser
-import ParserTypes
+import Frontend.Parser.ExprParser
+import Frontend.Parser.Language
+import Frontend.Parser.TypeParser
+import Frontend.Parser.ParserTypes
 import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
 import Prelude hiding (id, init, break)

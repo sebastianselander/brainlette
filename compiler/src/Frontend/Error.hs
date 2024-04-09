@@ -9,9 +9,9 @@ import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate
 import Data.Text (Text, cons, unlines, pack, takeWhile)
 import Frontend.Tc.Types
-import BrainletteParser (hasInfo)
-import ParserTypes (SynInfo (..))
-import ParserTypes qualified as Par
+import Frontend.Parser.BrainletteParser (hasInfo)
+import Frontend.Parser.ParserTypes (SynInfo (..))
+import Frontend.Parser.ParserTypes qualified as Par
 import Prelude hiding (unlines, unwords, takeWhile)
 
 data FEError

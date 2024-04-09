@@ -13,7 +13,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Debug.Trace (traceShowM)
 import Frontend.Error (FEError (..), Report (report), convert)
-import ParserTypes
+import Frontend.Parser.ParserTypes
 import Utils
 
 -- Make mapping from old names to new names as well

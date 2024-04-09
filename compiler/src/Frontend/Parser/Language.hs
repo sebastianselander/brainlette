@@ -1,8 +1,8 @@
-module Internal.Language where
+module Frontend.Parser.Language where
 
 import Data.Functor.Identity (Identity)
 import Data.Text (Text, length, pack, take, stripEnd)
-import ParserTypes
+import Frontend.Parser.ParserTypes
 import Text.Parsec (
     alphaNum,
     char,

@@ -1,10 +1,10 @@
-module Internal.ArgumentParser where
+module Frontend.Parser.ArgumentParser where
 
-import ParserTypes
-import Internal.Language
+import Frontend.Parser.ParserTypes
+import Frontend.Parser.Language
 import Prelude hiding (id)
-import Internal.TypeParser (typ)
-import Internal.ExprParser
+import Frontend.Parser.TypeParser (typ)
+import Frontend.Parser.ExprParser
 
 arg :: Parser Arg
 arg = do

@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Internal.TypeParser where
+module Frontend.Parser.TypeParser where
 
 import Data.Text (Text, unpack)
-import Internal.Language
-import ParserTypes
+import Frontend.Parser.Language
+import Frontend.Parser.ParserTypes
 import Text.Parsec hiding (string)
 
 primType :: Text -> Parser Type

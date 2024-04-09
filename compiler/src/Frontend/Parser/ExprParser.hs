@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
-module Internal.ExprParser where
+module Frontend.Parser.ExprParser where
 
-import Internal.Language
+import Frontend.Parser.Language
     ( identifier,
       integer,
       float,
@@ -11,7 +11,7 @@ import Internal.Language
       reservedOp,
       commaSep,
       info )
-import ParserTypes
+import Frontend.Parser.ParserTypes
 import Text.Parsec ( choice, try)
 import Text.Parsec.Expr
     ( buildExpressionParser,

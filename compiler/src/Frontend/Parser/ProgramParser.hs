@@ -1,10 +1,10 @@
-module Internal.ProgramParser where
+module Frontend.Parser.ProgramParser where
 
 import Data.Text (Text)
-import Internal.TopDefParser (topdef)
-import ParserTypes
+import Frontend.Parser.TopDefParser (topdef)
+import Frontend.Parser.ParserTypes
 import Text.Parsec (ParseError, SourceName, many, parse)
-import Internal.Language (whiteSpace, lexeme)
+import Frontend.Parser.Language (whiteSpace, lexeme)
 
 program :: SourceName -> Text -> Either ParseError Prog
 program = parse (Program NoInfo <$> (whiteSpace *> many (lexeme topdef)))
