@@ -43,7 +43,7 @@ ePutStrLn _ = pure ()
 -- | Print error and exit
 errorExit :: forall a. Text -> IO a
 #if DEBUG
-errorExit err = ePutStrLn err *> exitFailure
+errorExit err = hPutStrLn stderr err *> exitFailure
 #else
 errorExit _ = hPutStrLn stderr "ERROR" *> exitFailure
 #endif
