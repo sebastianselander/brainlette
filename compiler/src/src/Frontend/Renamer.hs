@@ -67,12 +67,16 @@ rnId info id = do
         Just ident' -> return ident'
 
 rnArg :: Arg -> RnM Arg
-rnArg (Argument info ty id) =
-    Argument info <$> rnType ty <*> do
-        n <- counter
-        let id' = newId id n
-        insertVar id id'
-        return id'
+rnArg arg@(Argument info ty id) =
+    gets (Map.member id . head . variables)
+        >>= \case
+            False ->
+                Argument info <$> rnType ty <*> do
+                    n <- counter
+                    let id' = newId id n
+                    insertVar id id'
+                    return id'
+            True -> throwError $ DuplicateArgument info arg
 
 rnStmt :: Stmt -> RnM Stmt
 rnStmt = \case

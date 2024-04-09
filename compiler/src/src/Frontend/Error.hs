@@ -100,6 +100,12 @@ data FEError
         SynInfo
         -- | The duplicate top definition
         Par.TopDef
+    | -- | Constructor for a duplicate error
+      DuplicateArgument
+        -- | The source code position of the error
+        SynInfo
+        -- | The duplicate argument
+        Par.Arg
     deriving (Show)
 
 parens :: Text -> Text
@@ -186,6 +192,7 @@ instance Report FEError where
         NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
         ArgumentMismatch info _ -> pretty $ combine [i|argument mismatch|] info
         DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
+        DuplicateArgument info tp -> pretty $ combine [i|duplicate argument in definition\n#{thow tp}|] info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
