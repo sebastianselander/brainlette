@@ -69,7 +69,7 @@ main = do
         Right res -> return res
 
     ePutStrLn "\n--- LLVM IR output ---"
-    putStrLn $ unpack res
+    ePutStrLn res
     ePutStrLn "OK"
     return ()
 
