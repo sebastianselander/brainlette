@@ -2,3 +2,4 @@ compiler/.direnv
 *.bak
 dist-newstyle/
 tester/jlc.tar.gz
+tester/output.tmp
