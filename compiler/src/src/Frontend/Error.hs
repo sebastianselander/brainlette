@@ -12,6 +12,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes (SynInfo (..))
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types
+import Utils (thow)
 import Prelude hiding (takeWhile, unlines, unwords)
 
 data FEError
@@ -87,11 +88,18 @@ data FEError
         SynInfo
         -- | The expression that is not a statement
         Par.Expr
-    | ArgumentMismatch
+    | -- | Constructor for a function call that has a mismatched number of argument
+      ArgumentMismatch
         -- | The source code position of the error
         SynInfo
         -- | The expression that has an invalid amount of arguments
         Par.Expr
+    | -- | Constructor for duplicate top definitions
+      DuplicateTopDef
+        -- | The source code position of the error
+        SynInfo
+        -- | The duplicate top definition
+        Par.TopDef
     deriving (Show)
 
 parens :: Text -> Text
@@ -177,6 +185,7 @@ instance Report FEError where
         MissingReturn def -> errMissingRet def
         NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
         ArgumentMismatch info _ -> pretty $ combine [i|argument mismatch|] info
+        DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of

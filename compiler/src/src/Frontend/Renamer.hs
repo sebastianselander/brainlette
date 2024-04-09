@@ -4,6 +4,7 @@
 
 module Frontend.Renamer (rename) where
 
+import Control.Monad (when)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.List.NonEmpty
@@ -32,7 +33,9 @@ rnProg :: Prog -> RnM Prog
 rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
   where
     addDef :: TopDef -> RnM ()
-    addDef (FnDef _ _ name _ _) =
+    addDef tp@(FnDef info _ name _ _) = do
+        funcs <- gets functions
+        when (Set.member name funcs) $ throwError $ DuplicateTopDef info tp
         modify $ \s -> s {functions = Set.insert name s.functions}
 
 rnDef :: TopDef -> RnM TopDef
