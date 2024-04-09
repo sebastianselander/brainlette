@@ -34,6 +34,7 @@
               haskellPackages.happy
               llvmPackages_latest.llvm
               zlib
+              gnumake
             ];
           };
         };
