@@ -6,6 +6,7 @@ module Frontend.Renamer (rename) where
 
 import Control.Monad.Except
 import Control.Monad.State
+import Data.List.NonEmpty
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -14,7 +15,6 @@ import Data.Text (Text)
 import Frontend.Error (FEError (..), Report (report), convert)
 import Frontend.Parser.ParserTypes
 import Utils
-import Data.List.NonEmpty
 import Prelude hiding (head)
 
 -- Make mapping from old names to new names as well
@@ -53,13 +53,13 @@ rnId info id = do
         True -> return id
         False -> do
             (x :| xs) <- gets variables
-            case findVar id (x:xs) of
+            case findVar id (x : xs) of
                 Nothing -> throwError $ UnboundVariable info (convert id)
                 Just id -> return id
   where
     findVar :: Id -> [Map Id Id] -> Maybe Id
     findVar _ [] = Nothing
-    findVar ident (x:xs) = case Map.lookup ident x of
+    findVar ident (x : xs) = case Map.lookup ident x of
         Nothing -> findVar ident xs
         Just ident' -> return ident'
 
