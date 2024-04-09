@@ -105,9 +105,10 @@ rnItem = \case
         gets (Map.lookup id . head . variables) >>= \case
             Nothing -> do
                 i <- counter
+                expr <- rnExpr expr
                 let id' = newId id i
                 insertVar id id'
-                Init info id' <$> rnExpr expr
+                return $ Init info id' expr
             Just id -> throwError $ BoundVariable info (convert id)
     NoInit info id -> do
         gets (Map.lookup id . head . variables) >>= \case

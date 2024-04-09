@@ -81,6 +81,8 @@ prelude =
     void printInt(int a) {}
     void printDouble(double a) {}
     void printString(string a) {}
+    double readDouble() { return 0.0;}
+    int readInt() { return 0;}
 |]
 
 -- | Print string to stdErr

@@ -106,6 +106,18 @@ data FEError
         SynInfo
         -- | The duplicate argument
         Par.Arg
+    | -- | Constructor for declaring a void variable
+      VoidDeclare
+        -- | The source code position of the error
+        SynInfo
+        -- | The bogus statement
+        Par.Stmt
+    | -- | Constructor for having parameters of type void
+      VoidParameter
+        -- | The source code position of the error
+        SynInfo
+        -- | Name of the function
+        Par.Id
     deriving (Show)
 
 parens :: Text -> Text
@@ -193,6 +205,8 @@ instance Report FEError where
         ArgumentMismatch info _ -> pretty $ combine [i|argument mismatch|] info
         DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
         DuplicateArgument info tp -> pretty $ combine [i|duplicate argument in definition\n#{thow tp}|] info
+        VoidDeclare info _ -> pretty $ combine [i|can not declare a variable with type '#{report Void}'|] info
+        VoidParameter info ident -> pretty $ combine [i|can not have parameters of type '#{report Void}' in the function #{report ident}|] info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
@@ -211,6 +225,9 @@ errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
             <> "\n  "
             <> report (last xs)
             <> "\nexpected\n  a return statement"
+
+instance Report Par.Id where
+    report (Par.Id _ name) = name
 
 instance Report Par.Stmt where
     report stmt =

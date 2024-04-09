@@ -38,7 +38,7 @@ tc p =
 run :: TcM a -> Either Text a
 run =
     runTcM
-        >>> flip evalStateT (Env mempty)
+        >>> flip evalStateT (Env mempty mempty)
         >>> flip
             runReaderT
             (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int]))
@@ -56,19 +56,20 @@ infDef def@(Par.FnDef _ rt name args block) = do
     let rt' = convert rt
     let name' = convert name
     let fnType = Tc.Fun rt' (map typeOf args)
-    insertVar name' fnType
+    insertFunc name' fnType
     block' <- pushDef def $ do
-        mapM_ insertArg args
+        mapM_ (insertArg name) args
         mapMaybeM infStmt block
     return (Tc.FnDef rt' name' (convert args) block')
 
 infStmt :: Par.Stmt -> TcM (Maybe Tc.Stmt)
-infStmt = \case
+infStmt s = case s of
     Par.Empty _ -> return Nothing
     Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM infStmt stmts
     Par.Decl info typ items -> do
         let typ' = convert typ
-         in Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
+        when (isVoid typ') (throwError $ VoidDeclare info s)
+        Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
       where
         tcItem :: Par.SynInfo -> Tc.Type -> Par.Item -> TcM Tc.Item
         tcItem info expected = \case
@@ -93,6 +94,7 @@ infStmt = \case
         return (Just (Tc.Ass (convert ident) (ty', expr')))
     Par.Incr info var -> do
         typ <- lookupVar info var
+        unless (isInt typ) (throwError $ ExpectedType info Tc.Int typ)
         errNotNumber info typ
         return (Just (Tc.Incr typ (convert var)))
     Par.Decr info var -> do
@@ -138,7 +140,7 @@ infExpr e = pushExpr e $ case e of
     Par.ELitFalse _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool False))
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
     Par.EVar p i -> do
-        ty <- lookupVar p i
+        ty <- catchError (lookupVar p i) (const (lookupFunc p i))
         return (ty, Tc.EVar (convert i))
     Par.Neg info expr -> do
         expr' <- infExpr expr
@@ -194,7 +196,7 @@ infExpr e = pushExpr e $ case e of
                 | otherwise -> throwError (TypeMismatch info l [r])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
     app@(Par.EApp p ident exprs) -> do
-        ty <- lookupVar p ident
+        ty <- catchError (lookupVar p ident) (const (lookupFunc p ident))
         case ty of
             Tc.Fun rt argtys -> do
                 let infos = map hasInfo exprs
@@ -205,7 +207,7 @@ infExpr e = pushExpr e $ case e of
                 return (rt, Tc.EApp (convert ident) exprs')
             _else -> throwError (ExpectedFn p ty)
 
-newtype Env = Env {variables :: Map Tc.Id Tc.Type}
+data Env = Env {variables :: Map Tc.Id Tc.Type, functions :: Map Tc.Id Tc.Type}
     deriving (Show, Eq, Ord)
 
 data Ctx = Ctx
@@ -228,10 +230,16 @@ newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except FEError)) a}
 -- | Extract the types from all top level definitions '⌣'
 addDefs :: Par.Prog -> Env
 addDefs (Par.Program _ prog) =
-    Env (Map.fromList $ map (first convert . getType) prog)
+    Env mempty (Map.fromList $ map (first convert . getType) prog)
   where
     getType (Par.FnDef _ ty name args _) =
         (name, Tc.Fun (convert ty) (map typeOf args))
+
+lookupFunc :: Par.SynInfo -> Par.Id -> TcM Tc.Type
+lookupFunc info i = do
+    gets (Map.lookup (convert i) . functions) >>= \case
+        Nothing -> throwError (UnboundVariable info (convert i))
+        Just rt -> return rt
 
 lookupVar :: Par.SynInfo -> Par.Id -> TcM Tc.Type
 lookupVar info i = do
@@ -242,11 +250,15 @@ lookupVar info i = do
 doesVariableExist :: Tc.Id -> TcM Bool
 doesVariableExist name = gets (Map.member name . variables)
 
-insertArg :: Par.Arg -> TcM ()
-insertArg (Par.Argument _ typ name) = insertVar (convert name) (convert typ)
+insertArg :: Par.Id -> Par.Arg -> TcM ()
+insertArg ident (Par.Argument info Par.Void name) = throwError $ VoidParameter info ident
+insertArg _ (Par.Argument _ ty name) = insertVar (convert name) (convert ty)
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()
 insertVar name typ = modify (\s -> s {variables = Map.insert name typ s.variables})
+
+insertFunc :: Tc.Id -> Tc.Type -> TcM ()
+insertFunc name typ = modify (\s -> s {functions = Map.insert name typ s.functions})
 
 errNotBoolean :: (MonadError FEError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotBoolean info = \case
@@ -266,6 +278,10 @@ isNumber :: Tc.Type -> Bool
 isNumber Tc.Int = True
 isNumber Tc.Double = True
 isNumber _ = False
+
+isInt :: Tc.Type -> Bool
+isInt Tc.Int = True
+isInt _ = False
 
 unify ::
     -- | Parsing information
