@@ -15,6 +15,7 @@ data Type
     | I8
     | F64
     | Ptr
+    | Void
     | FunPtr Type [Type]
     | Array Int Type
     | CustomType Text

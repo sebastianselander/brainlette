@@ -236,7 +236,7 @@ braingenType = \case
     B.Int -> I32
     B.Boolean -> I1
     B.Double -> F64
-    B.Void -> error "TODO: braingen type void"
+    B.Void -> Void
     B.TVar (B.Id "string") -> Ptr
     B.TVar (B.Id x) -> CustomType x
     B.Fun t ts -> do

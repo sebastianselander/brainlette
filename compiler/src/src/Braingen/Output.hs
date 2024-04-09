@@ -180,6 +180,7 @@ instance OutputIr Type where
         F64 -> "double"
         Ptr -> "ptr"
         I1 -> "i1"
+        Void -> "void"
         Array len t -> "[" <> thow len <> " x " <> outputIr t <> "]"
         FunPtr t ts -> outputIr t <> "(" <> outputIr ts <> ")*"
         CustomType t -> "%" <> t
