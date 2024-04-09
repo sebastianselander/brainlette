@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -5,7 +6,7 @@ module Main where
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import Control.Monad (unless)
-import Data.Text (pack, unpack)
+import Data.Text (pack, unpack, Text)
 import Frontend.BranchReturns (check)
 import Frontend.Parser.BrainletteParser
 import Frontend.Parser.ParserTypes
@@ -15,6 +16,8 @@ import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
 import Utils (ePrint, ePutStrLn)
+import Frontend.Renamer (rename)
+import Data.String.Interpolate
 
 main :: IO ()
 main = do
@@ -70,3 +73,8 @@ main = do
     ePutStrLn "\n--- LLVM IR output ---"
 
     putStrLn $ unpack res
+
+prelude :: Text
+prelude = pack [i|
+void printInt(int a) {}
+|]

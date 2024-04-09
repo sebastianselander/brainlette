@@ -39,9 +39,12 @@ false :: Parser Expr
 false = ELitFalse . fst <$> info (reserved "false")
 
 app :: Parser Expr
-app =
-    (\(a, (b, c)) -> EApp a b c)
-        <$> info (((,) <$> id) <*> parens (commaSep expr))
+app = do
+    (info, (name, args)) <- info $ do
+        name <- id
+        args <- parens (commaSep expr)
+        return (name, args)
+    return (EApp info name args)
 
 string :: Parser Expr
 string = uncurry EString <$> info stringLiteral
@@ -49,8 +52,9 @@ string = uncurry EString <$> info stringLiteral
 atom :: Parser Expr
 atom =
     choice
-        [ try int
+        [ try (parens expr)
         , try double
+        , try int
         , try false
         , try true
         , try string

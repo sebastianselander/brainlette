@@ -63,6 +63,7 @@ executable brainlette
     , brainlette-lib
     , directory
     , text
+    , string-interpolate
 
   hs-source-dirs:   app
   default-language: GHC2021
