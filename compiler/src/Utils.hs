@@ -5,6 +5,7 @@ module Utils where
 import Data.Text (Text, pack)
 import Data.Text.IO (hPutStrLn)
 import System.IO (hPrint, stderr)
+import GHC.Stack (HasCallStack)
 
 {-# WARNING TODO "TODO" #-}
 pattern TODO :: a
@@ -12,10 +13,15 @@ pattern TODO <- _
   where
     TODO = error "TODO: Not yet implemented"
 
--- | Map with flipped arguments
+{-# WARNING todo "todo" #-}
+todo :: HasCallStack => a
+todo = error "TODO: Not yet implemented"
+
+-- | map with flipped arguments
 for :: [a] -> (a -> b) -> [b]
 for = flip map
 
+-- | concatMap with flipped arguments
 concatFor :: [a] -> (a -> [b]) -> [b]
 concatFor = flip concatMap
 
