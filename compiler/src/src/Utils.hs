@@ -42,7 +42,7 @@ ePutStrLn _ = pure ()
 
 -- | Print error and exit
 errorExit :: forall a. Text -> IO a
-#if DEBUG
+#ifdef DEBUG
 errorExit err = hPutStrLn stderr err *> exitFailure
 #else
 errorExit _ = hPutStrLn stderr "ERROR" *> exitFailure
@@ -50,7 +50,7 @@ errorExit _ = hPutStrLn stderr "ERROR" *> exitFailure
 
 -- | Print OK
 ok :: IO ()
-#if DEBUG
+#ifdef DEBUG
 ok = pure ()
 #else
 ok = hPutStrLn stderr "OK"
