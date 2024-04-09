@@ -1,14 +1,14 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Frontend.Parser.ParserTypes where
 
-import Data.Text (Text, pack, intercalate, cons, unwords, unlines, replicate)
-import Text.Parsec (Parsec)
+import Data.Text (Text, cons, intercalate, pack, replicate, unlines, unwords)
 import GHC.Generics
-import Prelude hiding (unwords, unlines, replicate)
+import Text.Parsec (Parsec)
+import Prelude hiding (replicate, unlines, unwords)
 
 type Parser a = Parsec Text () a
 
@@ -29,17 +29,26 @@ instance Ord SynInfo where
     compare _ _ = EQ
 
 type Expr = Expr' SynInfo
-type AddOp = AddOp' SynInfo
-type Arg = Arg' SynInfo
-type Item = Item' SynInfo
-type MulOp = MulOp' SynInfo
-type Prog = Prog' SynInfo
-type RelOp = RelOp' SynInfo
-type Stmt = Stmt' SynInfo
-type TopDef = TopDef' SynInfo
-type Type = Type' SynInfo
-type Id = Id' SynInfo
 
+type AddOp = AddOp' SynInfo
+
+type Arg = Arg' SynInfo
+
+type Item = Item' SynInfo
+
+type MulOp = MulOp' SynInfo
+
+type Prog = Prog' SynInfo
+
+type RelOp = RelOp' SynInfo
+
+type Stmt = Stmt' SynInfo
+
+type TopDef = TopDef' SynInfo
+
+type Type = Type' SynInfo
+
+type Id = Id' SynInfo
 
 data Prog' a = Program a [TopDef' a]
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
@@ -116,23 +125,28 @@ data Id' a = Id a Text
 
 pattern Int :: Type
 pattern Int <- TVar _ (Id _ "int")
-  where Int = TVar NoInfo (Id NoInfo "int")
+    where
+        Int = TVar NoInfo (Id NoInfo "int")
 
 pattern Double :: Type
 pattern Double <- TVar _ (Id _ "double")
-  where Double = TVar NoInfo (Id NoInfo "double")
+    where
+        Double = TVar NoInfo (Id NoInfo "double")
 
 pattern String :: Type
 pattern String <- TVar _ (Id _ "string")
-  where String = TVar NoInfo (Id NoInfo "string")
+    where
+        String = TVar NoInfo (Id NoInfo "string")
 
 pattern Boolean :: Type
 pattern Boolean <- TVar _ (Id _ "boolean")
-  where Boolean = TVar NoInfo (Id NoInfo "boolean")
+    where
+        Boolean = TVar NoInfo (Id NoInfo "boolean")
 
 pattern Void :: Type
 pattern Void <- TVar _ (Id _ "void")
-  where Void = TVar NoInfo (Id NoInfo "void")
+    where
+        Void = TVar NoInfo (Id NoInfo "void")
 
 class Pretty a where
     {-# MINIMAL pretty #-}
@@ -151,16 +165,16 @@ class Pretty a where
     semi n a = pretty n a <> ";"
 
 instance Pretty Text where
-    pretty n t = t
+    pretty _ t = t
 
 instance Pretty RelOp where
     pretty _ = \case
-      LTH _ -> "<"
-      LE _ -> "<="
-      GTH _ -> ">"
-      GE _ -> ">="
-      EQU _ -> "=="
-      NE _ -> "!="
+        LTH _ -> "<"
+        LE _ -> "<="
+        GTH _ -> ">"
+        GE _ -> ">="
+        EQU _ -> "=="
+        NE _ -> "!="
 
 instance Pretty Id where
     pretty _ (Id _ a) = a
@@ -176,20 +190,20 @@ instance Pretty AddOp where
 
 instance Pretty Expr where
     pretty n = \case
-      EVar _ ident -> pretty n ident
-      ELitInt _ n -> pack $ show n
-      ELitDouble _ n -> pack $ show n
-      ELitTrue _ -> "true"
-      ELitFalse _ -> "false"
-      EApp _ i exprs -> pretty n i <> parenthesis n (intercalate ", " $ map (pretty n) exprs)
-      EString _ txt -> pretty n txt
-      Neg _ expr -> '-' `cons` pretty n expr
-      Not _ expr -> '!' `cons` pretty n expr
-      EMul _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
-      EAdd _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
-      ERel _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
-      EAnd _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
-      EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
+        EVar _ ident -> pretty n ident
+        ELitInt _ n -> pack $ show n
+        ELitDouble _ n -> pack $ show n
+        ELitTrue _ -> "true"
+        ELitFalse _ -> "false"
+        EApp _ i exprs -> pretty n i <> parenthesis n (intercalate ", " $ map (pretty n) exprs)
+        EString _ txt -> pretty n txt
+        Neg _ expr -> '-' `cons` pretty n expr
+        Not _ expr -> '!' `cons` pretty n expr
+        EMul _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
+        EAdd _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
+        ERel _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
+        EAnd _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
+        EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
 
 instance Pretty Type where
     pretty n (TVar _ ident) = pretty n ident
@@ -220,10 +234,16 @@ instance Pretty Arg where
     pretty n (Argument _ ty ident) = unwords [pretty n ty, pretty n ident]
 
 instance Pretty TopDef where
-    pretty n (FnDef _ ty ident args stmts) = unwords [pretty n ty, pretty n ident, commaSeparated n args, "{\n" <> unlines (map (indent n) stmts) <> "\n}"]
+    pretty n (FnDef _ ty ident args stmts) =
+        unwords
+            [ pretty n ty
+            , pretty n ident
+            , parenthesis n $ commaSeparated n args
+            , "{\n" <> unlines (map (indent n) stmts) <> "\n}"
+            ]
 
 instance Pretty Prog where
     pretty n (Program _ xs) = go xs
       where
         go [] = ""
-        go (x:xs) = pretty (n + 1) x <> "\n\n" <> go xs
+        go (x : xs) = pretty (n + 1) x <> "\n\n" <> go xs
