@@ -8,3 +8,11 @@ all:
 clean:
 	cabal clean
 	rm $(JLC)
+
+# Run with custom program like this: "make run prg=inputs/program.bl"
+run:
+	cabal run brainlette -- $(prg)
+
+debug:
+	cabal run brainlette --ghc-options=-DDEBUG -- $(prg)
+
