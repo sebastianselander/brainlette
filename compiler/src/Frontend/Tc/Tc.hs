@@ -13,7 +13,7 @@ import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, listToMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.ParserTypes qualified as Par
@@ -57,7 +57,7 @@ infDef def@(Par.FnDef _ rt name args block) = do
     let name' = convert name
     let fnType = Tc.Fun rt' (map typeOf args)
     insertVar name' fnType
-    block' <- pushDef def $ inBlock $ do
+    block' <- pushDef def $ do
         mapM_ insertArg args
         mapMaybeM infStmt block
     return (Tc.FnDef rt' name' (convert args) block')
@@ -65,7 +65,7 @@ infDef def@(Par.FnDef _ rt name args block) = do
 infStmt :: Par.Stmt -> TcM (Maybe Tc.Stmt)
 infStmt = \case
     Par.Empty _ -> return Nothing
-    Par.BStmt _ stmts -> Just . Tc.BStmt <$> inBlock (mapMaybeM infStmt stmts)
+    Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM infStmt stmts
     Par.Decl info typ items -> do
         let typ' = convert typ
          in Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
@@ -204,7 +204,7 @@ infExpr e = pushExpr e $ case e of
                 return (rt, Tc.EApp (convert ident) exprs')
             _else -> throwError (ExpectedFn p ty)
 
-newtype Env = Env {variables :: [Map Tc.Id Tc.Type]}
+newtype Env = Env {variables :: Map Tc.Id Tc.Type}
     deriving (Show, Eq, Ord)
 
 data Ctx = Ctx
@@ -227,34 +227,25 @@ newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except FEError)) a}
 -- | Extract the types from all top level definitions '⌣'
 addDefs :: Par.Prog -> Env
 addDefs (Par.Program _ prog) =
-    Env [Map.fromList $ map (first convert . getType) prog]
+    Env (Map.fromList $ map (first convert . getType) prog)
   where
     getType (Par.FnDef _ ty name args _) =
         (name, Tc.Fun (convert ty) (map typeOf args))
 
 lookupVar :: Par.SynInfo -> Par.Id -> TcM Tc.Type
 lookupVar info i = do
-    vars <- gets variables
-    findVar vars
-  where
-    findVar [] = throwError (UnboundVariable info (convert i))
-    findVar (vs : vvs) = case Map.lookup (convert i) vs of
+    gets (Map.lookup (convert i) . variables) >>= \case
+        Nothing -> throwError (UnboundVariable info (convert i))
         Just rt -> return rt
-        Nothing -> findVar vvs
 
 doesVariableExist :: Tc.Id -> TcM Bool
-doesVariableExist name =
-    gets (maybe False (Map.member name) . listToMaybe . variables)
+doesVariableExist name = gets (Map.member name . variables)
 
 insertArg :: Par.Arg -> TcM ()
 insertArg (Par.Argument _ typ name) = insertVar (convert name) (convert typ)
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()
-insertVar name typ = do
-    blocks <- gets variables
-    case blocks of
-        [] -> modify (\s -> s {variables = [Map.singleton name typ]})
-        (x : xs) -> modify (\s -> s {variables = Map.insert name typ x : xs})
+insertVar name typ = modify (\s -> s {variables = Map.insert name typ s.variables })
 
 errNotBoolean :: (MonadError FEError m) => Par.SynInfo -> Tc.Type -> m ()
 errNotBoolean info = \case
@@ -330,19 +321,3 @@ pushExpr e = local $ \s -> s {exprStack = e : s.exprStack}
 
 pushDef :: (MonadReader Ctx m) => Par.TopDef -> m a -> m a
 pushDef d = local $ \s -> s {defStack = d : s.defStack}
-
-inBlock :: TcM a -> TcM a
-inBlock ma = do
-    pushBlk
-    x <- ma
-    popBlk
-    return x
-  where
-    pushBlk :: TcM ()
-    pushBlk = modify (\s -> s {variables = mempty : s.variables})
-
-    popBlk :: TcM ()
-    popBlk =
-        gets variables >>= \case
-            [] -> return ()
-            (_ : xs) -> modify (\s -> s {variables = xs})
