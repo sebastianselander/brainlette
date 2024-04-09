@@ -159,7 +159,7 @@ braingenExpr (ty, e) = case e of
         let t' = braingenType t
         val <- braingenExpr e
         res <- getTempVariable
-        output $ SiToFp res t' val ty'
+        output $ Cast (getCastOp ty' t') res t' val ty'
         pure res
     _ -> do
         output . Comment $ "EXPR-TODO: " <> thow e
@@ -294,6 +294,13 @@ isConst :: Text -> BgM Bool
 isConst t = do
     set <- gets constants
     pure $ Set.member t set
+
+-- | Get cast op
+getCastOp :: Type -> Type -> CastOp
+getCastOp a b = case (a, b) of
+    (F64, I32) -> FPtoSI
+    (I32, F64) -> SItoFP
+    _ -> Bitcast
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog

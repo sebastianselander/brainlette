@@ -69,6 +69,16 @@ data Condition
     | Sle
     deriving (Show)
 
+data CastOp
+    = FPtoUI
+    | FPtoSI
+    | UItoFP
+    | SItoFP
+    | PTRtoINT
+    | INTtoPTR
+    | Bitcast
+    deriving (Show)
+
 data Variable = Variable Text | ConstVariable Text
     deriving (Show)
 
@@ -87,7 +97,7 @@ data Stmt
     | Comment Text
     | Br Variable Label Label
     | Jump Label
-    | SiToFp Variable Type Variable Type
+    | Cast CastOp Variable Type Variable Type
     deriving (Show)
 
 data Lit
