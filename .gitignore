@@ -1,4 +1,5 @@
 compiler/.direnv
+jlc
 *.bak
 dist-newstyle/
 tester/jlc.tar.gz
