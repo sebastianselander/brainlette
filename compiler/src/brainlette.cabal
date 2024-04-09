@@ -17,27 +17,27 @@ library brainlette-lib
   exposed-modules:
     BMM.Bmm
     BMM.Optimize
-    BMM.TcToBmm
     BMM.StringToTop
+    BMM.TcToBmm
     Braingen.Ir
     Braingen.LlvmAst
     Braingen.Output
     Frontend.BranchReturns
-    Frontend.Renamer
     Frontend.Error
-    Frontend.Tc.Tc
-    Frontend.Tc.Types
-    Interpreter.Interpreter
-    Utils
-    Frontend.Parser.BrainletteParser
     Frontend.Parser.ArgumentParser
+    Frontend.Parser.BrainletteParser
     Frontend.Parser.ExprParser
     Frontend.Parser.Language
+    Frontend.Parser.ParserTypes
     Frontend.Parser.ProgramParser
     Frontend.Parser.StmtParser
     Frontend.Parser.TopDefParser
     Frontend.Parser.TypeParser
-    Frontend.Parser.ParserTypes
+    Frontend.Renamer
+    Frontend.Tc.Tc
+    Frontend.Tc.Types
+    Interpreter.Interpreter
+    Utils
 
   build-depends:
     , array
@@ -46,27 +46,29 @@ library brainlette-lib
     , dlist
     , extra
     , mtl
+    , parsec
     , string-interpolate
     , text
     , x86-64bit
-    , parsec
 
   hs-source-dirs:   src
   default-language: GHC2021
 
 executable brainlette
-  import:           warnings
-  main-is:          Main.hs
+  import:             warnings
+  main-is:            Main.hs
   other-modules:
+  cpp-options: -DEBUG
   build-depends:
     , base
     , brainlette-lib
     , directory
-    , text
     , string-interpolate
+    , text
 
-  hs-source-dirs:   app
-  default-language: GHC2021
+  hs-source-dirs:     app
+  default-language:   GHC2021
+  default-extensions: CPP
 
 test-suite tc
   type:             exitcode-stdio-1.0
