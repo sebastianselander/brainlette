@@ -1,9 +1,9 @@
-int add(double x, double y) {
-    return 0;
+int add(int x, int y) {
+    return x + y;
 }
-int main() {
+void main() {
     int x = 1;
     int y = 2;
-    double res = add(x,y);
-    return 1;
+    int res = add(x,y);
+    printInt(res);
 }
