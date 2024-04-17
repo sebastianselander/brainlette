@@ -9,7 +9,7 @@ import Braingen.Ir (braingen)
 import Control.Monad (unless)
 import Data.String.Interpolate
 import Data.Text (Text, pack)
-import Data.Text.IO (hPutStrLn)
+import Data.Text.IO (hPutStrLn, writeFile)
 import Frontend.BranchReturns (check)
 import Frontend.Parser.BrainletteParser
 import Frontend.Parser.ParserTypes
@@ -20,6 +20,7 @@ import System.Environment
 import System.Exit
 import System.IO (stderr)
 import Utils (thow)
+import Prelude hiding (writeFile)
 
 main :: IO ()
 main = do
@@ -72,8 +73,8 @@ main = do
 
     ePutStrLn "\n--- LLVM IR output ---"
     ePutStrLn res
+    writeFile "output.ll" res
     ok
-    return ()
 
 prelude :: String
 prelude =
