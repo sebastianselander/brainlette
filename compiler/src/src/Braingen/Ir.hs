@@ -13,6 +13,7 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, pack, unpack)
 import Utils (concatFor, thow)
+import Control.Monad (void)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -50,9 +51,12 @@ braingenTopDef consts (B.FnDef rt (B.Id i) a s) = do
     let ret = braingenType rt
     let args = map (appendArgName "arg" . braingenArg) a
     let argStmts = concatFor a argToStmts
-
     stmts <- braingenStmts consts s
-    pure $ Define ret i args Nothing (argStmts <> stmts)
+    let stmts' = case ret of
+                Void -> stmts ++ [RetVoid]
+                _    -> stmts
+        
+    pure $ Define ret i args Nothing (argStmts <> stmts')
   where
     argToStmts = \case
         B.Argument t (B.Id n) ->
@@ -108,9 +112,7 @@ braingenStm breakpoint = \case
         mapM_ (braingenStm (Just breakpoint)) stmt
         output . Jump $ loopPoint
         output . Label $ breakpoint
-    B.SExp expr -> do
-        _ <- braingenExpr expr
-        return ()
+    B.SExp expr -> void $ braingenExpr expr
     B.Break -> do
         let bp = case breakpoint of
                 Just bp -> bp

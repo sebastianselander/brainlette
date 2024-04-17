@@ -67,19 +67,34 @@ instance OutputIr Stmt where
                     Just c -> outputIr c <> " "
                     Nothing -> ""
             let args' = outputIr args
-            concat
-                [ outputIr var
-                , " = "
-                , tail'
-                , "call "
-                , cconv'
-                , t'
-                , " @"
-                , i
-                , "("
-                , args'
-                , ")"
-                ]
+            -- FIXME: Cleaner way perhaps
+            case t of
+                Void -> 
+                    concat
+                        [ tail'
+                        , "call "
+                        , cconv'
+                        , t'
+                        , " @"
+                        , i
+                        , "("
+                        , args'
+                        , ")"
+                        ]
+                _ ->
+                    concat
+                        [ outputIr var
+                        , " = "
+                        , tail'
+                        , "call "
+                        , cconv'
+                        , t'
+                        , " @"
+                        , i
+                        , "("
+                        , args'
+                        , ")"
+                        ]
         Ret arg ->
             "ret " <> case arg of
                 Argument t i -> outputIr t <> " " <> outputIr i
