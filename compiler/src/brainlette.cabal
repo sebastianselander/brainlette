@@ -10,7 +10,7 @@ build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
 common warnings
-  ghc-options: -Wall -Wextra -Wno-name-shadowing
+  ghc-options: -Wall -Wextra -Wno-name-shadowing -O0
 
 library brainlette-lib
   import:           warnings
