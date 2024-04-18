@@ -33,10 +33,8 @@ main = do
             text <- readFile file
             return (file, text)
 
-    let text' = text <> prelude
-
     ePutStrLn "--- Parse output ---"
-    res <- case program file (pack text') of
+    res <- case program file (pack text) of
         Left err -> errorExit (thow err)
         Right res -> return res
     ePutStrLn (pretty 0 res)

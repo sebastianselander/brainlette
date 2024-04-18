@@ -12,14 +12,14 @@ import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (map)
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack, takeWhile)
 import Utils (concatFor, thow)
+import Prelude hiding (takeWhile)
 
 data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
     , varCounter :: Int
-    , constants :: Set Text
     }
     deriving (Show)
 
@@ -37,22 +37,16 @@ braingen =
 
 braingenProg :: B.Prog -> Either Text Ir
 braingenProg (B.Program tp) = do
-    let consts = getConsts tp
-    Ir <$> mapM (braingenTopDef consts) tp
+    Ir <$> mapM braingenTopDef tp
 
-braingenTopDef :: Set Text -> B.TopDef -> Either Text TopDef
-braingenTopDef consts = \case
-    B.StringGlobal name string ->
-        pure $
-            Constant
-                name
-                (Array (length (unpack string) + 1) I8)
-                (LitString string)
+braingenTopDef :: B.TopDef -> Either Text TopDef
+braingenTopDef  def = case def of
+    B.StringGlobal name string -> pure $ ConstantString name string
     B.FnDef rt (B.Id i) a s -> do
         let ret = braingenType rt
         let args = map (appendArgName "arg" . braingenArg) a
         let argStmts = concatFor a argToStmts
-        stmts <- braingenStmts consts s
+        stmts <- braingenStmts s
         let stmts' = case ret of
                 Void -> stmts ++ [RetVoid]
                 _ -> stmts
@@ -69,14 +63,14 @@ braingenTopDef consts = \case
                 (Variable n)
             ]
 
-braingenStmts :: Set Text -> [B.Stmt] -> Either Text [Stmt]
-braingenStmts consts =
+braingenStmts :: [B.Stmt] -> Either Text [Stmt]
+braingenStmts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 1 consts)
+        >>> flip runState (Env mempty 0 1)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
-braingenStm breakpoint = \case
+braingenStm breakpoint stmt = addConsName stmt >> case stmt of
     B.BStmt block -> mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> do
         output $ Alloca (Variable i) (braingenType t)
@@ -121,14 +115,12 @@ braingenStm breakpoint = \case
         output . Jump $ bp
 
 braingenExpr :: B.Expr -> BgM Variable
-braingenExpr (ty, e) = case e of
+braingenExpr (ty, e) = addConsName e >> case e of
+    B.EGlobalVar (B.Id ident) -> do
+        return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
         var <- getTempVariable
-        ident <-
-            flip fmap (isConst ident) $ \case
-                True -> ConstVariable ident
-                False -> Variable ident
-        output $ Load var (braingenType ty) ident
+        output $ Load var (braingenType ty) (Variable ident)
         return var
     B.ELit lit -> braingenLit lit
     B.Not e -> do
@@ -138,9 +130,14 @@ braingenExpr (ty, e) = case e of
         return var
     B.EApp (B.Id func) args -> do
         args <- mapM (\e@(t, _) -> Argument (Just $ braingenType t) <$> braingenExpr e) args
-        result <- getTempVariable
-        output $ Call result Nothing Nothing (braingenType ty) func args
-        return result
+        case ty of
+            B.Void -> do
+                output $ VoidCall Nothing Nothing (braingenType ty) func args
+                return (error "CODEGEN: tried referencing void variable")
+            _ -> do
+                result <- getTempVariable
+                output $ Call result Nothing Nothing (braingenType ty) func args
+                return result
     B.EAdd e1 op e2 -> do
         let t = braingenType ty
         r1 <- braingenExpr e1
@@ -169,7 +166,7 @@ braingenExpr (ty, e) = case e of
         pure (Variable "TODO")
 
 braingenLit :: B.Lit -> BgM Variable
-braingenLit = \case
+braingenLit lit = addConsName lit >> case lit of
     B.LitInt n -> do
         let ty = I32
         intermediate <- getTempVariable
@@ -186,7 +183,6 @@ braingenLit = \case
         var <- getTempVariable
         output $ Load var ty intermediate
         return var
-    B.LitString _ -> error "TODO: String literal"
     B.LitBool b -> do
         let ty = I1
         intermediate <- getTempVariable
@@ -195,6 +191,7 @@ braingenLit = \case
         var <- getTempVariable
         output $ Load var ty intermediate
         return var
+    B.LitString _ -> error "CODEGEN BUG: String literal still exist"
 
 ----------------------------------- Helper functions -----------------------------------
 
@@ -240,7 +237,7 @@ braingenType = \case
     B.Boolean -> I1
     B.Double -> F64
     B.Void -> Void
-    B.TVar (B.Id "string") -> Ptr
+    B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
     B.Fun t ts -> do
         let ret = braingenType t
@@ -292,18 +289,18 @@ getConsts td =
                 _ -> []
             )
 
--- | Check if variable is a constant
-isConst :: Text -> BgM Bool
-isConst t = do
-    set <- gets constants
-    pure $ Set.member t set
-
 -- | Get cast op
 getCastOp :: Type -> Type -> CastOp
 getCastOp a b = case (a, b) of
     (F64, I32) -> FPtoSI
     (I32, F64) -> SItoFP
     _ -> Bitcast
+
+consName :: Show a => a -> Text
+consName = takeWhile (/= ' ') . thow
+
+addConsName :: Show a => a -> BgM ()
+addConsName = output . Comment . consName
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog

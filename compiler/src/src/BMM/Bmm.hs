@@ -34,6 +34,7 @@ type Expr = (Type, Expr')
 
 data Expr'
     = EVar Id -- implemented
+    | EGlobalVar Id
     | ELit Lit -- implemented
     | EApp Id [Expr] -- implemented
     | Not Expr
@@ -76,7 +77,8 @@ data RelOp
     deriving (Show)
 
 -- Identifier
-newtype Id = Id Text deriving (Show, Eq, Ord)
+newtype Id = Id Text 
+    deriving (Show, Eq, Ord)
 
 pattern Int :: Type
 pattern Int <- TVar (Id "int")
@@ -97,3 +99,8 @@ pattern Double :: Type
 pattern Double <- TVar (Id "double")
     where
         Double = TVar (Id "double")
+
+pattern String :: Type
+pattern String <- TVar (Id "string")
+    where
+        String = TVar (Id "string")

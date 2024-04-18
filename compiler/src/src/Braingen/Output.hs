@@ -6,16 +6,75 @@ module Braingen.Output where
 
 import Braingen.LlvmAst
 import Data.String.Interpolate
-import Data.Text (Text, concat, intercalate, unwords)
+import Data.Text (Text, concat, intercalate, length, unlines, unwords)
 import Utils (thow)
-import Prelude hiding (concat, unwords)
+import Prelude hiding (concat, length, unlines, unwords)
+
+defaultStart :: Text
+defaultStart =
+    unlines
+        [ "target triple = \"x86_64-pc-linux-gnu\"\n"
+        , "target datalayout = \"e-m:o-i64:64-f80:128-n8:16:32:64-S128\"\n"
+        ]
+
+printfDecl :: Text
+printfDecl = "declare i32 @printf(ptr nocapture, ...) nounwind"
+
+readInt :: Text
+readInt =
+    unlines
+        [ "define i32 @readInt ()  {"
+        , "  ret i32 0"
+        , "}"
+        ]
+
+readDouble :: Text
+readDouble =
+    unlines
+        [ "define double @readDouble ()  {"
+        , "  ret double 0.0"
+        , "}"
+        ]
+
+printString :: Text
+printString =
+    unlines
+        [ "@.printString = private unnamed_addr constant [4 x i8] c\"%s\\0A\\00\""
+        , "define void @printString (ptr %arg)  {"
+        , "  call i32 (...) @printf(ptr @.printString, ptr %arg)"
+        , "  ret void"
+        , "}"
+        ]
+
+printDouble :: Text
+printDouble =
+    unlines
+        [ "@.printDouble = private unnamed_addr constant [4 x i8] c\"%g\\0A\\00\""
+        , "define void @printDouble (double %arg)  {"
+        , "  call i32 (...) @printf(ptr @.printDouble, double %arg)"
+        , "  ret void"
+        , "}"
+        ]
+
+printInt :: Text
+printInt =
+    unlines
+        [ "@.printInt = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\""
+        , "define void @printInt (i32 %arg)  {"
+        , "  call i32 (...) @printf(ptr @.printInt, i32 %arg)"
+        , "  ret void"
+        , "}"
+        ]
+
+prelude :: Text
+prelude = unlines [readInt, readDouble, printInt, printDouble, printString]
 
 class OutputIr a where
     outputIr :: a -> Text
 
 instance OutputIr Ir where
     outputIr :: Ir -> Text
-    outputIr (Ir td) = outputIr td
+    outputIr (Ir td) = defaultStart <> unlines [printfDecl, outputIr td] <> prelude
 
 instance OutputIr [TopDef] where
     outputIr :: [TopDef] -> Text
@@ -26,6 +85,15 @@ instance (OutputIr a) => OutputIr (Maybe a) where
 
 instance OutputIr TopDef where
     outputIr :: TopDef -> Text
+    outputIr (ConstantString var cont) =
+        concat
+            [ "@"
+            , var
+            , " = private unnamed_addr constant"
+            , outputIr (Array (length cont + 1) I8)
+            , " "
+            , "c\"" <> cont <> "\00\""
+            ]
     outputIr (Constant var typ cont) =
         concat
             [ "@"
@@ -58,14 +126,28 @@ instance OutputIr TopDef where
 instance OutputIr Stmt where
     outputIr :: Stmt -> Text
     outputIr = \case
+        VoidCall tail cconv t i args -> do
+            let tail' = maybe "" (\t -> outputIr t <> " ") tail
+            let t' = outputIr t
+            let cconv' = maybe "" (\conv -> outputIr conv <> " ") cconv
+            let args' = outputIr args
+            concat
+                [ tail'
+                , "call "
+                , cconv'
+                , t'
+                , " @"
+                , i
+                , "("
+                , args'
+                , ")"
+                ]
         Call var tail cconv t i args -> do
             let tail' = maybe "" (\t -> outputIr t <> " ") tail
             let t' = outputIr t
             let cconv' = maybe "" (\conv -> outputIr conv <> " ") cconv
             let args' = outputIr args
-            let bind = case t of
-                    Void -> mempty
-                    _ -> outputIr var <> " = "
+            let bind = outputIr var <> " = "
             concat
                 [ bind
                 , tail'
@@ -168,7 +250,6 @@ instance OutputIr Lit where
         LitDouble n -> thow n
         LitBool True -> "1"
         LitBool False -> "0"
-        LitString str -> "c\"" <> str <> "\00\""
 
 instance OutputIr Type where
     outputIr :: Type -> Text

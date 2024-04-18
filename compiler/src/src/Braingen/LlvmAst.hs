@@ -42,6 +42,7 @@ data TopDef
     = Declare Type Text [Type] (Maybe CallingConvention)
     | Define Type Text [Argument] (Maybe CallingConvention) [Stmt]
     | Constant Text Type Lit
+    | ConstantString Text Text
     deriving (Show)
 
 data Arithmetic
@@ -87,6 +88,7 @@ type Label = Text
 
 data Stmt
     = Call Variable (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
+    | VoidCall (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
     | Arith Variable Arithmetic Type Argument Argument
     | ICmp Variable Condition Type Argument Argument
     | Alloca Variable Type
@@ -105,5 +107,4 @@ data Lit
     = LitInt Integer
     | LitDouble Double
     | LitBool Bool
-    | LitString Text
     deriving (Show)

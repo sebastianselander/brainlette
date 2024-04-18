@@ -58,9 +58,10 @@ fixStmt = \case
 
 fixExpr :: Expr -> St Expr
 fixExpr (t, e) = case e of
+    EGlobalVar {} -> return (t,e)
     ELit (LitString str) -> do
         var <- addString str
-        pure (t, EVar (Id var))
+        pure (t, EGlobalVar (Id var))
     i@EVar {} -> pure (t, i)
     i@ELit {} -> pure (t, i)
     EApp i es -> (t,) . EApp i <$> mapM fixExpr es
