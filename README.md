@@ -8,6 +8,14 @@ A language for the brainletts.
 TDA283 / DIT300 Compiler Construction
 =====================================
 
+# Extension roadmap:
+1. Arrays1 (1 credit)
+2. Arrays2 (1 credit)
+3. Pointers (1 credit ,but ADT instead of structs)
+4. Functions (1 credit)
+5. Fifth secret thing
+
+# Info
 These pages describe the project for the [Compiler Construction course](
   https://chalmers.instructure.com/courses/9332/assignments/syllabus)
 at Chalmers and Gothenburg University.
