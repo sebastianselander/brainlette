@@ -33,6 +33,7 @@
               haskellPackages.alex
               haskellPackages.happy
               llvmPackages_latest.llvm
+              lldb
               zlib
               gnumake
             ];
