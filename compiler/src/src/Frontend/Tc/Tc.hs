@@ -17,7 +17,6 @@ import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, unpack)
 import Data.Tuple.Extra (uncurry3)
-import Debug.Trace (traceShowM)
 import Frontend.Error
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
@@ -265,7 +264,6 @@ lookupVar' i = do
 getVar :: Par.Id -> TcM Tc.Type
 getVar i@(Par.Id _ _i) = do
     mbTy <- gets (Map.lookup (convert i) . variables)
-    gets (Map.keys . functions) >>= traceShowM
     case mbTy of
         Nothing ->
             gets
