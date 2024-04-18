@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Frontend.Tc.Tc where
 
@@ -14,8 +15,9 @@ import Data.Functor.Identity (runIdentity)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 import Data.Tuple.Extra (uncurry3)
+import Debug.Trace (traceShowM)
 import Frontend.Error
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
@@ -35,13 +37,19 @@ tc p =
             Right p -> Right p
         $ p
 
+initCtx :: Ctx
+initCtx = Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int])
+
+initEnv :: Env
+initEnv = Env mempty mempty
+
 run :: TcM a -> Either Text a
 run =
     runTcM
-        >>> flip evalStateT (Env mempty mempty)
+        >>> flip evalStateT initEnv
         >>> flip
             runReaderT
-            (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int]))
+            initCtx
         >>> runExceptT
         >>> runIdentity
         >>> \case
@@ -88,17 +96,17 @@ infStmt s = case s of
                 insertVar name' ty
                 return $ Tc.Init name' (ty', expr')
     Par.Ass info ident expr -> do
-        identTy <- lookupVar info ident
+        identTy <- getVar ident
         (ty, expr') <- infExpr expr
         ty' <- unify info identTy ty
         return (Just (Tc.Ass (convert ident) (ty', expr')))
     Par.Incr info var -> do
-        typ <- lookupVar info var
+        typ <- getVar var
         unless (isInt typ) (throwError $ ExpectedType info Tc.Int typ)
         errNotNumber info typ
         return (Just (Tc.Incr typ (convert var)))
     Par.Decr info var -> do
-        typ <- lookupVar info var
+        typ <- getVar var
         errNotNumber info typ
         return (Just (Tc.Incr typ (convert var)))
     Par.Ret info expr -> do
@@ -139,8 +147,8 @@ infExpr e = pushExpr e $ case e of
     Par.ELitTrue _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool True))
     Par.ELitFalse _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool False))
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
-    Par.EVar p i -> do
-        ty <- catchError (lookupVar p i) (const (lookupFunc p i))
+    Par.EVar _ i -> do
+        ty <- getVar i
         return (ty, Tc.EVar (convert i))
     Par.Neg info expr -> do
         expr' <- infExpr expr
@@ -196,7 +204,7 @@ infExpr e = pushExpr e $ case e of
                 | otherwise -> throwError (TypeMismatch info l [r])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
     app@(Par.EApp p ident exprs) -> do
-        ty <- catchError (lookupVar p ident) (const (lookupFunc p ident))
+        ty <- getVar ident
         case ty of
             Tc.Fun rt argtys -> do
                 let infos = map hasInfo exprs
@@ -230,28 +238,51 @@ newtype TcM a = TC {runTcM :: StateT Env (ReaderT Ctx (Except FEError)) a}
 -- | Extract the types from all top level definitions '⌣'
 addDefs :: Par.Prog -> Env
 addDefs (Par.Program _ prog) =
-    Env mempty (Map.fromList $ map (first convert . getType) prog)
+    let prelude =
+            [ (Tc.Id "printInt", Tc.Fun Tc.Void [Tc.Int])
+            , (Tc.Id "printDouble", Tc.Fun Tc.Void [Tc.Double])
+            , (Tc.Id "printString", Tc.Fun Tc.Void [Tc.String])
+            , (Tc.Id "readInt", Tc.Fun Tc.Int [])
+            , (Tc.Id "readDouble", Tc.Fun Tc.Double [])
+            ]
+     in Env mempty (Map.fromList $ prelude <> map (first convert . getType) prog)
   where
     getType (Par.FnDef _ ty name args _) =
         (name, Tc.Fun (convert ty) (map typeOf args))
 
-lookupFunc :: Par.SynInfo -> Par.Id -> TcM Tc.Type
-lookupFunc info i = do
+lookupFunc' :: Par.Id -> TcM (Maybe Tc.Type)
+lookupFunc' i = do
     gets (Map.lookup (convert i) . functions) >>= \case
-        Nothing -> throwError (UnboundVariable info (convert i))
-        Just rt -> return rt
+        Nothing -> return Nothing
+        Just rt -> return (return rt)
 
-lookupVar :: Par.SynInfo -> Par.Id -> TcM Tc.Type
-lookupVar info i = do
+lookupVar' :: Par.Id -> TcM (Maybe Tc.Type)
+lookupVar' i = do
     gets (Map.lookup (convert i) . variables) >>= \case
-        Nothing -> throwError (UnboundVariable info (convert i))
-        Just rt -> return rt
+        Nothing -> return Nothing
+        Just rt -> return (return rt)
+
+getVar :: Par.Id -> TcM Tc.Type
+getVar i@(Par.Id _ _i) = do
+    mbTy <- gets (Map.lookup (convert i) . variables)
+    gets (Map.keys . functions) >>= traceShowM
+    case mbTy of
+        Nothing ->
+            gets
+                ( fromMaybe
+                    ( error $
+                        "TYPECHECKER: Variable lookup bug. Please report\nCould not find name: " <> unpack _i <> "\n"
+                    )
+                    . Map.lookup (convert i)
+                    . functions
+                )
+        Just ty -> return ty
 
 doesVariableExist :: Tc.Id -> TcM Bool
 doesVariableExist name = gets (Map.member name . variables)
 
 insertArg :: Par.Id -> Par.Arg -> TcM ()
-insertArg ident (Par.Argument info Par.Void name) = throwError $ VoidParameter info ident
+insertArg ident (Par.Argument info Par.Void _) = throwError $ VoidParameter info ident
 insertArg _ (Par.Argument _ ty name) = insertVar (convert name) (convert ty)
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()

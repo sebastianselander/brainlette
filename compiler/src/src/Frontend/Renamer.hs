@@ -24,8 +24,22 @@ data Env = Env {variables :: NonEmpty (Map Id Id), varCounter :: Int, functions 
 newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
     deriving (Functor, Applicative, Monad, MonadError FEError, MonadState Env)
 
+initEnv :: Env
+initEnv =
+    Env
+        (singleton mempty)
+        0
+        ( Set.fromList
+            [ Id NoInfo "printInt"
+            , Id NoInfo "printString"
+            , Id NoInfo "printDouble"
+            , Id NoInfo "readInt"
+            , Id NoInfo "readDouble"
+            ]
+        )
+
 rename :: Prog -> Either Text Prog
-rename p = case runExcept $ flip evalStateT (Env (singleton mempty) 0 mempty) $ runRm $ rnProg p of
+rename p = case runExcept $ flip evalStateT initEnv $ runRm $ rnProg p of
     Left err -> Left $ report err
     Right res -> return res
 
