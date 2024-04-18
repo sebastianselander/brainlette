@@ -59,42 +59,25 @@ instance OutputIr Stmt where
     outputIr :: Stmt -> Text
     outputIr = \case
         Call var tail cconv t i args -> do
-            let tail' = case tail of
-                    Just t -> outputIr t <> " "
-                    Nothing -> ""
+            let tail' = maybe "" (\t -> outputIr t <> " ") tail
             let t' = outputIr t
-            let cconv' = case cconv of
-                    Just c -> outputIr c <> " "
-                    Nothing -> ""
+            let cconv' = maybe "" (\conv -> outputIr conv <> " ") cconv
             let args' = outputIr args
-            -- FIXME: Cleaner way perhaps
-            case t of
-                Void -> 
-                    concat
-                        [ tail'
-                        , "call "
-                        , cconv'
-                        , t'
-                        , " @"
-                        , i
-                        , "("
-                        , args'
-                        , ")"
-                        ]
-                _ ->
-                    concat
-                        [ outputIr var
-                        , " = "
-                        , tail'
-                        , "call "
-                        , cconv'
-                        , t'
-                        , " @"
-                        , i
-                        , "("
-                        , args'
-                        , ")"
-                        ]
+            let bind = case t of
+                    Void -> mempty
+                    _ -> outputIr var <> " = "
+            concat
+                [ bind
+                , tail'
+                , "call "
+                , cconv'
+                , t'
+                , " @"
+                , i
+                , "("
+                , args'
+                , ")"
+                ]
         Ret arg ->
             "ret " <> case arg of
                 Argument t i -> outputIr t <> " " <> outputIr i
