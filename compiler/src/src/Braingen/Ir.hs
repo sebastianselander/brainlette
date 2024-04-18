@@ -7,13 +7,13 @@ import BMM.Bmm qualified as B
 import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
 import Control.Arrow ((>>>))
+import Control.Monad (void)
 import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, pack, unpack)
 import Utils (concatFor, thow)
-import Control.Monad (void)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -41,22 +41,23 @@ braingenProg (B.Program tp) = do
     Ir <$> mapM (braingenTopDef consts) tp
 
 braingenTopDef :: Set Text -> B.TopDef -> Either Text TopDef
-braingenTopDef _ (B.StringGlobal name string) =
-    pure $
-        Constant
-            name
-            (Array (length (unpack string) + 1) I8)
-            (LitString string)
-braingenTopDef consts (B.FnDef rt (B.Id i) a s) = do
-    let ret = braingenType rt
-    let args = map (appendArgName "arg" . braingenArg) a
-    let argStmts = concatFor a argToStmts
-    stmts <- braingenStmts consts s
-    let stmts' = case ret of
+braingenTopDef consts = \case
+    B.StringGlobal name string ->
+        pure $
+            Constant
+                name
+                (Array (length (unpack string) + 1) I8)
+                (LitString string)
+    B.FnDef rt (B.Id i) a s -> do
+        let ret = braingenType rt
+        let args = map (appendArgName "arg" . braingenArg) a
+        let argStmts = concatFor a argToStmts
+        stmts <- braingenStmts consts s
+        let stmts' = case ret of
                 Void -> stmts ++ [RetVoid]
-                _    -> stmts
-        
-    pure $ Define ret i args Nothing (argStmts <> stmts')
+                _ -> stmts
+
+        pure $ Define ret i args Nothing (argStmts <> stmts')
   where
     argToStmts = \case
         B.Argument t (B.Id n) ->
