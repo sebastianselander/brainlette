@@ -18,9 +18,9 @@ import Frontend.Tc.Tc (tc)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
-import System.IO (stderr)
+import System.IO (stderr, stdout)
 import Utils (thow)
-import Prelude hiding (writeFile)
+import Prelude hiding (writeFile, putStrLn)
 
 main :: IO ()
 main = do
@@ -72,6 +72,7 @@ main = do
     ePutStrLn "\n--- LLVM IR output ---"
     ePutStrLn res
     writeFile "output.ll" res
+    hPutStrLn stdout res
     ok
 
 prelude :: String
