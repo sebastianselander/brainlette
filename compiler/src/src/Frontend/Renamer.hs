@@ -35,6 +35,7 @@ initEnv =
             , Id NoInfo "printDouble"
             , Id NoInfo "readInt"
             , Id NoInfo "readDouble"
+            , Id NoInfo "readStr"
             ]
         )
 

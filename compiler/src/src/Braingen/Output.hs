@@ -13,17 +13,25 @@ import Prelude hiding (concat, length, unlines, unwords)
 defaultStart :: Text
 defaultStart =
     unlines
-        [ "target triple = \"x86_64-pc-linux-gnu\"\n"
-        , "target datalayout = \"e-m:o-i64:64-f80:128-n8:16:32:64-S128\"\n"
+        [ "target triple = \"x86_64-pc-linux-gnu\""
+        , "target datalayout = \"e-m:o-i64:64-f80:128-n8:16:32:64-S128\""
+        , "declare i32 @printf(ptr nocapture, ...) nounwind"
+        , "declare external ptr @readString()"
         ]
 
-printfDecl :: Text
-printfDecl = "declare i32 @printf(ptr nocapture, ...) nounwind"
+readString :: Text
+readString =
+    unlines
+        [ "define ptr @readStr () {"
+        , "  %str = call ptr @readString()"
+        , "  ret ptr %str"
+        , "}"
+        ]
 
 readInt :: Text
 readInt =
     unlines
-        [ "define i32 @readInt ()  {"
+        [ "define i32 @readInt () {"
         , "  ret i32 0"
         , "}"
         ]
@@ -31,7 +39,7 @@ readInt =
 readDouble :: Text
 readDouble =
     unlines
-        [ "define double @readDouble ()  {"
+        [ "define double @readDouble () {"
         , "  ret double 0.0"
         , "}"
         ]
@@ -40,7 +48,7 @@ printString :: Text
 printString =
     unlines
         [ "@.printString = private unnamed_addr constant [4 x i8] c\"%s\\0A\\00\""
-        , "define void @printString (ptr %arg)  {"
+        , "define void @printString (ptr %arg) {"
         , "  call i32 (...) @printf(ptr @.printString, ptr %arg)"
         , "  ret void"
         , "}"
@@ -50,7 +58,7 @@ printDouble :: Text
 printDouble =
     unlines
         [ "@.printDouble = private unnamed_addr constant [4 x i8] c\"%g\\0A\\00\""
-        , "define void @printDouble (double %arg)  {"
+        , "define void @printDouble (double %arg) {"
         , "  call i32 (...) @printf(ptr @.printDouble, double %arg)"
         , "  ret void"
         , "}"
@@ -60,21 +68,29 @@ printInt :: Text
 printInt =
     unlines
         [ "@.printInt = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\""
-        , "define void @printInt (i32 %arg)  {"
+        , "define void @printInt (i32 %arg) {"
         , "  call i32 (...) @printf(ptr @.printInt, i32 %arg)"
         , "  ret void"
         , "}"
         ]
 
 prelude :: Text
-prelude = unlines [readInt, readDouble, printInt, printDouble, printString]
+prelude =
+    unlines
+        [ readString
+        , readInt
+        , readDouble
+        , printInt
+        , printDouble
+        , printString
+        ]
 
 class OutputIr a where
     outputIr :: a -> Text
 
 instance OutputIr Ir where
     outputIr :: Ir -> Text
-    outputIr (Ir td) = defaultStart <> unlines [printfDecl, outputIr td] <> prelude
+    outputIr (Ir td) = unlines [defaultStart, unlines [outputIr td], prelude]
 
 instance OutputIr [TopDef] where
     outputIr :: [TopDef] -> Text

@@ -243,6 +243,7 @@ addDefs (Par.Program _ prog) =
             , (Tc.Id "printString", Tc.Fun Tc.Void [Tc.String])
             , (Tc.Id "readInt", Tc.Fun Tc.Int [])
             , (Tc.Id "readDouble", Tc.Fun Tc.Double [])
+            , (Tc.Id "readStr", Tc.Fun Tc.String [])
             ]
      in Env mempty (Map.fromList $ prelude <> map (first convert . getType) prog)
   where

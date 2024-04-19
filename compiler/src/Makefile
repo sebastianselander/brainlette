@@ -16,3 +16,5 @@ run:
 debug:
 	cabal run brainlette --ghc-options=-DDEBUG -- $(prg)
 
+link:
+	bat output.ll | clang -fno-rtti clib/lib.c -w -g -stdlib=libstdc++ -O3 -Iheaders -x ir -o main - 

@@ -36,6 +36,7 @@
               lldb
               zlib
               gnumake
+              clang
             ];
           };
         };
