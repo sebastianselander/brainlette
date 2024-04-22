@@ -70,7 +70,7 @@ braingenStmts =
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
-braingenStm breakpoint stmt = addConsName stmt >> case stmt of
+braingenStm breakpoint stmt = case stmt of
     B.BStmt block -> mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> do
         output $ Alloca (Variable i) (braingenType t)
@@ -115,7 +115,7 @@ braingenStm breakpoint stmt = addConsName stmt >> case stmt of
         output . Jump $ bp
 
 braingenExpr :: B.Expr -> BgM Variable
-braingenExpr (ty, e) = addConsName e >> case e of
+braingenExpr (ty, e) = case e of
     B.EGlobalVar (B.Id ident) -> do
         return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
@@ -166,7 +166,7 @@ braingenExpr (ty, e) = addConsName e >> case e of
         pure (Variable "TODO")
 
 braingenLit :: B.Lit -> BgM Variable
-braingenLit lit = addConsName lit >> case lit of
+braingenLit lit = case lit of
     B.LitInt n -> do
         let ty = I32
         intermediate <- getTempVariable
@@ -298,9 +298,6 @@ getCastOp a b = case (a, b) of
 
 consName :: Show a => a -> Text
 consName = takeWhile (/= ' ') . thow
-
-addConsName :: Show a => a -> BgM ()
-addConsName = output . Comment . consName
 
 ----------------------------------- Test cases -----------------------------------
 testProg :: B.Prog
