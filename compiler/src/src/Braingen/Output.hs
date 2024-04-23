@@ -136,6 +136,7 @@ instance OutputIr Stmt where
         Cast castop var t1 v2 t2 -> [i|%#{var} = #{outputIr castop} #{outputIr t1} %#{v2} to #{outputIr t2}|]
         And ty l r -> [i|and #{outputIr ty} #{outputIr l}, #{outputIr r}|]
         Or ty l r -> [i|or #{outputIr ty} #{outputIr l}, #{outputIr r}|]
+        Fneg var ty arg -> [i|#{outputIr var} = fneg #{outputIr ty} #{outputIr arg}|]
 
 instance OutputIr CastOp where
     outputIr :: CastOp -> Text

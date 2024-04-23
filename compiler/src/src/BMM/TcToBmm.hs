@@ -92,11 +92,8 @@ instance ToBmm T.Expr' Expr' where
         T.EVar i -> EVar (toBmm i)
         T.ELit l -> ELit (toBmm l)
         T.EApp i e -> EApp (toBmm i) (map toBmm e)
-        T.Neg e@(t, _) ->
-            EMul
-                (toBmm e)
-                Times
-                (toBmm t, ELit . LitInt $ (-1))
+        T.Neg e -> Neg (toBmm e)
+
         T.Not e -> Not (toBmm e)
         T.EMul e1 op e2 -> EMul (toBmm e1) (toBmm op) (toBmm e2)
         T.EAdd e1 op e2 -> EAdd (toBmm e1) (toBmm op) (toBmm e2)

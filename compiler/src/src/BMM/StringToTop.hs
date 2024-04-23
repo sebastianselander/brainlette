@@ -66,6 +66,7 @@ fixExpr (t, e) = case e of
     i@ELit {} -> pure (t, i)
     EApp i es -> (t,) . EApp i <$> mapM fixExpr es
     Not e -> (t,) . Not <$> fixExpr e
+    Neg e -> (t,) . Neg <$> fixExpr e
     EMul e1 op e2 -> do
         e1 <- fixExpr e1
         e2 <- fixExpr e2

@@ -48,6 +48,7 @@ data Expr'
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
+    | Neg Expr
     | Cast Expr
     deriving (Show)
 

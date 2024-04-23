@@ -6,7 +6,7 @@
 module Frontend.Tc.Tc where
 
 import Control.Arrow (first, (>>>))
-import Control.Monad (unless, when)
+import Control.Monad (unless, when, void)
 import Control.Monad.Except
 import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
@@ -28,7 +28,7 @@ tc p =
         >>> flip evalStateT (addDefs p)
         >>> flip
             runReaderT
-            (Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int]))
+            initCtx
         >>> runExceptT
         >>> runIdentity
         >>> \case
@@ -37,7 +37,7 @@ tc p =
         $ p
 
 initCtx :: Ctx
-initCtx = Ctx mempty mempty (Map.singleton Tc.Int [Tc.Double, Tc.Int])
+initCtx = Ctx mempty mempty (Map.singleton Tc.Int [Tc.Int])
 
 initEnv :: Env
 initEnv = Env mempty mempty
@@ -162,25 +162,17 @@ infExpr e = pushExpr e $ case e of
         errNotBoolean info ty
         return (ty, Tc.Not expr')
     Par.EMul info l op r -> do
-        (tyl, l') <- infExpr l
-        errNotNumber info tyl
-        (tyr, r') <- infExpr r
-        errNotNumber info tyr
-        let ty = case (tyl, tyr) of
-                (Tc.Double, _) -> Tc.Double
-                (_, Tc.Double) -> Tc.Double
-                _ -> tyl
-        return (ty, Tc.EMul (ty, l') (convert op) (ty, r'))
+        l' <- infExpr l
+        errNotNumber info (typeOf l')
+        r' <- infExpr r
+        ty <- unify info (typeOf l') (typeOf r')
+        return (ty, Tc.EMul l' (convert op) r')
     Par.EAdd info l op r -> do
-        (tyl, l') <- infExpr l
-        errNotNumber info tyl
-        (tyr, r') <- infExpr r
-        errNotNumber info tyr
-        let ty = case (tyl, tyr) of
-                (Tc.Double, _) -> Tc.Double
-                (_, Tc.Double) -> Tc.Double
-                _ -> tyl
-        return (ty, Tc.EAdd (ty, l') (convert op) (ty, r'))
+        l' <- infExpr l
+        errNotNumber info (typeOf l')
+        r' <- infExpr r
+        ty <- unify info (typeOf l') (typeOf r')
+        return (ty, Tc.EAdd l' (convert op) r')
     Par.EAnd info l r -> do
         l' <- infExpr l
         errNotBoolean info (typeOf l')

@@ -136,6 +136,22 @@ braingenExpr (ty, e) = case e of
         output $ Load var (braingenType ty) (Variable ident)
         return var
     B.ELit lit -> braingenLit lit
+    B.Neg e -> do
+        var <- braingenExpr e
+        tmp <- getTempVariable
+        case ty of
+            B.Double -> do
+                output $ Fneg tmp F64 (Argument Nothing var)
+            B.Int -> do
+                output $
+                    Arith
+                        tmp
+                        Sub
+                        I32
+                        (ConstArgument Nothing (LitInt 0))
+                        (Argument Nothing var)
+            _ -> error "TYPECHECK BUG: Negation of non-number"
+        return tmp
     B.Not e -> do
         exprVar <- braingenExpr e
         var <- getTempVariable
