@@ -48,9 +48,16 @@ braingenTopDef def = case def of
         let args = map (appendArgName "arg" . braingenArg) a
         let argStmts = concatFor a argToStmts
         stmts <- braingenStmts s
-        let stmts' = case ret of
-                Void -> stmts ++ [RetVoid]
-                _ -> stmts
+        let stmts' = stmts ++ case ret of
+                Void -> [RetVoid]
+                I32 -> [Ret (ConstArgument (Just ret) (LitInt 0))]
+                I1 -> [Ret (ConstArgument (Just ret) (LitInt 0))]
+                I8 -> [Ret (ConstArgument (Just ret) (LitInt 0))]
+                F64 -> [Ret (ConstArgument (Just ret) (LitDouble 0.0))]
+                Ptr -> [Ret (ConstArgument (Just ret) LitNull)]
+                FunPtr _ _ -> [Ret (ConstArgument (Just ret) LitNull)]
+                Array _ _ -> [Ret (ConstArgument (Just ret) LitNull)]
+                CustomType _  -> [Ret (ConstArgument (Just ret) LitNull)]
 
         pure $ Define ret i args Nothing (argStmts <> stmts')
   where

@@ -129,4 +129,5 @@ data Lit
     = LitInt Integer
     | LitDouble Double
     | LitBool Bool
+    | LitNull
     deriving (Show)
