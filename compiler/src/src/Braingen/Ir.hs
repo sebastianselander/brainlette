@@ -330,27 +330,3 @@ getCastOp a b = case (a, b) of
     (F64, I32) -> FPtoSI
     (I32, F64) -> SItoFP
     _ -> Bitcast
-
-consName :: (Show a) => a -> Text
-consName = takeWhile (/= ' ') . thow
-
------------------------------------ Test cases -----------------------------------
-testProg :: B.Prog
-testProg =
-    B.Program
-        [ B.FnDef
-            B.Int
-            (B.Id "add")
-            [ B.Argument B.Int (B.Id "x")
-            , B.Argument B.Int (B.Id "y")
-            ]
-            [ B.Ret $
-                Just
-                    ( B.TVar $ B.Id "Int"
-                    , B.EAdd
-                        (B.TVar $ B.Id "Int", B.ELit $ B.LitInt 123)
-                        B.Plus
-                        (B.TVar $ B.Id "Int", B.ELit $ B.LitInt 123)
-                    )
-            ]
-        ]
