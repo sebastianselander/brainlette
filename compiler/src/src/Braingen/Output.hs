@@ -34,7 +34,7 @@ instance OutputIr TopDef where
             , " = private unnamed_addr constant"
             , outputIr (Array (length cont + 1) I8)
             , " "
-            , "c\"" <> cont <> "\00\""
+            , "c\"" <> cont <> "\\00\""
             ]
     outputIr (Constant var typ cont) =
         concat
@@ -65,9 +65,13 @@ instance OutputIr TopDef where
             , "\n}"
             ]
 
+indent :: Stmt -> Text
+indent (Label {}) = ""
+indent _ = "  "
+
 instance OutputIr Stmt where
     outputIr :: Stmt -> Text
-    outputIr = \case
+    outputIr s = indent s <> case s of
         VoidCall tail cconv t i args -> do
             let tail' = maybe "" (\t -> outputIr t <> " ") tail
             let t' = outputIr t
@@ -192,7 +196,7 @@ instance OutputIr Arithmetic where
 
 instance OutputIr [Stmt] where
     outputIr :: [Stmt] -> Text
-    outputIr st = "\n  " <> intercalate "\n  " (map outputIr st)
+    outputIr st = "\n" <> intercalate "\n" (map outputIr st)
 
 instance OutputIr Argument where
     outputIr :: Argument -> Text
