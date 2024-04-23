@@ -202,6 +202,7 @@ infExpr e = pushExpr e $ case e of
             (Tc.Int, Tc.Double) -> return Tc.Double
             (Tc.Int, Tc.Int) -> return Tc.Int
             (Tc.Double, Tc.Double) -> return Tc.Double
+            (Tc.Boolean, Tc.Boolean) -> return Tc.Double
             (l, r)
                 | l == r -> throwError (NotRelational info l)
                 | otherwise -> throwError (TypeMismatch info l [r])
