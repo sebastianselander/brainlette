@@ -213,12 +213,14 @@ braingenExpr (ty, e) = case e of
                 output $ ICmp var (iRelOp op) I1 (Argument Nothing left) (Argument Nothing right)
                 return var
             ty -> error $ "TYPECHECK BUG: Relational comparison on invalid type: " <> show ty
+    -- FIXME: And should be lazy in second argument
     B.EAnd l r -> do
         l <- braingenExpr l
         r <- braingenExpr r
         var <- getTempVariable
         output $ And var I1 (Argument Nothing l) (Argument Nothing r)
         return var
+    -- FIXME: Or should be lazy in second argument
     B.EOr l r -> do
         l <- braingenExpr l
         r <- braingenExpr r
