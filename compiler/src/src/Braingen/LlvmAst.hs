@@ -111,9 +111,9 @@ data Stmt
     | Arith Variable Arithmetic Type Argument Argument
     | ICmp Variable ICond Type Argument Argument
     | FCmp Variable FCond Type Argument Argument
-    | And Type Argument Argument
+    | And Variable Type Argument Argument
     | Fneg Variable Type Argument
-    | Or Type Argument Argument
+    | Or Variable Type Argument Argument
     | Alloca Variable Type
     | Store Argument Variable
     | Load Variable Type Variable

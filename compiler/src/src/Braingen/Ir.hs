@@ -163,7 +163,7 @@ braingenExpr (ty, e) = case e of
     B.Not e -> do
         exprVar <- braingenExpr e
         var <- getTempVariable
-        output $ ICmp var Ieq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitInt 0))
+        output $ ICmp var Ieq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitBool False))
         return var
     B.EApp (B.Id func) args -> do
         args <- mapM (\e@(t, _) -> Argument (Just $ braingenType t) <$> braingenExpr e) args
@@ -217,13 +217,13 @@ braingenExpr (ty, e) = case e of
         l <- braingenExpr l
         r <- braingenExpr r
         var <- getTempVariable
-        output $ And I1 (Argument Nothing l) (Argument Nothing r)
+        output $ And var I1 (Argument Nothing l) (Argument Nothing r)
         return var
     B.EOr l r -> do
         l <- braingenExpr l
         r <- braingenExpr r
         var <- getTempVariable
-        output $ Or I1 (Argument Nothing l) (Argument Nothing r)
+        output $ Or var I1 (Argument Nothing l) (Argument Nothing r)
         return var
 
 iRelOp :: B.RelOp -> ICond
