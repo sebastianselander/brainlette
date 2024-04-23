@@ -66,7 +66,7 @@ braingenTopDef def = case def of
 braingenStmts :: [B.Stmt] -> Either Text [Stmt]
 braingenStmts =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 1)
+        >>> flip runState (Env mempty 0 0)
         >>> \(_, e) -> Right $ toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
@@ -102,6 +102,7 @@ braingenStm breakpoint stmt = case stmt of
         output $ Label lDone
     B.Loop stmt -> do
         loopPoint <- getLabel "loop"
+        output $ Jump loopPoint
         breakpoint <- getLabel "breakpoint"
         output . Label $ loopPoint
         mapM_ (braingenStm (Just breakpoint)) stmt
