@@ -15,7 +15,7 @@ data Env = Env {counter :: Int, strings :: [Text]}
 type St = State Env
 
 name :: Int -> Text
-name count = "str$" <> thow count
+name count = "static_string$" <> thow count
 
 moveStringsToTop :: Prog -> Prog
 moveStringsToTop =
