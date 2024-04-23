@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -19,6 +20,7 @@ import System.Exit
 import System.IO (stderr)
 import Utils (thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
+import Runtime (readRuntime)
 
 main :: IO ()
 main = do
@@ -69,7 +71,7 @@ main = do
 
     ePutStrLn "\n--- LLVM IR output ---"
 
-    runtime <- readFile "llvm/runtime.ll"
+    let runtime = $(readRuntime "llvm/runtime.ll")
     let res' = unlines [runtime, res]
     ePutStrLn res'
     writeFile "output.ll" res'
