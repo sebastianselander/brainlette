@@ -114,6 +114,7 @@ data Stmt
     | And Type Argument Argument
     | Or Type Argument Argument
     | Alloca Variable Type
+    | AllocaLit Variable Type Lit
     | Store Argument Variable
     | Load Variable Type Variable
     | Ret Argument

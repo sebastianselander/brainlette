@@ -61,6 +61,7 @@ instance OutputIr TopDef where
             , "(" <> outputIr args <> ")"
             , outputIr cconv
             , "{"
+            , "\nentry:"
             , outputIr stmts
             , "\n}"
             ]
@@ -126,6 +127,7 @@ instance OutputIr Stmt where
                 ]
         Label text -> text <> ":"
         Alloca v t -> concat [outputIr v <> " = alloca ", outputIr t]
+        AllocaLit var ty lit -> [i|#{outputIr var} = alloca #{outputIr ty}, #{outputIr ty} #{outputIr lit}|]
         Store val var -> concat ["store ", outputIr val, ", ptr ", outputIr var]
         Load var t ptr -> concat [outputIr var, " = load ", outputIr t, ", ptr ", outputIr ptr]
         Br cond l1 l2 -> concat ["br i1 ", outputIr cond, ", label %", l1, ", label %", l2]
