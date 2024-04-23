@@ -56,7 +56,7 @@ library brainlette-lib
 executable brainlette
   import:             warnings
   main-is:            Main.hs
-  other-modules:
+  other-modules:      Runtime
   build-depends:
     , base
     , brainlette-lib
@@ -73,7 +73,6 @@ test-suite tc
   type:             exitcode-stdio-1.0
   hs-source-dirs:   tc-test
   main-is:          Main.hs
-  other-modules:    Runtime
   build-depends:
     , base
     , brainlette-lib
