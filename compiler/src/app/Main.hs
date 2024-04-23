@@ -1,15 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import Control.Monad (unless)
-import Data.String.Interpolate
-import Data.Text (Text, pack)
-import Data.Text.IO (hPutStrLn, writeFile)
+import Data.Text (Text, unlines)
+import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
 import Frontend.BranchReturns (check)
 import Frontend.Parser.BrainletteParser
 import Frontend.Parser.ParserTypes
@@ -18,9 +16,9 @@ import Frontend.Tc.Tc (tc)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
-import System.IO (stderr, stdout)
+import System.IO (stderr)
 import Utils (thow)
-import Prelude hiding (writeFile, putStrLn)
+import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
 
 main :: IO ()
 main = do
@@ -34,7 +32,7 @@ main = do
             return (file, text)
 
     ePutStrLn "--- Parse output ---"
-    res <- case program file (pack text) of
+    res <- case program file text of
         Left err -> errorExit (thow err)
         Right res -> return res
     ePutStrLn (pretty 0 res)
@@ -70,20 +68,13 @@ main = do
         Right res -> return res
 
     ePutStrLn "\n--- LLVM IR output ---"
-    ePutStrLn res
-    writeFile "output.ll" res
-    hPutStrLn stdout res
-    ok
 
-prelude :: String
-prelude =
-    [i|
-    void printInt(int a) {}
-    void printDouble(double a) {}
-    void printString(string a) {}
-    double readDouble() { return 0.0;}
-    int readInt() { return 0;}
-|]
+    runtime <- readFile "llvm/runtime.ll"
+    let res' = unlines [runtime, res]
+    ePutStrLn res'
+    writeFile "output.ll" res'
+    putStrLn res'
+    ok
 
 -- | Print string to stdErr
 ePutStrLn :: Text -> IO ()
