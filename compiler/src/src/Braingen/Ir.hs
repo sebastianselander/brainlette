@@ -173,14 +173,16 @@ braingenExpr (ty, e) = case e of
     B.ERel (ty, l) op r -> do
         left <- braingenExpr (ty, l)
         right <- braingenExpr r
+        var <- getTempVariable
         case ty of
             B.Int -> do
-                var <- getTempVariable
                 output $ ICmp var (iRelOp op) I32 (Argument Nothing left) (Argument Nothing right)
                 return var
             B.Double -> do
-                var <- getTempVariable
                 output $ FCmp var (fRelOp op) F64 (Argument Nothing left) (Argument Nothing right)
+                return var
+            B.Boolean -> do
+                output $ ICmp var (iRelOp op) I1 (Argument Nothing left) (Argument Nothing right)
                 return var
             ty -> error $ "TYPECHECK BUG: Relational comparison on invalid type: " <> show ty
     B.EAnd l r -> do
