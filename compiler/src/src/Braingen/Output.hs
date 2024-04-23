@@ -221,6 +221,7 @@ instance OutputIr Lit where
         LitDouble n -> thow n
         LitBool True -> "1"
         LitBool False -> "0"
+        LitNull -> "null"
 
 instance OutputIr Type where
     outputIr :: Type -> Text
