@@ -12,7 +12,7 @@ import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (map)
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Text (Text, pack, takeWhile)
+import Data.Text (Text, pack, takeWhile, toTitle)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
 import Debug.Trace (traceShowM)
@@ -249,7 +249,7 @@ getLabel t = do
     state <- get
     let current = labelCounter state
     put (state {labelCounter = current + 1})
-    pure $ t <> "." <> thow current
+    pure $ toTitle t <> "." <> thow current
 
 {-| Return a temp variable, useful when calculating intermediate values.
 
