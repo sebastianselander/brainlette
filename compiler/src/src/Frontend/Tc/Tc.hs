@@ -95,7 +95,9 @@ infStmt s = case s of
                 insertVar name' ty
                 return $ Tc.Init name' (ty', expr')
     Par.Ass info ident expr -> do
-        identTy <- getVar ident
+        identTy <-  lookupVar ident >>= \case
+            Nothing -> throwError (UnboundVariable info (convert ident))
+            Just ty -> return ty
         (ty, expr') <- infExpr expr
         ty' <- unify info identTy ty
         return (Just (Tc.Ass (convert ident) (ty', expr')))
@@ -252,14 +254,14 @@ addDefs (Par.Program _ prog) =
     getType (Par.FnDef _ ty name args _) =
         (name, Tc.Fun (convert ty) (map typeOf args))
 
-lookupFunc' :: Par.Id -> TcM (Maybe Tc.Type)
-lookupFunc' i = do
+lookupFunc :: Par.Id -> TcM (Maybe Tc.Type)
+lookupFunc i = do
     gets (Map.lookup (convert i) . functions) >>= \case
         Nothing -> return Nothing
         Just rt -> return (return rt)
 
-lookupVar' :: Par.Id -> TcM (Maybe Tc.Type)
-lookupVar' i = do
+lookupVar :: Par.Id -> TcM (Maybe Tc.Type)
+lookupVar i = do
     gets (Map.lookup (convert i) . variables) >>= \case
         Nothing -> return Nothing
         Just rt -> return (return rt)
