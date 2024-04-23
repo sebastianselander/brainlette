@@ -89,7 +89,7 @@ braingenStm breakpoint stmt = case stmt of
         lDone <- getLabel "IfDone"
 
         -- if
-        output $ Br result "IfTrue" "IfFalse"
+        output $ Br result lTrue lFalse
         -- if true
         output $ Label lTrue
         mapM_ (braingenStm (Just lDone)) s1
