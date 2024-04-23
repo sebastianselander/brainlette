@@ -126,8 +126,11 @@ instance OutputIr Stmt where
         Load var t ptr -> concat [outputIr var, " = load ", outputIr t, ", ptr ", outputIr ptr]
         Br cond l1 l2 -> concat ["br i1 ", outputIr cond, ", label %", l1, ", label %", l2]
         Jump l -> [i|br label %#{l}|]
-        ICmp var op ty l r -> [i|#{var} = #{outputIr op} #{outputIr ty} #{outputIr l} #{outputIr r}|]
+        ICmp var op ty l r -> [i|#{outputIr var} = icmp #{outputIr op} #{outputIr ty} #{outputIr l}, #{outputIr r}|]
+        FCmp var op ty l r -> [i|#{outputIr var} = fcmp #{outputIr op} #{outputIr ty} #{outputIr l}, #{outputIr r}|]
         Cast castop var t1 v2 t2 -> [i|%#{var} = #{outputIr castop} #{outputIr t1} %#{v2} to #{outputIr t2}|]
+        And ty l r -> [i|and #{outputIr ty} #{outputIr l}, #{outputIr r}|]
+        Or ty l r -> [i|or #{outputIr ty} #{outputIr l}, #{outputIr r}|]
 
 instance OutputIr CastOp where
     outputIr :: CastOp -> Text
@@ -140,18 +143,37 @@ instance OutputIr CastOp where
         INTtoPTR -> "inttoptr"
         Bitcast -> "bitcast"
 
-instance OutputIr Condition where
-    outputIr :: Condition -> Text
+instance OutputIr FCond where
+    outputIr = \case 
+        Ffalse -> "false"
+        Foeq -> "oeq"
+        Fogt -> "ogt"
+        Foge -> "oge"
+        Folt -> "olt"
+        Fole -> "ole"
+        Fone -> "one"
+        Ford -> "ord"
+        Fueq -> "ueq"
+        Fugt -> "ugt"
+        Fuge -> "uge"
+        Fult -> "ult"
+        Fule -> "ule"
+        Fune -> "une"
+        Funo -> "uno"
+        Ftrue -> "true"
+
+instance OutputIr ICond where
+    outputIr :: ICond -> Text
     outputIr = \case
-        Eq -> "eq"
-        Ne -> "ne"
-        Ugt -> "ugt"
-        Ult -> "ult"
-        Ule -> "ule"
-        Sgt -> "sgt"
-        Sge -> "sge"
-        Slt -> "slt"
-        Sle -> "sle"
+        Ieq -> "eq"
+        Ine -> "ne"
+        Iugt -> "ugt"
+        Iult -> "ult"
+        Iule -> "ule"
+        Isgt -> "sgt"
+        Isge -> "sge"
+        Islt -> "slt"
+        Isle -> "sle"
 
 instance OutputIr Arithmetic where
     outputIr :: Arithmetic -> Text
@@ -174,7 +196,9 @@ instance OutputIr [Stmt] where
 
 instance OutputIr Argument where
     outputIr :: Argument -> Text
+    outputIr (ConstArgument Nothing i) = outputIr i
     outputIr (ConstArgument t i) = outputIr t <> " " <> outputIr i
+    outputIr (Argument Nothing i) = outputIr i
     outputIr (Argument t i) = outputIr t <> " " <> outputIr i
 
 instance OutputIr Variable where

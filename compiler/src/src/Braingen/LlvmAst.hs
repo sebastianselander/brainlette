@@ -59,16 +59,35 @@ data Arithmetic
     | FRem
     deriving (Show)
 
-data Condition
-    = Eq
-    | Ne
-    | Ugt
-    | Ult
-    | Ule
-    | Sgt
-    | Sge
-    | Slt
-    | Sle
+data FCond
+    = Ffalse
+    | Foeq
+    | Fogt
+    | Foge
+    | Folt
+    | Fole
+    | Fone
+    | Ford
+    | Fueq
+    | Fugt
+    | Fuge
+    | Fult
+    | Fule
+    | Fune
+    | Funo
+    | Ftrue
+    deriving (Show)
+
+data ICond
+    = Ieq
+    | Ine
+    | Iugt
+    | Iult
+    | Iule
+    | Isgt
+    | Isge
+    | Islt
+    | Isle
     deriving (Show)
 
 data CastOp
@@ -90,7 +109,10 @@ data Stmt
     = Call Variable (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
     | VoidCall (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
     | Arith Variable Arithmetic Type Argument Argument
-    | ICmp Variable Condition Type Argument Argument
+    | ICmp Variable ICond Type Argument Argument
+    | FCmp Variable FCond Type Argument Argument
+    | And Type Argument Argument
+    | Or Type Argument Argument
     | Alloca Variable Type
     | Store Argument Variable
     | Load Variable Type Variable

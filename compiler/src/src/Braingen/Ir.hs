@@ -15,6 +15,7 @@ import Data.Set qualified as Set
 import Data.Text (Text, pack, takeWhile)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
+import Debug.Trace (traceShowM)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -40,7 +41,7 @@ braingenProg (B.Program tp) = do
     Ir <$> mapM braingenTopDef tp
 
 braingenTopDef :: B.TopDef -> Either Text TopDef
-braingenTopDef  def = case def of
+braingenTopDef def = case def of
     B.StringGlobal name string -> pure $ ConstantString name string
     B.FnDef rt (B.Id i) a s -> do
         let ret = braingenType rt
@@ -126,7 +127,7 @@ braingenExpr (ty, e) = case e of
     B.Not e -> do
         exprVar <- braingenExpr e
         var <- getTempVariable
-        output $ ICmp var Eq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitInt 0))
+        output $ ICmp var Ieq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitInt 0))
         return var
     B.EApp (B.Id func) args -> do
         args <- mapM (\e@(t, _) -> Argument (Just $ braingenType t) <$> braingenExpr e) args
@@ -161,9 +162,49 @@ braingenExpr (ty, e) = case e of
         res <- getTempVariable
         output $ Cast (getCastOp ty' t') res t' val ty'
         pure res
-    _ -> do
-        output . Comment $ "EXPR-TODO: " <> thow e
-        pure (Variable "TODO")
+    B.ERel (ty, l) op r -> do
+        left <- braingenExpr (ty, l)
+        right <- braingenExpr r
+        case ty of
+            B.Int -> do
+                var <- getTempVariable
+                output $ ICmp var (iRelOp op) I32 (Argument Nothing left) (Argument Nothing right)
+                return var
+            B.Double -> do
+                var <- getTempVariable
+                output $ FCmp var (fRelOp op) F64 (Argument Nothing left) (Argument Nothing right)
+                return var
+            ty -> error $ "TYPECHECK BUG: Relational comparison on invalid type: " <> show ty
+    B.EAnd l r -> do
+        l <- braingenExpr l
+        r <- braingenExpr r
+        var <- getTempVariable
+        output $ And I1 (Argument Nothing l) (Argument Nothing r)
+        return var
+    B.EOr l r -> do
+        l <- braingenExpr l
+        r <- braingenExpr r
+        var <- getTempVariable
+        output $ Or I1 (Argument Nothing l) (Argument Nothing r)
+        return var
+
+iRelOp :: B.RelOp -> ICond
+iRelOp = \case
+    B.LTH -> Islt
+    B.LE -> Isle
+    B.GTH -> Isgt
+    B.GE -> Isge
+    B.EQU -> Ieq
+    B.NE -> Ine
+
+fRelOp :: B.RelOp -> FCond
+fRelOp = \case
+    B.LTH -> Folt
+    B.LE -> Fole
+    B.GTH -> Fogt
+    B.GE -> Foge
+    B.EQU -> Foeq
+    B.NE -> Fone
 
 braingenLit :: B.Lit -> BgM Variable
 braingenLit lit = case lit of
@@ -296,7 +337,7 @@ getCastOp a b = case (a, b) of
     (I32, F64) -> SItoFP
     _ -> Bitcast
 
-consName :: Show a => a -> Text
+consName :: (Show a) => a -> Text
 consName = takeWhile (/= ' ') . thow
 
 ----------------------------------- Test cases -----------------------------------

@@ -198,8 +198,10 @@ infExpr e = pushExpr e $ case e of
         ty <- case (tl, tr) of
             (Tc.Double, Tc.Int) -> return Tc.Double
             (Tc.Int, Tc.Double) -> return Tc.Double
+            (Tc.Int, Tc.Int) -> return Tc.Int
+            (Tc.Double, Tc.Double) -> return Tc.Double
             (l, r)
-                | l == r -> return l
+                | l == r -> throwError (NotRelational info l)
                 | otherwise -> throwError (TypeMismatch info l [r])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
     app@(Par.EApp p ident exprs) -> do
