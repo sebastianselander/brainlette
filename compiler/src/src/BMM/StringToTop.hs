@@ -24,7 +24,7 @@ moveStringsToTop =
         >>> \(Program p, e) -> do
             Program
                 ( for
-                    (strings e `zip` [0 ..])
+                    (reverse (strings e) `zip` [0 ..])
                     (\(s, i) -> StringGlobal (name i) s)
                     <> p
                 )
