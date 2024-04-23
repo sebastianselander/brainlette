@@ -281,7 +281,7 @@ doesVariableExist :: Tc.Id -> TcM Bool
 doesVariableExist name = gets (Map.member name . variables)
 
 insertArg :: Par.Id -> Par.Arg -> TcM ()
-insertArg ident (Par.Argument info Par.Void _) = throwError $ VoidParameter info ident
+insertArg ident (Par.Argument info (Par.Void _) _) = throwError $ VoidParameter info ident
 insertArg _ (Par.Argument _ ty name) = insertVar (convert name) (convert ty)
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()

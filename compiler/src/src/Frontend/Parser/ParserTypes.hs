@@ -81,6 +81,11 @@ data Stmt' a
 data Type' a
     = TVar a (Id' a)
     | Fun a (Type' a) [Type' a]
+    | Int a
+    | Double a
+    | String a
+    | Boolean a
+    | Void a
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
 data Expr' a
@@ -123,30 +128,6 @@ data RelOp' a
 data Id' a = Id a Text
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
-pattern Int :: Type
-pattern Int <- TVar _ (Id _ "int")
-    where
-        Int = TVar NoInfo (Id NoInfo "int")
-
-pattern Double :: Type
-pattern Double <- TVar _ (Id _ "double")
-    where
-        Double = TVar NoInfo (Id NoInfo "double")
-
-pattern String :: Type
-pattern String <- TVar _ (Id _ "string")
-    where
-        String = TVar NoInfo (Id NoInfo "string")
-
-pattern Boolean :: Type
-pattern Boolean <- TVar _ (Id _ "boolean")
-    where
-        Boolean = TVar NoInfo (Id NoInfo "boolean")
-
-pattern Void :: Type
-pattern Void <- TVar _ (Id _ "void")
-    where
-        Void = TVar NoInfo (Id NoInfo "void")
 
 class Pretty a where
     {-# MINIMAL pretty #-}
@@ -206,6 +187,11 @@ instance Pretty Expr where
         EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
 
 instance Pretty Type where
+    pretty n (String _) = replicate n " " <> "string"
+    pretty n (Void _) = replicate n " " <> "void"
+    pretty n (Int _) = replicate n " " <> "int"
+    pretty n (Double _) = replicate n " " <> "double"
+    pretty n (Boolean _) = replicate n " " <> "boolean"
     pretty n (TVar _ ident) = pretty n ident
     pretty n (Fun _ ret args) = pretty n ret <> parenthesis n (intercalate ", " $ map (pretty n) args)
 

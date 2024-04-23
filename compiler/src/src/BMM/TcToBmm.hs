@@ -32,6 +32,11 @@ instance ToBmm T.Id Id where
 
 instance ToBmm T.Type Type where
     toBmm :: T.Type -> Type
+    toBmm T.String = String
+    toBmm T.Int = Int
+    toBmm T.Double = Double
+    toBmm T.Void = Void
+    toBmm T.Boolean  = Boolean
     toBmm (T.TVar id) = TVar (toBmm id)
     toBmm (T.Fun t ts) = Fun (toBmm t) (map toBmm ts)
 

@@ -118,6 +118,12 @@ data FEError
         SynInfo
         -- | Name of the function
         Par.Id
+    | -- | Constructor for types that can not be compared
+      NotRelational
+        -- | The source code position of the error
+        SynInfo
+        -- | The type that is not relational
+        Type
     deriving (Show)
 
 parens :: Text -> Text
@@ -138,6 +144,11 @@ instance Report Id where
 
 instance Report Type where
     report = \case
+        String -> "string"
+        Int -> "int"
+        Double -> "double"
+        Void -> "void"
+        Boolean -> "boolean"
         TVar id -> report id
         Fun rt argTys -> report rt <> parens (report argTys)
 
@@ -206,7 +217,9 @@ instance Report FEError where
         DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
         DuplicateArgument info tp -> pretty $ combine [i|duplicate argument in definition\n#{thow tp}|] info
         VoidDeclare info _ -> pretty $ combine [i|can not declare a variable with type '#{report Void}'|] info
-        VoidParameter info ident -> pretty $ combine [i|can not have parameters of type '#{report Void}' in the function #{report ident}|] info
+        VoidParameter info ident ->
+            pretty $
+                combine [i|can not have parameters of type '#{report Void}' in the function #{report ident}|] info
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
@@ -266,6 +279,11 @@ instance (Convert a b) => Convert [a] [b] where
 
 instance Convert Par.Type Type where
     convert = \case
+        Par.Int _ -> Int
+        Par.Double _ -> Double
+        Par.String _ -> String
+        Par.Boolean _ -> Boolean
+        Par.Void _ -> Void
         Par.TVar _ t -> TVar (convert t)
         Par.Fun _ rt argtys -> Fun (convert rt) (convert argtys)
 

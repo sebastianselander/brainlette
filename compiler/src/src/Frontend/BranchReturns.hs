@@ -86,7 +86,7 @@ breaks = \case
 retDefs :: TopDef -> Br ()
 retDefs self@(FnDef _ ty _ _ stmts) =
     case ty of
-        Void -> return ()
+        Void _ -> return ()
         _ -> do
             returns stmts >>= \case
                 True -> return ()

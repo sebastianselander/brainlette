@@ -11,19 +11,19 @@ primType :: Text -> Parser Type
 primType t = (\(i,_) -> TVar i (Id i t)) <$> info (reserved (unpack t))
 
 int :: Parser Type
-int = primType "int"
+int = Int . fst <$> info (reserved (unpack "int"))
 
 double :: Parser Type
-double = primType "double"
+double = Double . fst <$> info (reserved (unpack "double"))
 
 string :: Parser Type
-string = primType "string"
+string = String . fst <$> info (reserved (unpack "string"))
 
 void :: Parser Type
-void = primType "void"
+void = Void . fst <$> info (reserved (unpack "void"))
 
 boolean :: Parser Type
-boolean = primType "boolean"
+boolean = Boolean . fst <$> info (reserved (unpack "boolean"))
 
 atom :: Parser Type
 atom = choice [try (parens typ), try boolean, try int, try double, try string, void]

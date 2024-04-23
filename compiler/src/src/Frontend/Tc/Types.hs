@@ -35,27 +35,12 @@ data Item = NoInit Id | Init Id Expr
 data Type
     = TVar Id
     | Fun Type [Type]
+    | Int
+    | Double
+    | String
+    | Void
+    | Boolean
     deriving (Eq, Ord, Show, Read)
-
-pattern Int :: Type
-pattern Int <- TVar (Id "int")
-  where Int = TVar (Id "int")
-
-pattern Double :: Type
-pattern Double <- TVar (Id "double")
-  where Double = TVar (Id "double")
-
-pattern String :: Type
-pattern String <- TVar (Id "string")
-  where String = TVar (Id "string")
-
-pattern Boolean :: Type
-pattern Boolean <- TVar (Id "boolean")
-  where Boolean = TVar (Id "boolean")
-
-pattern Void :: Type
-pattern Void <- TVar (Id "void")
-  where Void = TVar (Id "void")
 
 type Expr = (Type, Expr')
 
