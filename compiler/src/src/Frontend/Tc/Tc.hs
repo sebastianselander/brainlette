@@ -109,7 +109,7 @@ infStmt s = case s of
     Par.Decr info var -> do
         typ <- getVar var
         errNotNumber info typ
-        return (Just (Tc.Incr typ (convert var)))
+        return (Just (Tc.Decr typ (convert var)))
     Par.Ret info expr -> do
         (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
         (ty, expr') <- infExpr expr
