@@ -264,13 +264,13 @@ For example: @int x = 1 + 2 + 3@ might generate:
 %x = add i32 %0 3
 @
 
-And @%0@ can be obtained by calling @getTempVariable@.
+And @%_0@ can be obtained by calling @getTempVariable@.
 -}
 getTempVariable :: BgM Variable
 getTempVariable = do
     v <- gets varCounter
     modify (\s -> s {varCounter = v + 1})
-    return (Variable $ thow v)
+    return (Variable $ "_" <> thow v)
 
 -- | Convert a BMM type to an IR type
 braingenType :: B.Type -> Type
