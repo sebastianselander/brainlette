@@ -15,6 +15,7 @@ import Data.Set qualified as Set
 import Data.Text (Text, pack, takeWhile, toTitle)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
+import Debug.Trace (traceShowM)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -209,23 +210,29 @@ fRelOp = \case
 braingenLit :: B.Lit -> BgM Variable
 braingenLit lit = case lit of
     B.LitInt n -> do
+        let ty = I32
+        intermediate <- getTempVariable
+        output $ Alloca intermediate ty
+        output $ Store (ConstArgument (pure ty) (LitInt n)) intermediate
         var <- getTempVariable
-        output $ AllocaLit var I32 (LitInt n)
-        var' <- getTempVariable
-        output $ Load var' I32 var
-        return var'
+        output $ Load var ty intermediate
+        return var
     B.LitDouble n -> do
+        let ty = F64
+        intermediate <- getTempVariable
+        output $ Alloca intermediate ty
+        output $ Store (ConstArgument (pure ty) (LitDouble n)) intermediate
         var <- getTempVariable
-        output $ AllocaLit var F64 (LitDouble n)
-        var' <- getTempVariable
-        output $ Load var' F64 var
-        return var'
+        output $ Load var ty intermediate
+        return var
     B.LitBool b -> do
+        let ty = I1
+        intermediate <- getTempVariable
+        output $ Alloca intermediate ty
+        output $ Store (ConstArgument (pure ty) (LitBool b)) intermediate
         var <- getTempVariable
-        output $ AllocaLit var I1 (LitBool b)
-        var' <- getTempVariable
-        output $ Load var' I1 var
-        return var'
+        output $ Load var ty intermediate
+        return var
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
 
 ----------------------------------- Helper functions -----------------------------------
