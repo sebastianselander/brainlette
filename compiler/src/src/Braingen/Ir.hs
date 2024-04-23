@@ -12,10 +12,9 @@ import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (map)
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Text (Text, pack, takeWhile, toTitle)
+import Data.Text (Text, pack, toTitle)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
-import Debug.Trace (traceShowM, traceM, traceShowId, traceShow)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -48,16 +47,10 @@ braingenTopDef def = case def of
         let args = map (appendArgName "arg" . braingenArg) a
         let argStmts = concatFor a argToStmts
         stmts <- braingenStmts s
-        let stmts' = stmts ++ case ret of
-                Void -> [RetVoid]
-                I32 -> [Ret (ConstArgument (Just ret) (LitInt 0))]
-                I1 -> [Ret (ConstArgument (Just ret) (LitInt 0))]
-                I8 -> [Ret (ConstArgument (Just ret) (LitInt 0))]
-                F64 -> [Ret (ConstArgument (Just ret) (LitDouble 0.0))]
-                Ptr -> [Ret (ConstArgument (Just ret) LitNull)]
-                FunPtr _ _ -> [Ret (ConstArgument (Just ret) LitNull)]
-                Array _ _ -> [Ret (ConstArgument (Just ret) LitNull)]
-                CustomType _  -> [Ret (ConstArgument (Just ret) LitNull)]
+        let stmts' = stmts ++ 
+                case rt of
+                    B.Void -> [RetVoid, Unreachable]
+                    _ -> [Unreachable]
 
         pure $ Define ret i args Nothing (argStmts <> stmts')
   where

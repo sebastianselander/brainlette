@@ -137,6 +137,7 @@ instance OutputIr Stmt where
         And ty l r -> [i|and #{outputIr ty} #{outputIr l}, #{outputIr r}|]
         Or ty l r -> [i|or #{outputIr ty} #{outputIr l}, #{outputIr r}|]
         Fneg var ty arg -> [i|#{outputIr var} = fneg #{outputIr ty} #{outputIr arg}|]
+        Unreachable -> "unreachable"
 
 instance OutputIr CastOp where
     outputIr :: CastOp -> Text

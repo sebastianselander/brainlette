@@ -124,6 +124,7 @@ data Stmt
     | Br Variable Label Label
     | Jump Label
     | Cast CastOp Variable Type Variable Type
+    | Unreachable
     deriving (Show)
 
 data Lit
