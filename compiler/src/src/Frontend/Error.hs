@@ -217,6 +217,7 @@ instance Report FEError where
         DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
         DuplicateArgument info tp -> pretty $ combine [i|duplicate argument in definition\n#{thow tp}|] info
         VoidDeclare info _ -> pretty $ combine [i|can not declare a variable with type '#{report Void}'|] info
+        NotRelational info ty -> pretty $ combine [i|can not perform relational operations on #{report ty}|] info
         VoidParameter info ident ->
             pretty $
                 combine [i|can not have parameters of type '#{report Void}' in the function #{report ident}|] info
