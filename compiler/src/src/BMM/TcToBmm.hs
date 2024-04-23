@@ -74,7 +74,7 @@ instance ToBmm [T.Stmt] [Stmt] where
         T.VRet -> [Ret Nothing]
         T.Cond e s -> [CondElse (toBmm e) (toBmm [s]) []]
         T.CondElse e s1 s2 -> [CondElse (toBmm e) (toBmm [s1]) (toBmm [s2])]
-        T.While e s -> [Loop (CondElse (toBmm e) [Break] [] : toBmm [s])]
+        T.While e s -> [Loop (toBmm e) (toBmm [s])]
         T.SExp e -> [SExp (toBmm e)]
         T.Break -> [Break]
 

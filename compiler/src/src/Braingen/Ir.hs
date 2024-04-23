@@ -15,7 +15,7 @@ import Data.Set qualified as Set
 import Data.Text (Text, pack, takeWhile, toTitle)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
-import Debug.Trace (traceShowM)
+import Debug.Trace (traceShowM, traceM, traceShowId, traceShow)
 
 data Env = Env
     { instructions :: DList Stmt
@@ -108,14 +108,18 @@ braingenStm breakpoint stmt = case stmt of
         output $ Jump lDone
         -- if done
         output $ Label lDone
-    B.Loop stmt -> do
-        loopPoint <- getLabel "loop"
-        output $ Jump loopPoint
-        breakpoint <- getLabel "breakpoint"
-        output . Label $ loopPoint
-        mapM_ (braingenStm (Just breakpoint)) stmt
-        output . Jump $ loopPoint
-        output . Label $ breakpoint
+    B.Loop expr stmt -> do
+        start <- getLabel "loop_start"
+        continue <- getLabel "loop_continue"
+        exit <- getLabel "loop_exit"
+        output $ Jump continue
+        output $ Label continue
+        exprVar <- braingenExpr expr
+        output $ Br exprVar start exit
+        output $ Label start
+        mapM_ (braingenStm (Just exit)) stmt
+        output $ Jump continue
+        output $ Label exit
     B.SExp expr -> void $ braingenExpr expr
     B.Break -> do
         let bp = case breakpoint of

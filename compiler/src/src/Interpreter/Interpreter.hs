@@ -4,7 +4,6 @@
 module Interpreter.Interpreter where
 
 import BMM.Bmm
-import Control.Monad (foldM)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -29,17 +28,17 @@ interpretMain :: RunM ()
 interpretMain = undefined
 
 interpretFn :: [Stmt] -> Either Text Value
-interpretFn stmts = undefined
+interpretFn _ = undefined
 
 interpretStmt :: Stmt -> RunM ()
 interpretStmt = \case
     BStmt stmts -> withBlock (mapM_ interpretStmt stmts)
     Decl _ id -> insertVar id Null
     Ass id expr -> interpretExpr expr >>= insertVar id
-    Ret mbyExpr -> undefined
-    CondElse expr stmts1 stmts2 -> undefined
-    Loop stmts -> undefined
-    SExp expr -> undefined
+    Ret _ -> undefined
+    CondElse {} -> undefined
+    Loop _ _ -> undefined
+    SExp _ -> undefined
     Break -> undefined
 
 interpretExpr :: Expr -> RunM Value
@@ -70,6 +69,7 @@ getFns xs = go mempty xs
     go acc [] = acc
     go acc (FnDef ty name args stmts : xs) =
         go (Map.insert name (ty, args, stmts) acc) xs
+    go _ _ = undefined
 
 withBlock :: RunM a -> RunM a
 withBlock ma =

@@ -20,7 +20,7 @@ data Stmt
     | Ass Id Expr
     | Ret (Maybe Expr)
     | CondElse Expr [Stmt] [Stmt]
-    | Loop [Stmt]
+    | Loop Expr [Stmt]
     | SExp Expr
     | Break
     deriving (Show)

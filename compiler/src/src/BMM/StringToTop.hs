@@ -52,7 +52,7 @@ fixStmt = \case
         (CondElse <$> fixExpr e)
             <*> mapM fixStmt s1
             <*> mapM fixStmt s2
-    Loop stmts -> Loop <$> mapM fixStmt stmts
+    Loop expr stmts -> Loop <$> fixExpr expr <*> mapM fixStmt stmts
     SExp e -> SExp <$> fixExpr e
     Break -> pure Break
 
