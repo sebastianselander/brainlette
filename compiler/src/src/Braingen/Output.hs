@@ -60,7 +60,8 @@ instance OutputIr TopDef where
             , "@" <> i
             , "(" <> outputIr args <> ")"
             , outputIr cconv
-            , "{"
+            , "{\n"
+            , "entry:"
             , outputIr stmts
             , "\n}"
             ]
