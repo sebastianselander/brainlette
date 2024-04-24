@@ -213,20 +213,51 @@ braingenExpr (ty, e) = case e of
                 output $ ICmp var (iRelOp op) I1 (Argument Nothing left) (Argument Nothing right)
                 return var
             ty -> error $ "TYPECHECK BUG: Relational comparison on invalid type: " <> show ty
-    -- FIXME: And should be lazy in second argument
-    B.EAnd l r -> do
-        l <- braingenExpr l
-        r <- braingenExpr r
-        var <- getTempVariable
-        output $ And var I1 (Argument Nothing l) (Argument Nothing r)
-        return var
-    -- FIXME: Or should be lazy in second argument
     B.EOr l r -> do
-        l <- braingenExpr l
-        r <- braingenExpr r
-        var <- getTempVariable
-        output $ Or var I1 (Argument Nothing l) (Argument Nothing r)
-        return var
+        true <- getLabel "true"
+        false <- getLabel "false"
+        lazyLogical l r True Or false true
+    B.EAnd l r -> do
+        true <- getLabel "true"
+        false <- getLabel "false"
+        lazyLogical l r False And false true
+
+lazyLogical ::
+    B.Expr ->
+    B.Expr ->
+    Bool ->
+    (Variable -> Type -> Argument -> Argument -> Stmt) ->
+    Text ->
+    Text ->
+    BgM Variable
+lazyLogical l r comp operator doneOn continueOn = do
+    var <- getTempVariable
+    output $ Alloca var I1
+    l <- braingenExpr l
+    var2 <- getTempVariable
+    output $
+        ICmp
+            var2
+            Ieq
+            I1
+            (Argument Nothing l)
+            (ConstArgument Nothing (LitBool comp))
+    output $ Store (Argument (Just I1) l) var
+    var3 <- getTempVariable
+    output $ Load var3 I1 var
+    if comp
+        then output $ Br var3 continueOn doneOn
+        else output $ Br var3 doneOn continueOn
+    output $ Label doneOn
+    r <- braingenExpr r
+    var4 <- getTempVariable
+    output $ operator var4 I1 (Argument Nothing var3) (Argument Nothing r)
+    output $ Store (Argument (Just I1) var4) var
+    output $ Jump continueOn
+    output $ Label continueOn
+    var5 <- getTempVariable
+    output $ Load var5 I1 var
+    return var5
 
 iRelOp :: B.RelOp -> ICond
 iRelOp = \case
