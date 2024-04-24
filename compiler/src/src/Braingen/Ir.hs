@@ -92,7 +92,6 @@ braingenStm breakpoint stmt = case stmt of
         lTrue <- getLabel "IfTrue"
         lFalse <- getLabel "IfFalse"
         lDone <- getLabel "IfDone"
-
         -- if
         output $ Br result lTrue lFalse
         -- if true
@@ -121,7 +120,8 @@ braingenStm breakpoint stmt = case stmt of
     B.Break -> do
         let bp = case breakpoint of
                 Just bp -> bp
-                Nothing -> error "break outside loop, report as INSERT BUG HERE :)"
+                Nothing ->
+                    error "break outside loop, report as INSERT BUG HERE :)"
         output . Jump $ bp
 
 defaultValue :: Type -> Lit
@@ -164,10 +164,21 @@ braingenExpr (ty, e) = case e of
     B.Not e -> do
         exprVar <- braingenExpr e
         var <- getTempVariable
-        output $ ICmp var Ieq I1 (Argument Nothing exprVar) (ConstArgument Nothing (LitBool False))
+        output $
+            ICmp
+                var
+                Ieq
+                I1
+                (Argument Nothing exprVar)
+                (ConstArgument Nothing (LitBool False))
         return var
     B.EApp (B.Id func) args -> do
-        args <- mapM (\e@(t, _) -> Argument (Just $ braingenType t) <$> braingenExpr e) args
+        args <-
+            mapM
+                ( \e@(t, _) ->
+                    Argument (Just $ braingenType t) <$> braingenExpr e
+                )
+                args
         case ty of
             B.Void -> do
                 output $ VoidCall Nothing Nothing (braingenType ty) func args
@@ -327,7 +338,6 @@ braingenLit lit = case lit of
         return var
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
 
------------------------------------ Helper functions -----------------------------------
 
 -- | Push a statement onto the state
 output :: Stmt -> BgM ()
@@ -386,7 +396,8 @@ appendArgName text = \case
 
 -- | Convert a BMM argument to an IR argument
 braingenArg :: B.Arg -> Argument
-braingenArg (B.Argument t (B.Id i)) = Argument (pure $ braingenType t) (Variable i)
+braingenArg (B.Argument t (B.Id i)) =
+    Argument (pure $ braingenType t) (Variable i)
 
 -- | Convert a BMM add op to an IR Arithmetic instructions
 braingenAddOp :: Type -> B.AddOp -> Arithmetic
