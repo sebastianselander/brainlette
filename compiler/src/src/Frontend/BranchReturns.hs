@@ -114,12 +114,10 @@ returnsStmt = \case
     Cond _ expr stmt ->
         if never expr
             then unreachable stmt $> False
-            else (always expr &&) <$> returnsStmt stmt
-    CondElse _ expr stmt1 stmt2 -> do
-        if
-            | never expr -> unreachable stmt1 >> returnsStmt stmt2
-            | always expr -> unreachable stmt2 >> returnsStmt stmt1
-            | otherwise -> (&&) <$> returnsStmt stmt1 <*> returnsStmt stmt2
+            else return False -- (always expr &&) <$> returnsStmt stmt
+    CondElse _ _ stmt1 stmt2 -> (&&) <$> returnsStmt stmt1 <*> returnsStmt stmt2
+            -- | never expr -> unreachable stmt1 >> returnsStmt stmt2
+            -- | always expr -> unreachable stmt2 >> returnsStmt stmt1
     While _ expr stmt ->
         if never expr
             then unreachable stmt $> False
