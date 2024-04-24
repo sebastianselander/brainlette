@@ -9,7 +9,7 @@ import Braingen.Ir (braingen)
 import Control.Monad (unless)
 import Data.Text (Text, unlines)
 import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
-import Frontend.BranchReturns (check)
+import Frontend.BranchReturns (branchCheck)
 import Frontend.Parser.BrainletteParser
 import Frontend.Parser.ParserTypes
 import Frontend.Renamer (rename)
@@ -21,6 +21,7 @@ import System.IO (stderr)
 import Utils (thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
 import Runtime (readRuntime)
+import Data.Functor (void)
 
 main :: IO ()
 main = do
@@ -45,7 +46,7 @@ main = do
         Right res -> return res
 
     ePutStrLn (pretty 0 res)
-    res <- case check res of
+    res <- case branchCheck res of
         Left err -> errorExit err
         Right res -> return res
 

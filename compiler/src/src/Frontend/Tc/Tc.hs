@@ -6,7 +6,7 @@
 module Frontend.Tc.Tc where
 
 import Control.Arrow (first, (>>>))
-import Control.Monad (unless, when, void)
+import Control.Monad (unless, when)
 import Control.Monad.Except
 import Control.Monad.Extra (mapMaybeM)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
@@ -332,6 +332,26 @@ getSubtypes expected =
 
 class HasInfo a where
     hasInfo :: a -> Par.SynInfo
+
+instance HasInfo Par.TopDef where
+  hasInfo = \case
+    Par.FnDef i _ _ _ _ -> i
+
+instance HasInfo Par.Stmt where
+  hasInfo = \case
+           Par.Empty i -> i
+           Par.BStmt i _ -> i
+           Par.Decl i _ _ -> i
+           Par.Ass i _ _ -> i
+           Par.Incr i _ -> i
+           Par.Decr i _ -> i
+           Par.Ret i _ -> i
+           Par.VRet i -> i
+           Par.Cond i _ _ -> i
+           Par.CondElse i _ _ _ -> i
+           Par.While i _ _ -> i
+           Par.Break i -> i
+           Par.SExp i _ -> i
 
 instance HasInfo Par.Expr where
     hasInfo = \case

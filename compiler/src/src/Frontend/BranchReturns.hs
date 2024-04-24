@@ -10,13 +10,14 @@ import Control.Monad.Extra (anyM, unless)
 import Control.Monad.Reader (MonadReader, ReaderT (runReaderT), ask, local)
 import Control.Monad.State (MonadState, StateT, execStateT, get, put)
 import Data.Fixed (mod')
-import Data.Functor (($>))
+import Data.Functor (($>), void)
 import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, concat, unlines)
 import Frontend.Error (FEError (..), report)
 import Frontend.Parser.ParserTypes
 import Prelude hiding (concat, takeWhile, unlines)
+import Frontend.Tc.Tc (hasInfo)
 
 data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}
     deriving (Show)
@@ -31,8 +32,8 @@ newtype Br a = Br {runBr :: StateT Env (ReaderT Bool (Except FEError)) a}
         , MonadError FEError
         )
 
-check :: Prog -> Either Text Prog
-check p = case runExcept $
+branchCheck :: Prog -> Either Text Prog
+branchCheck p = case runExcept $
     flip runReaderT False $
         flip execStateT (Env mempty mempty) $
             runBr $
@@ -41,14 +42,15 @@ check p = case runExcept $
     Right (Env [] []) -> Right p
     Right (Env stmts topdefs) ->
         Left $
-            concat (intersperse "\n\n" $ map (report . UnreachableStatement) stmts)
-                <> unlines (map (report . MissingReturn) topdefs)
-
+            concat (intersperse "\n\n" $ map (report . UnreachableStatement . hasInfo) stmts)
+                <> unlines (map (\def -> report $ MissingReturn (hasInfo def) def) topdefs)
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"
 
 unreachable :: Stmt -> Br ()
+unreachable (Empty _) = return ()
+unreachable (BStmt _ []) = return ()
 unreachable s = do
     env <- get
     put (env {unreachables = s : env.unreachables})
@@ -64,7 +66,6 @@ branchReturns (Program _ topdefs) = mapM_ breakDefs topdefs >> mapM_ retDefs top
 breakDefs :: TopDef -> Br ()
 breakDefs (FnDef _ _ _ _ stmts) = mapM_ breaks stmts
 
--- TODO: Fix much prettier error msg
 breaks :: Stmt -> Br ()
 breaks = \case
     Empty _ -> return ()
@@ -86,7 +87,7 @@ breaks = \case
 retDefs :: TopDef -> Br ()
 retDefs self@(FnDef _ ty _ _ stmts) =
     case ty of
-        Void _ -> return ()
+        Void _ -> void $ returns stmts
         _ -> do
             returns stmts >>= \case
                 True -> return ()
@@ -133,7 +134,7 @@ always e = case interpret e of
 
 never :: Expr -> Bool
 never e = case interpret e of
-    Just (IsBool False) -> False
+    Just (IsBool False) -> True
     _ -> False
 
 interpret :: Expr -> Maybe Value

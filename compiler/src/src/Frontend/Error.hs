@@ -76,10 +76,12 @@ data FEError
         SynInfo
     | -- | Constructor for unreachable statements outside a loop
       UnreachableStatement
-        -- | The unreachable statement
-        Par.Stmt
+        -- | The source code position of the error
+        SynInfo 
     | -- | Constructor for functions missing a return statement
       MissingReturn
+        -- | The source code position of the error
+        SynInfo 
         -- | The function missing return
         Par.TopDef
     | -- | Constructor for an expression that is not a statement
@@ -186,7 +188,7 @@ instance Report FEError where
         NotComparable info op typ ->
             pretty $
                 combine
-                    [i|Can't perform '#{report op}' on tyoe '#{report typ}'|]
+                    [i|Can't perform '#{report op}' on type '#{report typ}'|]
                     info
         IllegalEmptyReturn pos typ ->
             pretty $
@@ -210,8 +212,8 @@ instance Report FEError where
                     info
         BreakNotInLoop info ->
             [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
-        UnreachableStatement stmt -> [i|unreachable statement\n #{report stmt}|]
-        MissingReturn def -> errMissingRet def
+        UnreachableStatement info -> pretty $ combine [i|unreachable statement|] (oneLine info)
+        MissingReturn info (Par.FnDef _ _ name _ _) -> pretty $ combine [i|missing return in function #{report name}|] (oneLine info)
         NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
         ArgumentMismatch info _ -> pretty $ combine [i|argument mismatch|] info
         DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
@@ -221,6 +223,9 @@ instance Report FEError where
         VoidParameter info ident ->
             pretty $
                 combine [i|can not have parameters of type '#{report Void}' in the function #{report ident}|] info
+
+oneLine :: SynInfo -> SynInfo
+oneLine info = info { sourceCode = takeWhile (/='\n') info.sourceCode}
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
@@ -236,7 +241,7 @@ errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
         "missing return in function "
             <> takeWhile (/= '\n') info.sourceCode
             <> "\ngot "
-            <> "\n  "
+            <> "\n"
             <> report (last xs)
             <> "\nexpected\n  a return statement"
 
