@@ -1,11 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Braingen.Ir where
 
 import BMM.Bmm qualified as B
 import Braingen.LlvmAst
 import Braingen.Output (OutputIr (outputIr))
+import Braingen.TH
 import Control.Arrow ((>>>))
 import Control.Monad (void)
 import Control.Monad.State (State, get, gets, modify, put, runState)
@@ -15,6 +17,8 @@ import Data.Set qualified as Set
 import Data.Text (Text, pack, toTitle)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
+
+$(gen "Stmt")
 
 data Env = Env
     { instructions :: DList Stmt
@@ -77,52 +81,52 @@ braingenStm breakpoint stmt = case stmt of
     B.Decl t (B.Id i) -> do
         let var = Variable i
             ty = braingenType t
-        output $ Alloca var ty
-        output $ Store (ConstArgument (Just ty) (defaultValue ty)) var
+        alloca var ty
+        store (ConstArgument (Just ty) (defaultValue ty)) var
     B.Ass (B.Id a) expr@(t, _) -> do
         result <- braingenExpr expr
-        output $ Store (Argument (pure $ braingenType t) result) (Variable a)
+        store (Argument (pure $ braingenType t) result) (Variable a)
     B.Ret (Just expr@(t, _)) -> do
         result <- braingenExpr expr
-        output $ Ret (Argument (pure $ braingenType t) result)
+        ret (Argument (pure $ braingenType t) result)
     B.Ret Nothing -> do
-        output RetVoid
+        retVoid
     B.CondElse expr s1 s2 -> do
         result <- braingenExpr expr
         lTrue <- getLabel "IfTrue"
         lFalse <- getLabel "IfFalse"
         lDone <- getLabel "IfDone"
         -- if
-        output $ Br result lTrue lFalse
+        br result lTrue lFalse
         -- if true
-        output $ Label lTrue
+        label lTrue
         mapM_ (braingenStm (Just lDone)) s1
-        output $ Jump lDone
+        jump lDone
         -- if false
-        output $ Label lFalse
+        label lFalse
         mapM_ (braingenStm (Just lDone)) s2
-        output $ Jump lDone
+        jump lDone
         -- if done
-        output $ Label lDone
+        label lDone
     B.Loop expr stmt -> do
         start <- getLabel "loop_start"
         continue <- getLabel "loop_continue"
         exit <- getLabel "loop_exit"
-        output $ Jump continue
-        output $ Label continue
+        jump continue
+        label continue
         exprVar <- braingenExpr expr
-        output $ Br exprVar start exit
-        output $ Label start
+        br exprVar start exit
+        label start
         mapM_ (braingenStm (Just exit)) stmt
-        output $ Jump continue
-        output $ Label exit
+        jump continue
+        label exit
     B.SExp expr -> void $ braingenExpr expr
     B.Break -> do
         let bp = case breakpoint of
                 Just bp -> bp
                 Nothing ->
                     error "break outside loop, report as INSERT BUG HERE :)"
-        output . Jump $ bp
+        jump bp
 
 defaultValue :: Type -> Lit
 defaultValue = \case
@@ -142,7 +146,7 @@ braingenExpr (ty, e) = case e of
         return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
         var <- getTempVariable
-        output $ Load var (braingenType ty) (Variable ident)
+        load var (braingenType ty) (Variable ident)
         return var
     B.ELit lit -> braingenLit lit
     B.Neg e -> do
@@ -150,27 +154,25 @@ braingenExpr (ty, e) = case e of
         tmp <- getTempVariable
         case ty of
             B.Double -> do
-                output $ Fneg tmp F64 (Argument Nothing var)
+                fneg tmp F64 (Argument Nothing var)
             B.Int -> do
-                output $
-                    Arith
-                        tmp
-                        Sub
-                        I32
-                        (ConstArgument Nothing (LitInt 0))
-                        (Argument Nothing var)
+                arith
+                    tmp
+                    Sub
+                    I32
+                    (ConstArgument Nothing (LitInt 0))
+                    (Argument Nothing var)
             _ -> error "TYPECHECK BUG: Negation of non-number"
         return tmp
     B.Not e -> do
         exprVar <- braingenExpr e
         var <- getTempVariable
-        output $
-            ICmp
-                var
-                Ieq
-                I1
-                (Argument Nothing exprVar)
-                (ConstArgument Nothing (LitBool False))
+        iCmp
+            var
+            Ieq
+            I1
+            (Argument Nothing exprVar)
+            (ConstArgument Nothing (LitBool False))
         return var
     B.EApp (B.Id func) args -> do
         args <-
@@ -181,11 +183,11 @@ braingenExpr (ty, e) = case e of
                 args
         case ty of
             B.Void -> do
-                output $ VoidCall Nothing Nothing (braingenType ty) func args
+                voidCall Nothing Nothing (braingenType ty) func args
                 return (error "CODEGEN: tried referencing void variable")
             _ -> do
                 result <- getTempVariable
-                output $ Call result Nothing Nothing (braingenType ty) func args
+                call result Nothing Nothing (braingenType ty) func args
                 return result
     B.EAdd e1 op e2 -> do
         let t = braingenType ty
@@ -193,7 +195,7 @@ braingenExpr (ty, e) = case e of
         r2 <- braingenExpr e2
         let op' = braingenAddOp t op
         res <- getTempVariable
-        output $ Arith res op' t (Argument Nothing r1) (Argument Nothing r2)
+        arith res op' t (Argument Nothing r1) (Argument Nothing r2)
         pure res
     B.EMul e1 op e2 -> do
         let t = braingenType ty
@@ -201,14 +203,14 @@ braingenExpr (ty, e) = case e of
         r2 <- braingenExpr e2
         let op' = braingenMulOp t op
         res <- getTempVariable
-        output $ Arith res op' t (Argument Nothing r1) (Argument Nothing r2)
+        arith res op' t (Argument Nothing r1) (Argument Nothing r2)
         pure res
     B.Cast e@(t, _) -> do
         let ty' = braingenType ty
         let t' = braingenType t
         val <- braingenExpr e
         res <- getTempVariable
-        output $ Cast (getCastOp ty' t') res t' val ty'
+        cast (getCastOp ty' t') res t' val ty'
         pure res
     B.ERel (ty, l) op r -> do
         left <- braingenExpr (ty, l)
@@ -216,31 +218,28 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         case ty of
             B.Int -> do
-                output $
-                    ICmp
-                        var
-                        (iRelOp op)
-                        I32
-                        (Argument Nothing left)
-                        (Argument Nothing right)
+                iCmp
+                    var
+                    (iRelOp op)
+                    I32
+                    (Argument Nothing left)
+                    (Argument Nothing right)
                 return var
             B.Double -> do
-                output $
-                    FCmp
-                        var
-                        (fRelOp op)
-                        F64
-                        (Argument Nothing left)
-                        (Argument Nothing right)
+                fCmp
+                    var
+                    (fRelOp op)
+                    F64
+                    (Argument Nothing left)
+                    (Argument Nothing right)
                 return var
             B.Boolean -> do
-                output $
-                    ICmp
-                        var
-                        (iRelOp op)
-                        I1
-                        (Argument Nothing left)
-                        (Argument Nothing right)
+                iCmp
+                    var
+                    (iRelOp op)
+                    I1
+                    (Argument Nothing left)
+                    (Argument Nothing right)
                 return var
             ty ->
                 error $
@@ -249,47 +248,46 @@ braingenExpr (ty, e) = case e of
     B.EOr l r -> do
         true <- getLabel "true"
         false <- getLabel "false"
-        lazyLogical l r True Or false true
+        lazyLogical l r True Braingen.Ir.or false true
     B.EAnd l r -> do
         true <- getLabel "true"
         false <- getLabel "false"
-        lazyLogical l r False And false true
+        lazyLogical l r False Braingen.Ir.and false true
 
 lazyLogical ::
     B.Expr ->
     B.Expr ->
     Bool ->
-    (Variable -> Type -> Argument -> Argument -> Stmt) ->
+    (Variable -> Type -> Argument -> Argument -> BgM ()) ->
     Text ->
     Text ->
     BgM Variable
 lazyLogical l r comp operator doneOn continueOn = do
     var <- getTempVariable
-    output $ Alloca var I1
+    alloca var I1
     l <- braingenExpr l
     var2 <- getTempVariable
-    output $
-        ICmp
-            var2
-            Ieq
-            I1
-            (Argument Nothing l)
-            (ConstArgument Nothing (LitBool comp))
-    output $ Store (Argument (Just I1) l) var
+    iCmp
+        var2
+        Ieq
+        I1
+        (Argument Nothing l)
+        (ConstArgument Nothing (LitBool comp))
+    store (Argument (Just I1) l) var
     var3 <- getTempVariable
-    output $ Load var3 I1 var
+    load var3 I1 var
     if comp
-        then output $ Br var3 continueOn doneOn
-        else output $ Br var3 doneOn continueOn
-    output $ Label doneOn
+        then br var3 continueOn doneOn
+        else br var3 doneOn continueOn
+    label doneOn
     r <- braingenExpr r
     var4 <- getTempVariable
-    output $ operator var4 I1 (Argument Nothing var3) (Argument Nothing r)
-    output $ Store (Argument (Just I1) var4) var
-    output $ Jump continueOn
-    output $ Label continueOn
+    operator var4 I1 (Argument Nothing var3) (Argument Nothing r)
+    store (Argument (Just I1) var4) var
+    jump continueOn
+    label continueOn
     var5 <- getTempVariable
-    output $ Load var5 I1 var
+    load var5 I1 var
     return var5
 
 iRelOp :: B.RelOp -> ICond
@@ -315,29 +313,28 @@ braingenLit lit = case lit of
     B.LitInt n -> do
         let ty = I32
         intermediate <- getTempVariable
-        output $ Alloca intermediate ty
-        output $ Store (ConstArgument (pure ty) (LitInt n)) intermediate
+        alloca intermediate ty
+        store (ConstArgument (pure ty) (LitInt n)) intermediate
         var <- getTempVariable
-        output $ Load var ty intermediate
+        load var ty intermediate
         return var
     B.LitDouble n -> do
         let ty = F64
         intermediate <- getTempVariable
-        output $ Alloca intermediate ty
-        output $ Store (ConstArgument (pure ty) (LitDouble n)) intermediate
+        alloca intermediate ty
+        store (ConstArgument (pure ty) (LitDouble n)) intermediate
         var <- getTempVariable
-        output $ Load var ty intermediate
+        load var ty intermediate
         return var
     B.LitBool b -> do
         let ty = I1
         intermediate <- getTempVariable
-        output $ Alloca intermediate ty
-        output $ Store (ConstArgument (pure ty) (LitBool b)) intermediate
+        alloca intermediate ty
+        store (ConstArgument (pure ty) (LitBool b)) intermediate
         var <- getTempVariable
-        output $ Load var ty intermediate
+        load var ty intermediate
         return var
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
-
 
 -- | Push a statement onto the state
 output :: Stmt -> BgM ()
