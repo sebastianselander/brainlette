@@ -47,10 +47,11 @@ braingenTopDef def = case def of
         let args = map (appendArgName "arg" . braingenArg) a
         let argStmts = concatFor a argToStmts
         stmts <- braingenStmts s
-        let stmts' = stmts ++ 
-                case rt of
-                    B.Void -> [RetVoid, Unreachable]
-                    _ -> [Unreachable]
+        let stmts' =
+                stmts
+                    ++ case rt of
+                        B.Void -> [RetVoid, Unreachable]
+                        _ -> [Unreachable]
 
         pure $ Define ret i args Nothing (argStmts <> stmts')
   where
@@ -125,15 +126,15 @@ braingenStm breakpoint stmt = case stmt of
 
 defaultValue :: Type -> Lit
 defaultValue = \case
-           I32 -> LitInt 0
-           I1 -> LitInt 1
-           I8 -> LitInt 0
-           F64 -> LitDouble 0
-           Ptr -> LitNull
-           Void -> LitNull
-           FunPtr _ _ -> LitNull
-           Array _ _ -> LitNull
-           CustomType _ -> LitNull
+    I32 -> LitInt 0
+    I1 -> LitInt 1
+    I8 -> LitInt 0
+    F64 -> LitDouble 0
+    Ptr -> LitNull
+    Void -> LitNull
+    FunPtr _ _ -> LitNull
+    Array _ _ -> LitNull
+    CustomType _ -> LitNull
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
@@ -204,15 +205,36 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         case ty of
             B.Int -> do
-                output $ ICmp var (iRelOp op) I32 (Argument Nothing left) (Argument Nothing right)
+                output $
+                    ICmp
+                        var
+                        (iRelOp op)
+                        I32
+                        (Argument Nothing left)
+                        (Argument Nothing right)
                 return var
             B.Double -> do
-                output $ FCmp var (fRelOp op) F64 (Argument Nothing left) (Argument Nothing right)
+                output $
+                    FCmp
+                        var
+                        (fRelOp op)
+                        F64
+                        (Argument Nothing left)
+                        (Argument Nothing right)
                 return var
             B.Boolean -> do
-                output $ ICmp var (iRelOp op) I1 (Argument Nothing left) (Argument Nothing right)
+                output $
+                    ICmp
+                        var
+                        (iRelOp op)
+                        I1
+                        (Argument Nothing left)
+                        (Argument Nothing right)
                 return var
-            ty -> error $ "TYPECHECK BUG: Relational comparison on invalid type: " <> show ty
+            ty ->
+                error $
+                    "TYPECHECK BUG: Relational comparison on invalid type: "
+                        <> show ty
     B.EOr l r -> do
         true <- getLabel "true"
         false <- getLabel "false"
