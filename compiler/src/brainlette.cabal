@@ -22,6 +22,7 @@ library brainlette-lib
     Braingen.Ir
     Braingen.LlvmAst
     Braingen.Output
+    Braingen.TH
     Frontend.BranchReturns
     Frontend.Error
     Frontend.Parser.ArgumentParser
@@ -49,6 +50,7 @@ library brainlette-lib
     , parsec
     , string-interpolate
     , text
+    , template-haskell
 
   hs-source-dirs:   src
   default-language: GHC2021
