@@ -33,31 +33,28 @@ data BraingenError
 type BgM = State Env
 
 -- | Pump those wrinkles 🧠
-braingen :: B.Prog -> Either Text Text
-braingen =
-    braingenProg >>> \case
-        Left err -> Left . pack $ "The impossible happened: " <> show err
-        Right p -> Right $ outputIr p
+braingen :: B.Prog -> Text
+braingen = outputIr . braingenProg
 
-braingenProg :: B.Prog -> Either Text Ir
+braingenProg :: B.Prog -> Ir
 braingenProg (B.Program tp) = do
-    Ir <$> mapM braingenTopDef tp
+    Ir (map braingenTopDef tp)
 
-braingenTopDef :: B.TopDef -> Either Text TopDef
+braingenTopDef :: B.TopDef -> TopDef
 braingenTopDef def = case def of
-    B.StringGlobal name string -> pure $ ConstantString name string
+    B.StringGlobal name string -> ConstantString name string
     B.FnDef rt (B.Id i) a s -> do
         let ret = braingenType rt
         let args = map (appendArgName "arg" . braingenArg) a
         let argStmts = concatFor a argToStmts
-        stmts <- braingenStmts s
+        let stmts = braingenStmts s
         let stmts' =
                 stmts
                     ++ case rt of
                         B.Void -> [RetVoid, Unreachable]
                         _ -> [Unreachable]
 
-        pure $ Define ret i args Nothing (argStmts <> stmts')
+        Define ret i args Nothing (argStmts <> stmts')
   where
     argToStmts = \case
         B.Argument t (B.Id n) ->
@@ -69,11 +66,11 @@ braingenTopDef def = case def of
                 (Variable n)
             ]
 
-braingenStmts :: [B.Stmt] -> Either Text [Stmt]
+braingenStmts :: [B.Stmt] -> [Stmt]
 braingenStmts =
     mapM_ (braingenStm Nothing)
         >>> flip runState (Env mempty 0 0)
-        >>> \(_, e) -> Right $ toList (instructions e)
+        >>> \(_, e) -> toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of

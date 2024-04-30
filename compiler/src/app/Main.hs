@@ -59,16 +59,12 @@ main = do
     ePutStrLn "\n--- Typecheck output ---"
     ePrint res
 
-    res <- case bmm res of
-        Left err -> errorExit err
-        Right res -> return res
+    res <- return $ bmm res
 
     ePutStrLn "\n--- BMM output ---"
     ePrint res
 
-    res <- case braingen res of
-        Left err -> errorExit err
-        Right res -> return res
+    res <- return $ braingen res
 
     ePutStrLn "\n--- LLVM IR output ---"
 
