@@ -7,12 +7,13 @@ import Data.Fixed (mod')
 
 optimizeExpr :: Expr -> Maybe Expr
 optimizeExpr = \case
-    (ty, EVar id) -> Nothing
+    (_, EVar _) -> Nothing
     (ty, ELit lit) -> case (ty, lit) of
         (Double, LitInt n) -> Just (Double, ELit $ LitDouble (fromInteger n))
         (Int, LitDouble n) -> Just (Int, ELit $ LitInt (truncate n)) -- Should probably never happen
-    (ty, EApp id exprs) -> Nothing
-    (ty, Not expr) -> do
+        _ -> Nothing
+    (_, EApp _ _) -> Nothing
+    (_, Not expr) -> do
         e <- optimizeExpr expr
         case e of
             (ty, ELit (LitBool b)) -> Just (ty, ELit $ LitBool (not b))
@@ -53,7 +54,9 @@ optimizeExpr = \case
                     (LitDouble n, LitDouble m, Minus) -> Just (ty, ELit (LitDouble (n - m)))
                     _ -> error "Brainlette bug: please report as addition optimize"
             _ -> Nothing
-    (ty, ERel l op r) -> undefined
-    (ty, EAnd l r) -> undefined
-    (ty, EOr l r) -> undefined
-    (ty, Cast expr) -> Nothing
+    (_, ERel {}) -> undefined
+    (_, EAnd _ _) -> undefined
+    (_, EOr _ _) -> undefined
+    (_, Cast _) -> Nothing
+    (_, EGlobalVar _) -> undefined
+    (_, Neg _) -> undefined
