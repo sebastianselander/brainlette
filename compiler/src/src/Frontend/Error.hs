@@ -95,7 +95,11 @@ data FEError
         -- | The source code position of the error
         SynInfo
         -- | The expression that has an invalid amount of arguments
-        Par.Expr
+        Par.Id
+        -- | Expected amount of arguments
+        Int
+        -- | Given amount of arguments
+        Int
     | -- | Constructor for duplicate top definitions
       DuplicateTopDef
         -- | The source code position of the error
@@ -133,6 +137,9 @@ parens s = "(" <> s <> ")"
 
 class Report a where
     report :: a -> Text
+
+instance Report Int where
+    report = pack . show
 
 instance Report SynInfo where
     report NoInfo = ""
@@ -215,7 +222,7 @@ instance Report FEError where
         UnreachableStatement info -> pretty $ combine [i|unreachable statement|] (oneLine info)
         MissingReturn info (Par.FnDef _ _ name _ _) -> pretty $ combine [i|missing return in function #{report name}|] (oneLine info)
         NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
-        ArgumentMismatch info _ -> pretty $ combine [i|argument mismatch|] info
+        ArgumentMismatch info name expected given -> pretty $ combine [i|in the call to the function '#{report name}', #{report expected} arguments were expected, but got #{report given} |] info
         DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
         DuplicateArgument info tp -> pretty $ combine [i|duplicate argument in definition\n#{thow tp}|] info
         VoidDeclare info _ -> pretty $ combine [i|can not declare a variable with type '#{report Void}'|] info

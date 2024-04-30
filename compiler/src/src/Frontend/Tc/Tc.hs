@@ -198,13 +198,16 @@ infExpr e = pushExpr e $ case e of
                 | l == r -> throwError (NotRelational info l)
                 | otherwise -> throwError (TypeMismatch info l [r])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
-    app@(Par.EApp p ident exprs) -> do
+    Par.EApp p ident exprs -> do
         ty <- getVar ident
         case ty of
             Tc.Fun rt argtys -> do
                 let infos = map hasInfo exprs
                 exprs' <- mapM infExpr exprs
-                unless (length exprs' == length argtys) $ throwError (ArgumentMismatch p app)
+                let expecteds = length argtys
+                    givens = length exprs'
+                unless (expecteds == givens) $
+                    throwError (ArgumentMismatch p ident expecteds givens)
                 let infoTys = zip3 infos argtys (map typeOf exprs')
                 mapM_ (uncurry3 unify) infoTys
                 return (rt, Tc.EApp (convert ident) exprs')
