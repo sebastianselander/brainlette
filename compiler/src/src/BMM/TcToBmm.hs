@@ -8,8 +8,8 @@ import Data.Text (Text)
 import Frontend.Tc.Types qualified as T
 import Utils (for)
 
-bmm :: T.Prog -> Either Text Prog
-bmm p = pure $ toBmm p
+bmm :: T.Prog -> Prog
+bmm = toBmm
 
 class ToBmm a b where
     toBmm :: a -> b
