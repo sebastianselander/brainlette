@@ -59,87 +59,86 @@ tcProg :: Par.Prog -> TcM Tc.Prog
 tcProg (Par.Program _ defs) = Tc.Program <$> mapM infDef defs
 
 infDef :: Par.TopDef -> TcM Tc.TopDef
-infDef def@(Par.FnDef _ rt name args block) = do
-    let rt' = convert rt
-    let name' = convert name
-    let fnType = Tc.Fun rt' (map typeOf args)
-    insertFunc name' fnType
-    block' <- pushDef def $ do
-        mapM_ (insertArg name) args
-        mapMaybeM infStmt block
-    return (Tc.FnDef rt' name' (convert args) block')
+infDef = \case
+    def@(Par.FnDef _ rt name args block) -> do
+        let rt' = convert rt
+        let name' = convert name
+        let fnType = Tc.Fun rt' (map typeOf args)
+        insertFunc name' fnType
+        block' <- pushDef def $ do
+            mapM_ (insertArg name) args
+            mapMaybeM (tcStmt rt') block
+        return (Tc.FnDef rt' name' (convert args) block')
 
-infStmt :: Par.Stmt -> TcM (Maybe Tc.Stmt)
-infStmt s = case s of
-    Par.Empty _ -> return Nothing
-    Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM infStmt stmts
-    Par.Decl info typ items -> do
-        let typ' = convert typ
-        when (isVoid typ') (throwError $ VoidDeclare info s)
-        Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
-      where
-        tcItem :: Par.SynInfo -> Tc.Type -> Par.Item -> TcM Tc.Item
-        tcItem info expected = \case
-            Par.NoInit _ name -> do
-                let name' = convert name
-                exist <- doesVariableExist name'
-                when exist $ throwError (BoundVariable info name')
-                insertVar name' expected
-                return $ Tc.NoInit name'
-            Par.Init _ name expr -> do
-                let name' = convert name
-                exist <- doesVariableExist name'
-                when exist $ throwError (BoundVariable info name')
-                (ty, expr') <- infExpr expr
-                ty' <- unify info expected ty
-                insertVar name' ty
-                return $ Tc.Init name' (ty', expr')
-    Par.Ass info ident expr -> do
-        identTy <-  lookupVar ident >>= \case
-            Nothing -> throwError (UnboundVariable info (convert ident))
-            Just ty -> return ty
-        (ty, expr') <- infExpr expr
-        ty' <- unify info identTy ty
-        return (Just (Tc.Ass (convert ident) (ty', expr')))
-    Par.Incr info var -> do
-        typ <- getVar var
-        unless (isInt typ) (throwError $ ExpectedType info Tc.Int typ)
-        errNotNumber info typ
-        return (Just (Tc.Incr typ (convert var)))
-    Par.Decr info var -> do
-        typ <- getVar var
-        errNotNumber info typ
-        return (Just (Tc.Decr typ (convert var)))
-    Par.Ret info expr -> do
-        (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
-        (ty, expr') <- infExpr expr
-        ty' <- unify info (convert rt) ty
-        return (Just (Tc.Ret (ty', expr')))
-    Par.VRet pos -> do
-        (Par.FnDef _ rt _ _ _) <- asks (head . defStack)
-        unless (isVoid (convert rt)) $
-            throwError (IllegalEmptyReturn pos (convert rt))
-        return (Just Tc.VRet)
-    Par.Cond _ cond stmt -> do
-        cond' <- infExpr cond
-        errNotBoolean (hasInfo cond) (typeOf cond')
-        stmt' <- infStmt stmt
-        let statement = fromMaybe (Tc.BStmt []) stmt'
-        return $ Just (Tc.Cond cond' statement)
-    Par.CondElse _ cond stmt1 stmt2 -> do
-        cond' <- infExpr cond
-        errNotBoolean (hasInfo cond) (typeOf cond')
-        stmt1' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt1
-        stmt2' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt2
-        return (Just (Tc.CondElse cond' stmt1' stmt2'))
-    Par.While _ cond stmt -> do
-        cond' <- infExpr cond
-        errNotBoolean (hasInfo cond) (typeOf cond')
-        stmt' <- fromMaybe (Tc.BStmt []) <$> infStmt stmt
-        return (Just (Tc.While cond' stmt'))
-    Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
-    Par.SExp info expr -> throwError (NotStatement info expr)
-    Par.Break _ -> return $ Just Tc.Break
+tcStmt :: Tc.Type -> Par.Stmt -> TcM (Maybe Tc.Stmt)
+tcStmt retTy = go
+  where
+    go :: Par.Stmt -> TcM (Maybe Tc.Stmt)
+    go s = case s of
+        Par.Empty _ -> return Nothing
+        Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM go stmts
+        Par.Decl info typ items -> do
+            let typ' = convert typ
+            when (isVoid typ') (throwError $ VoidDeclare info s)
+            Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
+          where
+            tcItem :: Par.SynInfo -> Tc.Type -> Par.Item -> TcM Tc.Item
+            tcItem info expected = \case
+                Par.NoInit _ name -> do
+                    let name' = convert name
+                    exist <- doesVariableExist name'
+                    when exist $ throwError (BoundVariable info name')
+                    insertVar name' expected
+                    return $ Tc.NoInit name'
+                Par.Init _ name expr -> do
+                    let name' = convert name
+                    exist <- doesVariableExist name'
+                    when exist $ throwError (BoundVariable info name')
+                    (ty, expr') <- infExpr expr
+                    ty' <- unify info expected ty
+                    insertVar name' ty
+                    return $ Tc.Init name' (ty', expr')
+        Par.Ass info ident expr -> do
+            identTy <- getVar ident
+            (ty, expr') <- infExpr expr
+            ty' <- unify info identTy ty
+            return (Just (Tc.Ass (convert ident) (ty', expr')))
+        Par.Incr info var -> do
+            typ <- getVar var
+            unless (isInt typ) (throwError $ ExpectedType info Tc.Int typ)
+            errNotNumber info typ
+            return (Just (Tc.Incr typ (convert var)))
+        Par.Decr info var -> do
+            typ <- getVar var
+            errNotNumber info typ
+            return (Just (Tc.Incr typ (convert var)))
+        Par.Ret info expr -> do
+            (ty, expr') <- infExpr expr
+            ty' <- unify info retTy ty
+            return (Just (Tc.Ret (ty', expr')))
+        Par.VRet pos -> do
+            unless (isVoid retTy) $ throwError (IllegalEmptyReturn pos retTy)
+            return (Just Tc.VRet)
+        Par.Cond _ cond stmt -> do
+            cond' <- infExpr cond
+            errNotBoolean (hasInfo cond) (typeOf cond')
+            stmt' <- go stmt
+            let statement = fromMaybe (Tc.BStmt []) stmt'
+            return $ Just (Tc.Cond cond' statement)
+        Par.CondElse _ cond stmt1 stmt2 -> do
+            cond' <- infExpr cond
+            errNotBoolean (hasInfo cond) (typeOf cond')
+            stmt1' <- fromMaybe (Tc.BStmt []) <$> go stmt1
+            stmt2' <- fromMaybe (Tc.BStmt []) <$> go stmt2
+            return (Just (Tc.CondElse cond' stmt1' stmt2'))
+        Par.While _ cond stmt -> do
+            cond' <- infExpr cond
+            errNotBoolean (hasInfo cond) (typeOf cond')
+            stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
+            return (Just (Tc.While cond' stmt'))
+        Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
+        Par.SExp info expr -> throwError (NotStatement info expr)
+        Par.Break _ -> return $ Just Tc.Break
 
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
