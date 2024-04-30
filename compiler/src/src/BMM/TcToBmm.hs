@@ -4,130 +4,112 @@ module BMM.TcToBmm (bmm) where
 
 import BMM.Bmm
 import BMM.StringToTop (moveStringsToTop)
-import Data.Text (Text)
 import Frontend.Tc.Types qualified as T
 import Utils (for)
 
 bmm :: T.Prog -> Prog
-bmm = toBmm
+bmm (T.Program defs) = moveStringsToTop $ Program (map bmmDef defs)
 
-class ToBmm a b where
-    toBmm :: a -> b
+bmmDef :: T.TopDef -> TopDef
+bmmDef (T.FnDef t id args stmts) =
+    FnDef
+        (bmmType t)
+        (bmmId id)
+        (map bmmArg args)
+        (bmmStmts stmts)
 
-instance ToBmm T.Prog Prog where
-    toBmm (T.Program defs) = moveStringsToTop $ Program (map toBmm defs)
+bmmId :: T.Id -> Id
+bmmId (T.Id t) = Id t
 
-instance ToBmm T.TopDef TopDef where
-    toBmm :: T.TopDef -> TopDef
-    toBmm (T.FnDef t id args stmts) =
-        FnDef
-            (toBmm t)
-            (toBmm id)
-            (map toBmm args)
-            (toBmm stmts)
+bmmType :: T.Type -> Type
+bmmType T.String = String
+bmmType T.Int = Int
+bmmType T.Double = Double
+bmmType T.Void = Void
+bmmType T.Boolean  = Boolean
+bmmType (T.TVar id) = TVar (bmmId id)
+bmmType (T.Fun t ts) = Fun (bmmType t) (map bmmType ts)
 
-instance ToBmm T.Id Id where
-    toBmm :: T.Id -> Id
-    toBmm (T.Id t) = Id t
+bmmArg :: T.Arg -> Arg
+bmmArg (T.Argument t id) = Argument (bmmType t) (bmmId id)
 
-instance ToBmm T.Type Type where
-    toBmm :: T.Type -> Type
-    toBmm T.String = String
-    toBmm T.Int = Int
-    toBmm T.Double = Double
-    toBmm T.Void = Void
-    toBmm T.Boolean  = Boolean
-    toBmm (T.TVar id) = TVar (toBmm id)
-    toBmm (T.Fun t ts) = Fun (toBmm t) (map toBmm ts)
-
-instance ToBmm T.Arg Arg where
-    toBmm :: T.Arg -> Arg
-    toBmm (T.Argument t id) = Argument (toBmm t) (toBmm id)
-
-instance ToBmm [T.Stmt] [Stmt] where
-    toBmm :: [T.Stmt] -> [Stmt]
-    toBmm s = concat . for s $ \case
-        T.BStmt stmts -> [BStmt (toBmm stmts)]
-        T.Decl t items -> concatMap (itemDeclToBmm t) items
-        T.Ass id expr -> [Ass (toBmm id) (toBmm expr)]
-        T.Incr t id ->
-            [ Ass
-                (toBmm id)
-                ( toBmm t
-                , EAdd
-                    (toBmm t, EVar (toBmm id))
-                    Plus
-                    (toBmm t, ELit (LitInt 1))
-                )
-            ]
-        T.Decr t id ->
-            [ Ass
-                (toBmm id)
-                ( toBmm t
-                , EAdd
-                    (toBmm t, EVar (toBmm id))
-                    Minus
-                    (toBmm t, ELit (LitInt 1))
-                )
-            ]
-        T.Ret e -> [Ret . Just . toBmm $ e]
-        T.VRet -> [Ret Nothing]
-        T.Cond e s -> [CondElse (toBmm e) (toBmm [s]) []]
-        T.CondElse e s1 s2 -> [CondElse (toBmm e) (toBmm [s1]) (toBmm [s2])]
-        T.While e s -> [Loop (toBmm e) (toBmm [s])]
-        T.SExp e -> [SExp (toBmm e)]
-        T.Break -> [Break]
+bmmStmts :: [T.Stmt] -> [Stmt]
+bmmStmts s = concat . for s $ \case
+    T.BStmt stmts -> [BStmt (bmmStmts stmts)]
+    T.Decl t items -> concatMap (itemDeclToBmm t) items
+    T.Ass id expr -> [Ass (bmmId id) (bmmExpr expr)]
+    T.Incr t id ->
+        [ Ass
+            (bmmId id)
+            ( bmmType t
+            , EAdd
+                (bmmType t, EVar (bmmId id))
+                Plus
+                (bmmType t, ELit (LitInt 1))
+            )
+        ]
+    T.Decr t id ->
+        [ Ass
+            (bmmId id)
+            ( bmmType t
+            , EAdd
+                (bmmType t, EVar (bmmId id))
+                Minus
+                (bmmType t, ELit (LitInt 1))
+            )
+        ]
+    T.Ret e -> [Ret . Just . bmmExpr $ e]
+    T.VRet -> [Ret Nothing]
+    T.Cond e s -> [CondElse (bmmExpr e) (bmmStmts [s]) []]
+    T.CondElse e s1 s2 -> [CondElse (bmmExpr e) (bmmStmts [s1]) (bmmStmts [s2])]
+    T.While e s -> [Loop (bmmExpr e) (bmmStmts [s])]
+    T.SExp e -> [SExp (bmmExpr e)]
+    T.Break -> [Break]
 
 itemDeclToBmm :: T.Type -> T.Item -> [Stmt]
 itemDeclToBmm t = \case
-    T.NoInit id -> [Decl (toBmm t) (toBmm id)]
-    T.Init id' expr -> let id = toBmm id' in [Decl (toBmm t) id, Ass id (toBmm expr)]
+    T.NoInit id -> [Decl (bmmType t) (bmmId id)]
+    T.Init id' expr -> let id = bmmId id' in [Decl (bmmType t) id, Ass id (bmmExpr expr)]
 
-instance ToBmm T.Expr Expr where
-    toBmm :: T.Expr -> Expr
-    toBmm (t, e) = (toBmm t, toBmm e)
+bmmExpr :: T.Expr -> Expr
+bmmExpr (ty, e) = (bmmType ty, go e)
+  where
+    go e = case e of
+        T.EVar i -> EVar (bmmId i)
+        T.ELit l -> ELit (bmmLit l)
+        T.EApp i e -> EApp (bmmId i) (map bmmExpr e)
+        T.Neg e -> Neg (bmmExpr e)
 
-instance ToBmm T.Expr' Expr' where
-    toBmm = \case
-        T.EVar i -> EVar (toBmm i)
-        T.ELit l -> ELit (toBmm l)
-        T.EApp i e -> EApp (toBmm i) (map toBmm e)
-        T.Neg e -> Neg (toBmm e)
+        T.Not e -> Not (bmmExpr e)
+        T.EMul e1 op e2 -> EMul (bmmExpr e1) (bmmMulOp op) (bmmExpr e2)
+        T.EAdd e1 op e2 -> EAdd (bmmExpr e1) (bmmAddOp op) (bmmExpr e2)
+        T.ERel e1 op e2 -> ERel (bmmExpr e1) (bmmRelOp op) (bmmExpr e2)
+        T.EAnd e1 e2 -> EAnd (bmmExpr e1) (bmmExpr e2)
+        T.EOr e1 e2 -> EOr (bmmExpr e1) (bmmExpr e2)
 
-        T.Not e -> Not (toBmm e)
-        T.EMul e1 op e2 -> EMul (toBmm e1) (toBmm op) (toBmm e2)
-        T.EAdd e1 op e2 -> EAdd (toBmm e1) (toBmm op) (toBmm e2)
-        T.ERel e1 op e2 -> ERel (toBmm e1) (toBmm op) (toBmm e2)
-        T.EAnd e1 e2 -> EAnd (toBmm e1) (toBmm e2)
-        T.EOr e1 e2 -> EOr (toBmm e1) (toBmm e2)
+bmmLit :: T.Lit -> Lit
+bmmLit = \case
+    T.LitInt v -> LitInt v
+    T.LitDouble v -> LitDouble v
+    T.LitBool v -> LitBool v
+    T.LitString v -> LitString v
 
-instance ToBmm T.Lit Lit where
-    toBmm :: T.Lit -> Lit
-    toBmm = \case
-        T.LitInt v -> LitInt v
-        T.LitDouble v -> LitDouble v
-        T.LitBool v -> LitBool v
-        T.LitString v -> LitString v
+bmmAddOp :: T.AddOp -> AddOp
+bmmAddOp = \case
+    T.Plus -> Plus
+    T.Minus -> Minus
 
-instance ToBmm T.AddOp AddOp where
-    toBmm :: T.AddOp -> AddOp
-    toBmm = \case
-        T.Plus -> Plus
-        T.Minus -> Minus
+bmmMulOp :: T.MulOp -> MulOp
+bmmMulOp = \case
+    T.Times -> Times
+    T.Div -> Div
+    T.Mod -> Mod
 
-instance ToBmm T.MulOp MulOp where
-    toBmm :: T.MulOp -> MulOp
-    toBmm = \case
-        T.Times -> Times
-        T.Div -> Div
-        T.Mod -> Mod
-
-instance ToBmm T.RelOp RelOp where
-    toBmm :: T.RelOp -> RelOp
-    toBmm = \case
-        T.LTH -> LTH
-        T.LE -> LE
-        T.GTH -> GTH
-        T.GE -> GE
-        T.EQU -> EQU
-        T.NE -> NE
+bmmRelOp :: T.RelOp -> RelOp
+bmmRelOp = \case
+    T.LTH -> LTH
+    T.LE -> LE
+    T.GTH -> GTH
+    T.GE -> GE
+    T.EQU -> EQU
+    T.NE -> NE
