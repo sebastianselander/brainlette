@@ -76,10 +76,7 @@ braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of
     B.BStmt block -> mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> do
-        let var = Variable i
-            ty = braingenType t
-        alloca var ty
-        store (ConstArgument (Just ty) (defaultValue ty)) var
+        output $ Alloca (Variable i) (braingenType t)
     B.Ass (B.Id a) expr@(t, _) -> do
         result <- braingenExpr expr
         store (Argument (pure $ braingenType t) result) (Variable a)
@@ -124,18 +121,6 @@ braingenStm breakpoint stmt = case stmt of
                 Nothing ->
                     error "break outside loop, report as INSERT BUG HERE :)"
         jump bp
-
-defaultValue :: Type -> Lit
-defaultValue = \case
-    I32 -> LitInt 0
-    I1 -> LitInt 1
-    I8 -> LitInt 0
-    F64 -> LitDouble 0
-    Ptr -> LitNull
-    Void -> LitNull
-    FunPtr _ _ -> LitNull
-    Array _ _ -> LitNull
-    CustomType _ -> LitNull
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
