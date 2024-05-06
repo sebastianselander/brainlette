@@ -32,62 +32,71 @@ moveStringsToTop =
 fixProg :: Prog -> St Prog
 fixProg (Program td) = do
     td <- mapM fixTopDef td
-    pure $ Program td
+    return $ Program td
 
 fixTopDef :: TopDef -> St TopDef
 fixTopDef = \case
-    a@StringGlobal {} -> pure a
+    a@StringGlobal {} -> return a
+    a@StructDef {} -> return a
     FnDef t i args stmts -> do
         stmts <- mapM fixStmt stmts
-        pure $ FnDef t i args stmts
+        return $ FnDef t i args stmts
 
 fixStmt :: Stmt -> St Stmt
 fixStmt = \case
     BStmt stmts -> BStmt <$> mapM fixStmt stmts
-    Decl t i -> pure $ Decl t i
-    Ass i e -> Ass i <$> fixExpr e
+    Decl t i -> return $ Decl t i
+    Ass ty i e -> Ass ty i <$> fixExpr e
     Ret (Just e) -> Ret . Just <$> fixExpr e
-    Ret Nothing -> pure $ Ret Nothing
+    Ret Nothing -> return $ Ret Nothing
     CondElse e s1 s2 ->
         (CondElse <$> fixExpr e)
             <*> mapM fixStmt s1
             <*> mapM fixStmt s2
     Loop expr stmts -> Loop <$> fixExpr expr <*> mapM fixStmt stmts
     SExp e -> SExp <$> fixExpr e
-    Break -> pure Break
+    Break -> return Break
 
 fixExpr :: Expr -> St Expr
 fixExpr (t, e) = case e of
-    EGlobalVar {} -> return (t,e)
+    ENew {} -> return (t, e)
+    EGlobalVar {} -> return (t, e)
     ELit (LitString str) -> do
         var <- addString str
-        pure (t, EGlobalVar (Id var))
-    i@EVar {} -> pure (t, i)
-    i@ELit {} -> pure (t, i)
+        return (t, EGlobalVar (Id var))
+    i@EVar {} -> return (t, i)
+    i@ELit {} -> return (t, i)
     EApp i es -> (t,) . EApp i <$> mapM fixExpr es
     Not e -> (t,) . Not <$> fixExpr e
     Neg e -> (t,) . Neg <$> fixExpr e
     EMul e1 op e2 -> do
         e1 <- fixExpr e1
         e2 <- fixExpr e2
-        pure (t, EMul e1 op e2)
+        return (t, EMul e1 op e2)
     EAdd e1 op e2 -> do
         e1 <- fixExpr e1
         e2 <- fixExpr e2
-        pure (t, EAdd e1 op e2)
+        return (t, EAdd e1 op e2)
     ERel e1 op e2 -> do
         e1 <- fixExpr e1
         e2 <- fixExpr e2
-        pure (t, ERel e1 op e2)
+        return (t, ERel e1 op e2)
     EAnd e1 e2 -> do
         e1 <- fixExpr e1
         e2 <- fixExpr e2
-        pure (t, EAnd e1 e2)
+        return (t, EAnd e1 e2)
     EOr e1 e2 -> do
         e1 <- fixExpr e1
         e2 <- fixExpr e2
-        pure (t, EOr e1 e2)
+        return (t, EOr e1 e2)
     Cast e -> (t,) . Cast <$> fixExpr e
+    EIndex v i -> do
+        v <- fixExpr v
+        i <- fixExpr i
+        return (t, EIndex v i)
+    EArray es -> (t,) . EArray <$> mapM fixExpr es
+    Neg expr -> (t,) . Neg <$> fixExpr expr
+    Deref expr field -> (t,) <$> (Deref <$> fixExpr expr <*> return field)
 
 --- aux fucns ---
 addString :: Text -> St Text
@@ -97,4 +106,4 @@ addString text = do
     let count = counter state
     let newState = state {strings = strs, counter = count + 1}
     put newState
-    pure $ name count
+    return $ name count

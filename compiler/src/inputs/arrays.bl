@@ -1,0 +1,5 @@
+void main() {
+    int[] x = [1,2,3,4];
+    int y = x[2];
+    printInt(y);
+}

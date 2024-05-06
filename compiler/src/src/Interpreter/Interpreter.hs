@@ -10,6 +10,7 @@ import Control.Monad.State
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Text (Text)
+import Utils (todo)
 
 newtype Ctx = Ctx {functions :: Map Id (Type, [Arg], [Stmt])}
 
@@ -34,11 +35,12 @@ interpretStmt :: Stmt -> RunM ()
 interpretStmt = \case
     BStmt stmts -> withBlock (mapM_ interpretStmt stmts)
     Decl _ id -> insertVar id Null
-    Ass id expr -> interpretExpr expr >>= insertVar id
-    Ret _ -> undefined
-    CondElse {} -> undefined
-    Loop _ _ -> undefined
-    SExp _ -> undefined
+    Ass _ (LVar id) expr -> interpretExpr expr >>= insertVar id
+    Ass _ _ expr -> todo
+    Ret mbyExpr -> undefined
+    CondElse expr stmts1 stmts2 -> undefined
+    Loop e stmts -> undefined
+    SExp expr -> undefined
     Break -> undefined
 
 interpretExpr :: Expr -> RunM Value

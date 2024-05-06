@@ -11,10 +11,12 @@ data TailMarker = Tail | MustTail | NoTail
 
 data Type
     = I32
+    | I64
     | I1
     | I8
     | F64
     | Ptr
+    | RawPtr Type
     | Void
     | FunPtr Type [Type]
     | Array Int Type
@@ -43,6 +45,7 @@ data TopDef
     | Define Type Text [Argument] (Maybe CallingConvention) [Stmt]
     | Constant Text Type Lit
     | ConstantString Text Text
+    | Type Text [Type]
     deriving (Show)
 
 data Arithmetic
@@ -114,6 +117,7 @@ data Stmt
     | And Variable Type Argument Argument
     | Fneg Variable Type Argument
     | Or Variable Type Argument Argument
+    | GetElementPtr Variable Type Argument Argument
     | Alloca Variable Type
     | Store Argument Variable
     | Load Variable Type Variable

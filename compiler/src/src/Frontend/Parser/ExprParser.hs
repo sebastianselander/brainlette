@@ -1,23 +1,28 @@
 {-# LANGUAGE LambdaCase #-}
+
 module Frontend.Parser.ExprParser where
 
 import Frontend.Parser.Language
-    ( identifier,
-      integer,
+    ( commaSep,
       float,
-      stringLiteral,
+      identifier,
+      info,
+      integer,
       parens,
       reserved,
       reservedOp,
-      commaSep,
-      info )
+      stringLiteral,
+      upper,
+    )
 import Frontend.Parser.ParserTypes
-import Text.Parsec ( choice, try)
+import Frontend.Parser.TypeParser (typ)
+import Text.Parsec (choice, optionMaybe, try)
 import Text.Parsec.Expr
-    ( buildExpressionParser,
-      Assoc(AssocLeft, AssocNone),
-      Operator(Infix, Prefix) )
-import Prelude hiding (id, length, take)
+    ( Assoc (AssocLeft, AssocNone),
+      Operator (Infix, Prefix),
+      buildExpressionParser,
+    )
+import Prelude hiding (id, length, null, take)
 
 --
 id :: Parser Id
@@ -38,6 +43,12 @@ true = ELitTrue . fst <$> info (reserved "true")
 false :: Parser Expr
 false = ELitFalse . fst <$> info (reserved "false")
 
+null :: Parser Expr
+null = uncurry ELitNull <$> info (optionMaybe (parens typ) <* reserved "null")
+
+new :: Parser Expr
+new = uncurry ENew <$> info (reserved "new" *> (uncurry Id <$> info upper))
+
 app :: Parser Expr
 app = do
     (info, (name, args)) <- info $ do
@@ -52,22 +63,24 @@ string = uncurry EString <$> info stringLiteral
 atom :: Parser Expr
 atom =
     choice
-        [ try (parens expr)
+        [ try null
         , try double
         , try int
         , try false
         , try true
         , try string
         , try app
-        , var
+        , try new
+        , try var
+        , parens expr
         ]
-
 
 expr :: Parser Expr
 expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
-        [
+        [ [Infix (EDeref . fst <$> info (reservedOp "->")) AssocLeft]
+        ,
             [ Prefix (Neg . fst <$> info (reservedOp "-"))
             , Prefix (Not . fst <$> info (reservedOp "!"))
             ]
@@ -105,14 +118,17 @@ putInfo i = \case
     EVar _ a -> EVar i a
     ELitInt _ a -> ELitInt i a
     ELitDouble _ a -> ELitDouble i a
-    ELitTrue _  -> ELitTrue i
-    ELitFalse _  -> ELitFalse i
-    EApp _  a b -> EApp i a b
-    EString _  a -> EString i a
-    Neg _  a -> Neg i a
-    Not _  a -> Not i a
-    EMul _  a b c -> EMul i a b c
-    EAdd _  a b c -> EAdd i a b c
-    ERel _  a b c -> ERel i a b c
-    EAnd _  a b -> EAnd i a b
-    EOr _  a b -> EOr i a b
+    ELitTrue _ -> ELitTrue i
+    ELitFalse _ -> ELitFalse i
+    ELitNull _ ty -> ELitNull i ty
+    EString _ a -> EString i a
+    EDeref _ a b -> EDeref i a b
+    EApp _ a b -> EApp i a b
+    Neg _ a -> Neg i a
+    Not _ a -> Not i a
+    EMul _ a b c -> EMul i a b c
+    EAdd _ a b c -> EAdd i a b c
+    ERel _ a b c -> ERel i a b c
+    EAnd _ a b -> EAnd i a b
+    EOr _ a b -> EOr i a b
+    ENew _ a -> ENew i a

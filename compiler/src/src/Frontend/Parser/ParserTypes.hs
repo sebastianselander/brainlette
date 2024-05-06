@@ -1,14 +1,14 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Frontend.Parser.ParserTypes where
 
-import Data.Text (Text, cons, intercalate, pack, replicate, unlines, unwords)
+import Data.Text (Text, concat, cons, intercalate, pack, replicate, unlines, unwords)
 import GHC.Generics
 import Text.Parsec (Parsec)
-import Prelude hiding (replicate, unlines, unwords)
+import Utils (Pretty (..))
+import Prelude hiding (concat, replicate, unlines, unwords)
 
 type Parser a = Parsec Text () a
 
@@ -53,7 +53,10 @@ type Id = Id' SynInfo
 data Prog' a = Program a [TopDef' a]
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
-data TopDef' a = FnDef a (Type' a) (Id' a) [Arg' a] [Stmt' a]
+data TopDef' a
+    = FnDef a (Type' a) (Id' a) [Arg' a] [Stmt' a]
+    | StructDef a (Id' a) [Arg' a]
+    | TypeDef a (Id' a) (Id' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
 data Arg' a = Argument a (Type' a) (Id' a)
@@ -66,7 +69,7 @@ data Stmt' a
     = Empty a
     | BStmt a [Stmt' a]
     | Decl a (Type' a) [Item' a]
-    | Ass a (Id' a) (Expr' a)
+    | Ass a (Expr' a) (Expr' a)
     | Incr a (Id' a)
     | Decr a (Id' a)
     | Ret a (Expr' a)
@@ -81,11 +84,12 @@ data Stmt' a
 data Type' a
     = TVar a (Id' a)
     | Fun a (Type' a) [Type' a]
+    | String a
     | Int a
     | Double a
-    | String a
-    | Boolean a
     | Void a
+    | Boolean a
+    | Pointer a (Type' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
 data Expr' a
@@ -94,8 +98,11 @@ data Expr' a
     | ELitDouble a Double
     | ELitTrue a
     | ELitFalse a
-    | EApp a (Id' a) [Expr' a]
+    | ELitNull a (Maybe (Type' a))
     | EString a Text
+    | ENew a (Id' a)
+    | EDeref a (Expr' a) (Expr' a)
+    | EApp a (Id' a) [Expr' a]
     | Neg a (Expr' a)
     | Not a (Expr' a)
     | EMul a (Expr' a) (MulOp' a) (Expr' a)
@@ -128,26 +135,6 @@ data RelOp' a
 data Id' a = Id a Text
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
-
-class Pretty a where
-    {-# MINIMAL pretty #-}
-    pretty :: Int -> a -> Text
-
-    parenthesis :: Int -> a -> Text
-    parenthesis n a = "(" <> pretty n a <> ")"
-
-    indent :: Int -> a -> Text
-    indent n a = replicate (n * 4) " " <> pretty n a
-
-    commaSeparated :: Int -> [a] -> Text
-    commaSeparated n = intercalate ", " . map (pretty n)
-
-    semi :: Int -> a -> Text
-    semi n a = pretty n a <> ";"
-
-instance Pretty Text where
-    pretty _ t = t
-
 instance Pretty RelOp where
     pretty _ = \case
         LTH _ -> "<"
@@ -176,8 +163,10 @@ instance Pretty Expr where
         ELitDouble _ n -> pack $ show n
         ELitTrue _ -> "true"
         ELitFalse _ -> "false"
-        EApp _ i exprs -> pretty n i <> parenthesis n (intercalate ", " $ map (pretty n) exprs)
+        ELitNull _ ty -> maybe "" (pretty n) ty <> "null"
         EString _ txt -> pretty n txt
+        EDeref _ left right -> parenthesis n $ concat [pretty n left, "->", pretty n right]
+        EApp _ i exprs -> pretty n i <> parenthesis n (intercalate ", " $ map (pretty n) exprs)
         Neg _ expr -> '-' `cons` pretty n expr
         Not _ expr -> '!' `cons` pretty n expr
         EMul _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
@@ -185,6 +174,7 @@ instance Pretty Expr where
         ERel _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
         EAnd _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
         EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
+        ENew _ a -> pretty n $ unwords ["new", pretty n a]
 
 instance Pretty Type where
     pretty n (String _) = replicate n " " <> "string"
@@ -194,13 +184,14 @@ instance Pretty Type where
     pretty n (Boolean _) = replicate n " " <> "boolean"
     pretty n (TVar _ ident) = pretty n ident
     pretty n (Fun _ ret args) = pretty n ret <> parenthesis n (intercalate ", " $ map (pretty n) args)
+    pretty n (Pointer _ ty) = pretty n ty <> "*"
 
 instance Pretty Stmt where
     pretty n = \case
         Empty _ -> ""
         BStmt _ stmts -> "{\n" <> unlines (map (indent (n + 1)) stmts) <> "\n" <> indent @Text n "}"
         Decl _ ty items -> semi n $ unwords [pretty n ty, intercalate ", " $ map (pretty n) items]
-        Ass _ ident expr -> semi n $ unwords [pretty n ident, "=", pretty n expr]
+        Ass _ lv expr -> semi n $ unwords [pretty n lv, "=", pretty n expr]
         Incr _ ident -> pretty n ident <> "++"
         Decr _ ident -> pretty n ident <> "--"
         Ret _ expr -> semi n $ unwords ["return", pretty n expr]
@@ -220,13 +211,23 @@ instance Pretty Arg where
     pretty n (Argument _ ty ident) = unwords [pretty n ty, pretty n ident]
 
 instance Pretty TopDef where
+    pretty n (StructDef _ ident fields) =
+        concat
+            [ "struct "
+            , pretty n ident
+            , " {\n"
+            , unlines (map ((<> ";") . indent n) fields)
+            , "};"
+            ]
     pretty n (FnDef _ ty ident args stmts) =
         unwords
             [ pretty n ty
             , pretty n ident
             , parenthesis n $ commaSeparated n args
-            , "{\n" <> unlines (map (indent n) stmts) <> "\n}"
+            , "{\n" <> unlines (map (indent n) stmts) <> "}"
             ]
+    pretty n (TypeDef _ t1 t2) =
+        concat ["typedef struct ", pretty n t1, " *", pretty n t2, ";"]
 
 instance Pretty Prog where
     pretty n (Program _ xs) = go xs

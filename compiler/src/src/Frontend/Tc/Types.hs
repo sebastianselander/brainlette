@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
 module Frontend.Tc.Types where
 
 import Data.String (IsString)
@@ -8,16 +6,22 @@ import Data.Text (Text)
 newtype Prog = Program [TopDef]
     deriving (Eq, Ord, Show, Read)
 
-data TopDef = FnDef Type Id [Arg] [Stmt]
+data TopDef
+    = FnDef Type Id [Arg] [Stmt]
+    | StructDef Id [Arg]
+    | TypeDef Type Id
     deriving (Eq, Ord, Show, Read)
 
 data Arg = Argument Type Id
     deriving (Eq, Ord, Show, Read)
 
+data LValue = LVar Id | LDeref Expr Id
+    deriving (Eq, Ord, Show, Read)
+
 data Stmt
     = BStmt [Stmt]
     | Decl Type [Item]
-    | Ass Id Expr
+    | Ass Type LValue Expr
     | Incr Type Id
     | Decr Type Id
     | Ret Expr
@@ -35,26 +39,31 @@ data Item = NoInit Id | Init Id Expr
 data Type
     = TVar Id
     | Fun Type [Type]
+    | String
     | Int
     | Double
-    | String
-    | Void
     | Boolean
+    | Void
+    | Pointer Type
     deriving (Eq, Ord, Show, Read)
 
 type Expr = (Type, Expr')
 
 data Expr'
     = EVar Id
+    | ENew Id
     | ELit Lit
     | EApp Id [Expr]
     | Neg Expr
     | Not Expr
+    | Deref Expr Id
     | EMul Expr MulOp Expr
     | EAdd Expr AddOp Expr
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
+    | EIndex Expr Expr
+    | EArray [Expr]
     deriving (Eq, Ord, Show, Read)
 
 data Lit
@@ -62,6 +71,7 @@ data Lit
     | LitDouble Double
     | LitBool Bool
     | LitString Text
+    | LitNull
     deriving (Eq, Ord, Show, Read)
 
 data AddOp = Plus | Minus

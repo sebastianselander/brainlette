@@ -5,3 +5,4 @@ dist-newstyle/
 tester/jlc.tar.gz
 tester/output.tmp
 .ccls-cache
+compiler/src/brainlette
