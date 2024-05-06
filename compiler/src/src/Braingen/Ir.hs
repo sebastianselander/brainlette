@@ -259,18 +259,16 @@ braingenExpr (ty, e) = case e of
     B.ENew vals -> do
         let size = foldr ((+) . sizeOf . braingenType . fst) 0 vals
         var1 <- getTempVariable
-        output $ Call var1 Nothing Nothing Ptr "malloc" [ConstArgument (Just I64) (LitInt size)]
+        malloc var1 size
 
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
-            output $
-                GetElementPtr
-                    ptr
-                    (braingenType t)
-                    (Argument (Just . braingenType $ ty) var1)
-                    (ConstArgument (Just I64) (LitInt i))
-            output $
-                Store (ConstArgument (Just $ braingenType t) (lit v)) ptr
+            getElementPtr
+                ptr
+                (braingenType t)
+                (Argument (Just . braingenType $ ty) var1)
+                (ConstArgument (Just I64) (LitInt i))
+            store (ConstArgument (Just $ braingenType t) (lit v)) ptr
 
         return var1
     B.Deref e i -> do
@@ -291,7 +289,7 @@ braingenExpr (ty, e) = case e of
         let size = sizeOf t' * arrSize
 
         addr <- getTempVariable
-        call addr Nothing Nothing Ptr "malloc" [ConstArgument (Just I64) (LitInt size)]
+        malloc addr size
 
         array <- getTempVariable
         alloca array (CustomType "Array")

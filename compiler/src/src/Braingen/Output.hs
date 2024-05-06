@@ -135,6 +135,7 @@ instance OutputIr Stmt where
                 ]
         Label text -> text <> ":"
         Alloca v t -> concat [out v <> " = alloca ", out t]
+        Malloc v s -> concat [out v <> " = call ptr @malloc(i64 ", thow s, ")"]
         Store val var -> concat ["store ", out val, ", ptr ", out var]
         Load var t ptr -> concat [out var, " = load ", out t, ", ptr ", out ptr]
         Br cond l1 l2 -> concat ["br i1 ", out cond, ", label %", l1, ", label %", l2]
