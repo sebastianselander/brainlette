@@ -87,6 +87,7 @@ data Type
     | Int
     | Fun Type [Type]
     | Pointer Type
+    | Array Type
     deriving (Show)
 
 instance Pretty Type where
@@ -100,6 +101,7 @@ instance Pretty Type where
         Int -> "I32"
         Fun rt ts -> [i|(#{commaSeparated 0 ts}) -> #{pretty 0 rt}|]
         Pointer t -> "*" <> pretty 0 t
+        Array t -> pretty 0 t <> "[]"
 
 type Expr = (Type, Expr')
 
