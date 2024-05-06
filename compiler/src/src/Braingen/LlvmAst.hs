@@ -130,6 +130,7 @@ data Stmt
     | Jump Label
     | Cast CastOp Variable Type Variable Type
     | Unreachable
+    | ExtractValue Variable Type Variable Integer
     deriving (Show)
 
 data Lit

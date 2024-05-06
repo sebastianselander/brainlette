@@ -86,11 +86,7 @@ braingenStm breakpoint stmt = case stmt of
         b <- braingenExpr b
         i <- braingenExpr i
         arrayPtr <- getTempVariable
-        getElementPtr
-            arrayPtr
-            ty'
-            (Argument (Just Ptr) b)
-            (ConstArgument (Just I64) (LitInt 0))
+        extractValue arrayPtr (CustomType "Array") b 0
 
         ptr <- getTempVariable
         getElementPtr
@@ -306,11 +302,7 @@ braingenExpr (ty, e) = case e of
         indexVar <- braingenExpr index
 
         arrayPtr <- getTempVariable
-        getElementPtr
-            arrayPtr
-            Ptr
-            (Argument (Just . CustomType $ "Array") baseVar)
-            (ConstArgument (Just I64) (LitInt 0))
+        extractValue arrayPtr (CustomType "Array") baseVar 0
 
         -- TODO: add bounds checking
 
