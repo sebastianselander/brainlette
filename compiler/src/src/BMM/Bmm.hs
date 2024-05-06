@@ -125,7 +125,7 @@ data Expr'
     | EAnd Expr Expr
     | EOr Expr Expr
     | ENew [(Type, Lit)]
-    | EAlloc Integer
+    | EAlloc (Either Integer [Expr])
     | Cast Expr
     | Deref Expr Int
     | EIndex Expr Expr
