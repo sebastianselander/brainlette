@@ -17,7 +17,6 @@ library brainlette-lib
   import:           warnings
   exposed-modules:
     BMM.Bmm
-    BMM.Optimize
     BMM.StringToTop
     BMM.TcToBmm
     Braingen.Ir
