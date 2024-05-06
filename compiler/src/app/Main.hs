@@ -42,14 +42,17 @@ main = do
         Left err -> errorExit err
         Right res -> return res
 
+
+
     ePutStrLn (pretty 0 res)
     res <- case branchCheck res of
         Left err -> errorExit err
         Right res -> return res
+    
 
-    ePutStrLn "\n--- Check output ---"
+    ePutStrLn "\n--- Branch check output ---"
 
-    ePrint res
+    ePutStrLn (pretty 0 res)
 
     res <- case tc res of
         Left err -> errorExit err
