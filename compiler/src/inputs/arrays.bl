@@ -1,5 +1,6 @@
 void main() {
     int[] z = new int[23];
+    z[2] = 56565;
     int y = z[2];
     printInt(y);
 }
