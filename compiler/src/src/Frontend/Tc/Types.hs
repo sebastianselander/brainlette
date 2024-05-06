@@ -52,7 +52,7 @@ type Expr = (Type, Expr')
 
 data Expr'
     = EVar Id
-    | ENew (Maybe Int)
+    | ENew (Maybe Integer)
     | ELit Lit
     | EApp Id [Expr]
     | Neg Expr

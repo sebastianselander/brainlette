@@ -101,7 +101,7 @@ data Expr' a
     | ELitFalse a
     | ELitNull a (Maybe (Type' a))
     | EString a Text
-    | ENew a (Type' a) (Maybe Int)
+    | ENew a (Type' a) (Maybe Integer)
     | EDeref a (Expr' a) (Expr' a)
     | EIndex a (Expr' a) (Expr' a)
     | EApp a (Id' a) [Expr' a]

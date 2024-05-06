@@ -52,7 +52,7 @@ new = do
         ident <- reserved "new" *> typ
         mby <- optionMaybe (brackets integer)
         return (ident, mby)
-    return $ ENew i ident (fromInteger <$> size)
+    return $ ENew i ident size
 
 app :: Parser Expr
 app = do
