@@ -12,9 +12,9 @@ import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
-import Frontend.Tc.Types qualified as Tc
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
+import Frontend.Tc.Types qualified as Tc
 
 data TypeInfo = TI
     { typedefs :: Map Tc.Type Tc.Type
@@ -154,6 +154,7 @@ bmmLValue = \case
                     $ elemIndex field fields
         expr' <- bmmExpr expr
         return $ LDeref expr' fieldIdx
+    Tc.LIndex base ind -> LIndex <$> bmmExpr base <*> bmmExpr ind
 
 itemDeclToBmm :: Tc.Type -> Tc.Item -> Bmm [Stmt]
 itemDeclToBmm t = \case
