@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Frontend.Parser.TypeParser where
@@ -6,7 +8,8 @@ import Data.Text (Text, unpack)
 import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
-import Text.Parsec hiding (upper, lower, string)
+import Text.Parsec hiding (lower, string, upper)
+import Text.Parsec.Expr (buildExpressionParser)
 import Utils (flat3)
 
 primType :: Text -> Parser Type
@@ -27,6 +30,24 @@ void = Void . fst <$> info (reserved (unpack "void"))
 boolean :: Parser Type
 boolean = Boolean . fst <$> info (reserved (unpack "boolean"))
 
+data Intermediate = Arr SynInfo | Poi SynInfo
+
+postfixTypes :: Parser Type
+postfixTypes = repair <$> buildExpressionParser table atom
+  where
+    table =
+        [
+            [ postfix (Array . fst <$> info (reservedOp "*" <|> reservedOp "[]"))
+            ]
+        ]
+    repair :: Type -> Type
+    repair = \case
+        Array info ty ->
+            if info.sourceCode == "[]"
+                then Pointer (info {sourceCode = "*"}) (repair ty)
+                else Array (info {sourceCode = "[]"}) (repair ty)
+        ty -> ty
+
 custom :: Parser Type
 custom = uncurry TVar <$> info (uncurry Id <$> info (upper <|> lower))
 
@@ -46,7 +67,4 @@ funTy :: Parser Type
 funTy = uncurry3 Fun . flat3 <$> info ((,) <$> atom <*> parens (commaSep typ))
 
 typ :: Parser Type
-typ = do
-    ty <- choice [try funTy, atom]
-    pointer <- option id (Pointer . fst <$> info (reservedOp "*"))
-    return (pointer ty)
+typ = choice [try funTy, try postfixTypes, atom]

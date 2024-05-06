@@ -7,7 +7,7 @@ module Frontend.Parser.ParserTypes where
 import Data.Text (Text, concat, cons, intercalate, pack, replicate, unlines, unwords)
 import GHC.Generics
 import Text.Parsec (Parsec)
-import Utils (Pretty (..))
+import Utils (Pretty (..), thow)
 import Prelude hiding (concat, replicate, unlines, unwords)
 
 type Parser a = Parsec Text () a
@@ -90,6 +90,7 @@ data Type' a
     | Void a
     | Boolean a
     | Pointer a (Type' a)
+    | Array a (Type' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
 
 data Expr' a
@@ -100,8 +101,9 @@ data Expr' a
     | ELitFalse a
     | ELitNull a (Maybe (Type' a))
     | EString a Text
-    | ENew a (Id' a)
+    | ENew a (Type' a) (Maybe Int)
     | EDeref a (Expr' a) (Expr' a)
+    | EIndex a (Expr' a) (Expr' a)
     | EApp a (Id' a) [Expr' a]
     | Neg a (Expr' a)
     | Not a (Expr' a)
@@ -174,7 +176,8 @@ instance Pretty Expr where
         ERel _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
         EAnd _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
         EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
-        ENew _ a -> pretty n $ unwords ["new", pretty n a]
+        ENew _ a size -> pretty n $ unwords ["new", pretty n a] <> maybe "" (\a -> "[" <> thow a <> "]") size
+        EIndex _ e1 e2 -> pretty n $ unwords [pretty n e1, "[" <> pretty n e2 <> "]"]
 
 instance Pretty Type where
     pretty n (String _) = replicate n " " <> "string"
@@ -185,6 +188,7 @@ instance Pretty Type where
     pretty n (TVar _ ident) = pretty n ident
     pretty n (Fun _ ret args) = pretty n ret <> parenthesis n (intercalate ", " $ map (pretty n) args)
     pretty n (Pointer _ ty) = pretty n ty <> "*"
+    pretty n (Array _ ty) = pretty n ty <> "[]"
 
 instance Pretty Stmt where
     pretty n = \case

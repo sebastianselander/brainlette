@@ -3,28 +3,28 @@
 module Frontend.Parser.ExprParser where
 
 import Frontend.Parser.Language
-    ( commaSep,
+    ( brackets,
+      commaSep,
       float,
       identifier,
       info,
       integer,
       parens,
+      prefix,
       reserved,
       reservedOp,
       stringLiteral,
-      upper,
     )
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.TypeParser (typ)
 import Text.Parsec (choice, optionMaybe, try)
 import Text.Parsec.Expr
     ( Assoc (AssocLeft, AssocNone),
-      Operator (Infix, Prefix),
+      Operator (Infix),
       buildExpressionParser,
     )
 import Prelude hiding (id, length, null, take)
 
---
 id :: Parser Id
 id = uncurry Id <$> info identifier
 
@@ -47,7 +47,12 @@ null :: Parser Expr
 null = uncurry ELitNull <$> info (optionMaybe (parens typ) <* reserved "null")
 
 new :: Parser Expr
-new = uncurry ENew <$> info (reserved "new" *> (uncurry Id <$> info upper))
+new = do
+    (i, (ident, size)) <- info $ do
+        ident <- reserved "new" *> typ
+        mby <- optionMaybe (brackets integer)
+        return (ident, mby)
+    return $ ENew i ident (fromInteger <$> size)
 
 app :: Parser Expr
 app = do
@@ -76,13 +81,23 @@ atom =
         ]
 
 expr :: Parser Expr
-expr = uncurry putInfo <$> info (buildExpressionParser table atom)
+expr = choice [try go, expr1]
+  where
+    go = do
+        (i, (e1, e2)) <- info $ do
+            e1 <- expr1
+            e2 <- brackets expr
+            return (e1, e2)
+        return $ EIndex i e1 e2
+
+expr1 :: Parser Expr
+expr1 = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
         [ [Infix (EDeref . fst <$> info (reservedOp "->")) AssocLeft]
         ,
-            [ Prefix (Neg . fst <$> info (reservedOp "-"))
-            , Prefix (Not . fst <$> info (reservedOp "!"))
+            [ prefix (Neg . fst <$> info (reservedOp "-"))
+            , prefix (Not . fst <$> info (reservedOp "!"))
             ]
         ,
             [ Infix (mul Times . fst <$> info (reservedOp "*")) AssocLeft
@@ -131,4 +146,5 @@ putInfo i = \case
     ERel _ a b c -> ERel i a b c
     EAnd _ a b -> EAnd i a b
     EOr _ a b -> EOr i a b
-    ENew _ a -> ENew i a
+    ENew _ a b -> ENew i a b
+    EIndex _ a b -> EIndex i a b
