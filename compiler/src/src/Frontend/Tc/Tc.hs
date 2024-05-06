@@ -121,8 +121,14 @@ tcStmt retTy = go
         Par.Ass info lhs rhs -> do
             case lhs of
                 Par.EVar _ ident -> do
-                    -- NOTE: renamer should catch unbound variables so this is safe
-                    identTy <- fromJust <$> lookupVar ident
+                    -- TODO: Catch unbound *variables* in the renamer,
+                    -- currently it treats functions and variables the same
+                    mbyTy <- lookupVar ident
+                    identTy <-
+                        maybe
+                            (throwError $ UnboundVariable info (convert ident))
+                            return
+                            mbyTy
                     (ty, rhs') <- infExpr rhs
                     ty' <- unify info identTy ty
                     return . return $ Tc.Ass ty (Tc.LVar (convert ident)) (ty', rhs')
