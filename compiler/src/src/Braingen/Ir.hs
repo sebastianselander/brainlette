@@ -293,33 +293,7 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.EAlloc arrSize -> do
-        let t' = braingenType ty
-        let size = sizeOf t' * arrSize
-
-        addr <- getTempVariable
-        malloc addr size
-
-        array <- getTempVariable
-        alloca array (CustomType "Array")
-
-        arrayPtr <- getTempVariable
-        getElementPtr
-            arrayPtr
-            Ptr
-            (Argument (Just . RawPtr . CustomType $ "Array") addr)
-            (ConstArgument (Just I64) (LitInt 0))
-        store (Argument (Just Ptr) addr) arrayPtr
-
-        sizeAddr <- getTempVariable
-        getElementPtr
-            sizeAddr
-            Ptr
-            (Argument (Just . RawPtr . CustomType $ "Array") addr)
-            (ConstArgument (Just I64) (LitInt 1))
-        store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
-
-        pure array
+    B.EAlloc arr -> generateArray ty arr
     B.EIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index
@@ -341,6 +315,38 @@ braingenExpr (ty, e) = case e of
             (Argument (Just I64) indexVar)
 
         pure resPtr
+
+generateArray :: B.Type -> Either Integer [B.Expr] -> BgM Variable
+generateArray ty arr = do
+    let arrSize = case arr of
+            Left s -> s
+            Right arr -> fromIntegral $ length arr
+    let t' = braingenType ty
+    let size = sizeOf t' * arrSize
+
+    addr <- getTempVariable
+    malloc addr size
+
+    array <- getTempVariable
+    alloca array (CustomType "Array")
+
+    arrayPtr <- getTempVariable
+    getElementPtr
+        arrayPtr
+        Ptr
+        (Argument (Just . RawPtr . CustomType $ "Array") addr)
+        (ConstArgument (Just I64) (LitInt 0))
+    store (Argument (Just Ptr) addr) arrayPtr
+
+    sizeAddr <- getTempVariable
+    getElementPtr
+        sizeAddr
+        Ptr
+        (Argument (Just . RawPtr . CustomType $ "Array") addr)
+        (ConstArgument (Just I64) (LitInt 1))
+    store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
+
+    pure array
 
 -- _ -> do
 --     output . Comment $ "EXPR-TODO: " <> thow e
