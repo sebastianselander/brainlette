@@ -158,6 +158,7 @@ data Lit
     | LitBool Bool
     | LitString Text
     | LitNull
+    | LitArrNull
     deriving (Show)
 
 instance Pretty Lit where
@@ -168,6 +169,7 @@ instance Pretty Lit where
         LitBool b -> thow b
         LitString s -> thow s
         LitNull -> "null"
+        LitArrNull -> "null[]"
 
 {- Additive Operator -}
 data AddOp

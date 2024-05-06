@@ -12,9 +12,7 @@ import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
-import Debug.Trace (traceShowId, traceShowM, traceShow)
 import Frontend.Tc.Types qualified as Tc
-import Utils (todo)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -91,7 +89,8 @@ bmmType = go Change
             Tc.Boolean -> return Boolean
             (Tc.TVar id) -> TVar <$> bmmId id
             Tc.Fun t ts -> Fun <$> go Change t <*> mapM (go Change) ts
-            (Tc.Pointer ty') -> Pointer <$> go Keep ty'
+            Tc.Pointer ty' -> Pointer <$> go Keep ty'
+            Tc.Array ty -> Array <$> go Change ty
     go Keep ty = do
         case ty of
             Tc.String -> return String
@@ -99,9 +98,10 @@ bmmType = go Change
             Tc.Double -> return Double
             Tc.Void -> return Void
             Tc.Boolean -> return Boolean
-            (Tc.TVar id) -> TVar <$> bmmId id
-            (Tc.Fun t ts) -> Fun <$> go Keep t <*> mapM (go Keep) ts
-            (Tc.Pointer ty') -> Pointer <$> go Keep ty'
+            Tc.TVar id -> TVar <$> bmmId id
+            Tc.Fun t ts -> Fun <$> go Keep t <*> mapM (go Keep) ts
+            Tc.Pointer ty' -> Pointer <$> go Keep ty'
+            Tc.Array ty -> Array <$> go Change ty
 
 bmmArg :: Tc.Arg -> Bmm Arg
 bmmArg (Tc.Argument t id) = Argument <$> bmmType t <*> bmmId id
@@ -177,6 +177,7 @@ defaultValue ty = case ty of
     Double -> LitDouble 0.0
     Void -> LitNull
     Pointer _ -> LitNull
+    Array _ -> LitArrNull
 
 bmmExpr :: Tc.Expr -> Bmm Expr
 bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
