@@ -149,7 +149,7 @@ data FEError
         -- | The unbound field
         Par.Id
     | -- | Constructor for field lookup on an incompatible type
-      NotFieldType
+      NotStructType
         -- | The source code position of the error
         SynInfo
         -- | Name of the struct
@@ -180,6 +180,12 @@ data FEError
         -- | The source code position of the error
         SynInfo
         -- | The type that does not exist
+        Type
+    | -- | Constructor for when an array was expected
+      ExpectedArray
+        -- | The source code position of the error
+        SynInfo
+        -- | The given type
         Type
     deriving (Show)
 
@@ -215,6 +221,7 @@ instance Report Type where
         TVar id -> report id
         Fun rt argTys -> report rt <> parens (report argTys)
         Pointer ty -> report ty <> "*"
+        Array ty -> report ty <> "[]"
 
 instance Report Text where
     report = id
@@ -292,13 +299,13 @@ instance Report FEError where
         TypeUninferrable info _expr -> pretty $ combine info [i|can't infer type of expression TODO: show expression|]
         UnboundStruct info name -> pretty $ combine info [i|unknown struct '#{report name}'|]
         UnboundField info name -> pretty $ combine info [i|unknown struct field '#{report name}'|]
-        NotFieldType info ty -> pretty $ combine info [i|expected a struct type, but got '#{report ty}'|]
+        NotStructType info ty -> pretty $ combine info [i|expected a struct type, but got '#{report ty}'|]
         NotPointer info ty -> pretty $ combine info [i|can not access a struct field on the non-pointer type '#{report ty}'|]
         ExpectedIdentifier info _expr -> pretty $ combine info [i|expected an identifier, not an expression TODO: show expression|]
         NotLValue info _expr -> pretty $ combine info [i|lhs must be an lvalue, got TODO: show expression|]
         TypeDefCircular ty -> pretty $ combine NoInfo [i| circular typedef found for '#{report ty}'|]
         UnboundType info ty -> pretty $ combine info [i|unbound type '#{report ty}'|]
-
+        ExpectedArray info ty -> pretty $ combine info [i|expected an array type, but got '#{report ty}'|]
 
 oneLine :: SynInfo -> SynInfo
 oneLine info = info {sourceCode = takeWhile (/= '\n') info.sourceCode}
@@ -379,6 +386,7 @@ instance Convert Par.Type Type where
         Par.TVar _ t -> TVar (convert t)
         Par.Fun _ rt argtys -> Fun (convert rt) (convert argtys)
         Par.Pointer _ ty -> Pointer (convert ty)
+        Par.Array _ ty -> Array (convert ty)
 
 instance Convert Par.Id Id where
     convert (Par.Id _ s) = Id s

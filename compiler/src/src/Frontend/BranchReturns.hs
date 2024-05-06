@@ -149,7 +149,7 @@ interpret = \case
     ELitFalse _ -> return $ IsBool False
     ELitNull _ _ -> Nothing
     EString _ str -> return $ IsString str
-    ENew _ _ -> Nothing
+    ENew {} -> Nothing
     EDeref {} -> Nothing
     EApp {} -> Nothing
     Neg _ e -> case interpret e of

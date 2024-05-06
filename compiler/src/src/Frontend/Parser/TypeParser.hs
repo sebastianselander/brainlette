@@ -9,7 +9,7 @@ import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
 import Text.Parsec hiding (lower, string, upper)
-import Text.Parsec.Expr (buildExpressionParser)
+import Text.Parsec.Expr (buildExpressionParser, Operator (Postfix))
 import Utils (flat3)
 
 primType :: Text -> Parser Type
@@ -37,16 +37,17 @@ postfixTypes = repair <$> buildExpressionParser table atom
   where
     table =
         [
-            [ postfix (Array . fst <$> info (reservedOp "*" <|> reservedOp "[]"))
+            [ post (Array . fst <$> info (reservedOp "*" <|> reservedOp "[]"))
             ]
         ]
     repair :: Type -> Type
     repair = \case
         Array info ty ->
-            if info.sourceCode == "[]"
+            if info.sourceCode == "*"
                 then Pointer (info {sourceCode = "*"}) (repair ty)
                 else Array (info {sourceCode = "[]"}) (repair ty)
         ty -> ty
+    post p = Postfix . chainl1 p $ return (flip (.))
 
 custom :: Parser Type
 custom = uncurry TVar <$> info (uncurry Id <$> info (upper <|> lower))

@@ -45,13 +45,14 @@ data Type
     | Boolean
     | Void
     | Pointer Type
+    | Array Type
     deriving (Eq, Ord, Show, Read)
 
 type Expr = (Type, Expr')
 
 data Expr'
     = EVar Id
-    | ENew Id
+    | ENew (Maybe Int)
     | ELit Lit
     | EApp Id [Expr]
     | Neg Expr

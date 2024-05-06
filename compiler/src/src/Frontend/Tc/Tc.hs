@@ -1,5 +1,5 @@
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -9,14 +9,14 @@ module Frontend.Tc.Tc where
 import Control.Arrow ((>>>))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except
-import Control.Monad.Extra (mapMaybeM, allM, unlessM)
+import Control.Monad.Extra (allM, mapMaybeM, unlessM)
 import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Either.Extra
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, unpack)
@@ -190,6 +190,7 @@ typeExist = \case
     Tc.Boolean -> return True
     Tc.Void -> return True
     Tc.Pointer ty -> typeExist ty
+    Tc.Array ty -> typeExist ty
 
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
@@ -197,13 +198,14 @@ infExpr e = pushExpr e $ case e of
     Par.ELitDouble _ n -> return (Tc.Double, Tc.ELit (Tc.LitDouble n))
     Par.ELitTrue _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool True))
     Par.ELitFalse _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool False))
-    Par.ELitNull info ty -> (,Tc.ELit Tc.LitNull) <$> maybe (throwError $ TypeUninferrable info e) (return . convert) ty
+    Par.ELitNull info ty ->
+        (,Tc.ELit Tc.LitNull)
+            <$> maybe (throwError $ TypeUninferrable info e) (return . convert) ty
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
-    Par.ENew info id -> do
-        let id' = convert id
-        let ty = Tc.TVar id'
-        void $ getStruct info ty
-        return (Tc.Pointer ty, Tc.ENew id')
+    Par.ENew info ty size -> do
+        let f = maybe Tc.Pointer (const Tc.Array) size
+        when (isNothing size) (void $ getStruct info (convert ty))
+        return (f (convert ty), Tc.ENew size)
     Par.EDeref info l r -> do
         l' <- infExpr l
         ty <-
@@ -270,9 +272,10 @@ infExpr e = pushExpr e $ case e of
             (l, r) -> do
                 ty1 <- concreteType l
                 ty2 <- concreteType r
-                if | ty1 == ty2 && isPointer ty1 -> return ty1
-                   | ty1 == ty2 && not (isPointer ty1) -> throwError (NotRelational info l)
-                   | otherwise -> throwError (TypeMismatch info ty1 [ty2])
+                if
+                    | ty1 == ty2 && isPointer ty1 -> return ty1
+                    | ty1 == ty2 && not (isPointer ty1) -> throwError (NotRelational info l)
+                    | otherwise -> throwError (TypeMismatch info ty1 [ty2])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
     Par.EApp p ident exprs -> do
         ty <- getVar ident
@@ -288,10 +291,22 @@ infExpr e = pushExpr e $ case e of
                 mapM_ (uncurry3 unify) infoTys
                 return (rt, Tc.EApp (convert ident) exprs')
             _else -> throwError (ExpectedFn p ty)
+    Par.EIndex info l r -> do
+        l' <- infExpr l
+        case typeOf l' of
+            Tc.Array ty -> do
+                r'@(tyr, _) <- infExpr r
+                unless (isInt tyr) (throwError $ ExpectedType info Tc.Int tyr)
+                return (ty, Tc.EIndex l' r')
+            ty -> throwError $ ExpectedArray info ty
 
 isPointer :: Tc.Type -> Bool
 isPointer (Tc.Pointer _) = True
 isPointer _ = False
+
+isArray :: Tc.Type -> Bool
+isArray (Tc.Array _) = True
+isArray _ = False
 
 {-| Extract the necessary information from all top level definitions before
 continuing
@@ -362,7 +377,7 @@ getStruct :: Par.SynInfo -> Tc.Type -> TcM (Map Tc.Id Tc.Type)
 getStruct info ty@(Tc.TVar ty') = do
     mby <- asks (Map.lookup ty . structs)
     maybe (throwError (UnboundStruct info ty')) return mby
-getStruct info ty = throwError (NotFieldType info ty)
+getStruct info ty = throwError (NotStructType info ty)
 
 getVar :: Par.Id -> TcM Tc.Type
 getVar i@(Par.Id _ _i) = do

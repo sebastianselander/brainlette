@@ -192,10 +192,14 @@ rnExpr = \case
     ERel info l op r -> ERel info <$> rnExpr l <*> return op <*> rnExpr r
     EAnd info l r -> EAnd info <$> rnExpr l <*> rnExpr r
     EOr info l r -> EOr info <$> rnExpr l <*> rnExpr r
-    ENew info id -> do
-        b <- gets (Set.member id . structs)
-        unless b (throwError $ UnboundStruct info (convert id))
-        return $ ENew info id
+    ENew info ty _size -> do
+        case ty of
+            TVar _ id -> do
+                b <- gets (Set.member id . structs)
+                unless b (throwError $ UnboundStruct info (convert id))
+            _ -> return ()
+        return $ ENew info ty _size
+    EIndex info e1 e2 -> EIndex info <$> rnExpr e1 <*> rnExpr e2
 
 newBlock :: (MonadState Env m) => m a -> m a
 newBlock ma = do
