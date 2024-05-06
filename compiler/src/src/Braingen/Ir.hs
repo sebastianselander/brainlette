@@ -286,9 +286,43 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         output $ Load var ty' ptr
         return var
-    _ -> do
-        output . Comment $ "EXPR-TODO: " <> thow e
+    B.EAlloc arrSize -> do
+        let t' = braingenType ty
+        let size = sizeOf t' * arrSize
+
+        addr <- getTempVariable
+        call addr Nothing Nothing Ptr "malloc" [ConstArgument (Just I64) (LitInt size)]
+
+        array <- getTempVariable
+        alloca array (CustomType "Array")
+
+        arrayPtr <- getTempVariable
+        getElementPtr
+            arrayPtr
+            Ptr
+            (Argument (Just . RawPtr . CustomType $ "Array") addr)
+            (ConstArgument (Just I64) (LitInt 0))
+        store (Argument (Just Ptr) addr) arrayPtr
+
+        sizeAddr <- getTempVariable
+        getElementPtr
+            sizeAddr
+            Ptr
+            (Argument (Just . RawPtr . CustomType $ "Array") addr)
+            (ConstArgument (Just I64) (LitInt 1))
+        store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
+
+        pure array
+    B.EArray _ -> do
+        comment "EXPR-TODO: EArray"
         pure (Variable "TODO")
+    B.EIndex _ _ -> do
+        comment "EXPR-TODO: EIndex"
+        pure (Variable "TODO")
+
+-- _ -> do
+--     output . Comment $ "EXPR-TODO: " <> thow e
+--     pure (Variable "TODO")
 
 lazyLogical ::
     B.Expr ->
@@ -433,6 +467,7 @@ braingenType = \case
     B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
     B.Pointer t -> RawPtr (braingenType t)
+    B.Array _ -> CustomType "Array"
     B.Fun t ts -> do
         let ret = braingenType t
         let args = map braingenType ts
