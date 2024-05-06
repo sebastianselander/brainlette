@@ -82,6 +82,18 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
         result <- braingenExpr expr
         output $ Store (Argument (pure $ braingenType t) result) (Variable a)
+    B.Ass ty (B.LIndex b i) expr -> do
+        let ty' = braingenType ty
+        b <- braingenExpr b
+        i <- braingenExpr i
+        ptr <- getTempVariable
+        getElementPtr
+            ptr
+            ty'
+            (Argument (Just Ptr) b)
+            (Argument (Just I64) i)
+        var <- braingenExpr expr
+        output $ Store (Argument (Just ty') var) ptr
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
         let ty' = braingenType ty
         let tyE = braingenType innerE
