@@ -21,6 +21,8 @@ declare i32 @scanf(ptr, ...)
 declare ptr @malloc(i64)
 @fdopen_mode = constant [2 x i8] c"r\\00"
 
+%Array = type { ptr, i64 }
+
 @dnl = internal constant [4 x i8] c"%d\\0A\\00"
 define void @printInt(i32 %x) {
 entry: %t0 = getelementptr [4 x i8], [4 x i8]* @dnl, i32 0, i32 0
