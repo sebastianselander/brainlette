@@ -257,7 +257,7 @@ braingenExpr (ty, e) = case e of
         false <- getLabel "false"
         lazyLogical l r False Braingen.Ir.and false true
     B.ENew vals -> do
-        let size = foldr ((+) . sizeOf . braingenType . fst) 0 vals
+        let size = fromIntegral $ length vals * 8
         var1 <- getTempVariable
         malloc var1 size
 
@@ -311,9 +311,6 @@ braingenExpr (ty, e) = case e of
         store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
 
         pure array
-    B.EArray _ -> do
-        comment "EXPR-TODO: EArray"
-        pure (Variable "TODO")
     B.EIndex _ _ -> do
         comment "EXPR-TODO: EIndex"
         pure (Variable "TODO")
@@ -529,10 +526,10 @@ consName = takeWhile (/= ' ') . thow
 
 sizeOf :: Type -> Integer
 sizeOf = \case
-    I32 -> 8
+    I32 -> 4
     I64 -> 8
-    I1 -> 8
-    I8 -> 8
+    I1 -> 1
+    I8 -> 1
     F64 -> 8
     Ptr -> 8
     RawPtr _ -> sizeOf Ptr
