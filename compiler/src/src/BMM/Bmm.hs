@@ -120,6 +120,7 @@ data Expr'
     | EAnd Expr Expr
     | EOr Expr Expr
     | ENew [(Type, Lit)]
+    | EAlloc Int
     | Cast Expr
     | Deref Expr Int
     | EIndex Expr Expr
@@ -142,6 +143,7 @@ instance Pretty Expr' where
             EAnd e1 e2 -> [i|#{pretty 0 e1} && #{pretty 0 e2}|]
             EOr e1 e2 -> [i|#{pretty 0 e1} || #{pretty 0 e2}|]
             ENew _ -> "new"
+            EAlloc si -> [i|alloc[#{si}]|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
             EIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]

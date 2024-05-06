@@ -96,6 +96,7 @@ fixExpr (t, e) = case e of
         i <- fixExpr i
         return (t, EIndex v i)
     EArray es -> (t,) . EArray <$> mapM fixExpr es
+    EAlloc i -> pure (t, EAlloc i)
 
 --- aux fucns ---
 addString :: Text -> St Text
