@@ -221,8 +221,9 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
                         $ elemIndex field fields
             expr' <- bmmExpr expr
             return $ Deref expr' fieldIdx
-        Tc.EIndex _ _ -> undefined
-        Tc.EArray _ -> undefined
+        Tc.EIndex l r -> EIndex <$> bmmExpr l <*> bmmExpr r
+        Tc.ArrayLit exprs -> EAlloc . return <$> mapM bmmExpr exprs
+            
 
 bmmLit :: Tc.Lit -> Lit
 bmmLit = \case
