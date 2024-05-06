@@ -313,7 +313,10 @@ braingenExpr (ty, e) = case e of
             (Argument (Just Ptr) arrayPtr)
             (Argument (Just I64) indexVar)
 
-        pure resPtr
+        res <- getTempVariable
+        load res I64 resPtr
+
+        pure res
 
 generateArray :: B.Type -> Either Integer [B.Expr] -> BgM Variable
 generateArray ty arr = do
@@ -333,7 +336,7 @@ generateArray ty arr = do
     getElementPtr
         arrayPtr
         Ptr
-        (Argument (Just . RawPtr . CustomType $ "Array") addr)
+        (Argument (Just . RawPtr . CustomType $ "Array") array)
         (ConstArgument (Just I64) (LitInt 0))
     store (Argument (Just Ptr) addr) arrayPtr
 
@@ -341,7 +344,7 @@ generateArray ty arr = do
     getElementPtr
         sizeAddr
         Ptr
-        (Argument (Just . RawPtr . CustomType $ "Array") addr)
+        (Argument (Just . RawPtr . CustomType $ "Array") array)
         (ConstArgument (Just I64) (LitInt 1))
     store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
 
