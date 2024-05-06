@@ -64,7 +64,7 @@ data Expr'
     | EAnd Expr Expr
     | EOr Expr Expr
     | EIndex Expr Expr
-    | EArray [Expr]
+    | ArrayLit [Expr]
     deriving (Eq, Ord, Show, Read)
 
 data Lit
