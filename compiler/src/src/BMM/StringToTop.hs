@@ -91,6 +91,11 @@ fixExpr (t, e) = case e of
         return (t, EOr e1 e2)
     Cast e -> (t,) . Cast <$> fixExpr e
     Deref expr field -> (t,) <$> (Deref <$> fixExpr expr <*> return field)
+    EIndex v i -> do
+        v <- fixExpr v
+        i <- fixExpr i
+        return (t, EIndex v i)
+    EArray es -> (t,) . EArray <$> mapM fixExpr es
 
 --- aux fucns ---
 addString :: Text -> St Text

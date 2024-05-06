@@ -122,6 +122,8 @@ data Expr'
     | ENew [(Type, Lit)]
     | Cast Expr
     | Deref Expr Int
+    | EIndex Expr Expr
+    | EArray [Expr]
     deriving (Show)
 
 instance Pretty Expr' where
@@ -142,6 +144,8 @@ instance Pretty Expr' where
             ENew _ -> "new"
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
+            EIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]
+            EArray arr -> [i|[#{commaSeparated 0 arr}]|]
 
 data Lit
     = LitInt Integer
