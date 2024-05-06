@@ -85,11 +85,18 @@ braingenStm breakpoint stmt = case stmt of
         let ty' = braingenType ty
         b <- braingenExpr b
         i <- braingenExpr i
+        arrayPtr <- getTempVariable
+        getElementPtr
+            arrayPtr
+            ty'
+            (Argument (Just Ptr) b)
+            (ConstArgument (Just I64) (LitInt 0))
+
         ptr <- getTempVariable
         getElementPtr
             ptr
             ty'
-            (Argument (Just Ptr) b)
+            (Argument (Just Ptr) arrayPtr)
             (Argument (Just I64) i)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
@@ -346,7 +353,10 @@ generateArray ty arr = do
         (ConstArgument (Just I64) (LitInt 1))
     store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
 
-    pure array
+    onStack <- getTempVariable
+    load onStack (CustomType "Array") array
+
+    pure onStack
 
 -- _ -> do
 --     output . Comment $ "EXPR-TODO: " <> thow e
