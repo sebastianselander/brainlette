@@ -1,0 +1,17 @@
+typedef struct Node *list;
+
+struct Node {
+    int elem;
+    list next;
+};
+
+int main() {
+    Node* l1 = new Node;
+    l1->elem = 123;
+    l1->next = l1;
+    printInt(l1->next->elem);
+    l1->elem = 124;
+    printInt(l1->next->elem);
+    printInt(l1->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->next->elem);
+    return 0;
+}

@@ -12,7 +12,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes (SynInfo (..))
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types
-import Utils (thow)
+import GHC.Generics (Constructor)
 import Prelude hiding (takeWhile, unlines, unwords)
 
 data FEError
@@ -22,6 +22,12 @@ data FEError
         SynInfo
         -- | Name of the unbound variable
         Id
+    | -- | Constructor for when a type can't be inferred
+      TypeUninferrable
+        -- | The source code position of the error
+        SynInfo
+        -- | The given expression
+        Par.Expr
     | -- | Constructor for mismatched types
       TypeMismatch
         -- | The source code position of the error
@@ -77,13 +83,13 @@ data FEError
     | -- | Constructor for unreachable statements outside a loop
       UnreachableStatement
         -- | The source code position of the error
-        SynInfo 
+        SynInfo
     | -- | Constructor for functions missing a return statement
       MissingReturn
         -- | The source code position of the error
-        SynInfo 
+        SynInfo
         -- | The function missing return
-        Par.TopDef
+        Par.Id
     | -- | Constructor for an expression that is not a statement
       NotStatement
         -- | The source code position of the error
@@ -130,10 +136,58 @@ data FEError
         SynInfo
         -- | The type that is not relational
         Type
+    | -- | Constructor for an unknown struct
+      UnboundStruct
+        -- | The source code position of the error
+        SynInfo
+        -- | Name of the struct
+        Id
+    | -- | Constructor for an unbound field
+      UnboundField
+        -- | The source code position of the error
+        SynInfo
+        -- | The unbound field
+        Par.Id
+    | -- | Constructor for field lookup on an incompatible type
+      NotFieldType
+        -- | The source code position of the error
+        SynInfo
+        -- | Name of the struct
+        Type
+    | -- | Constructor for a type that is not a pointer
+      NotPointer
+        -- | The source code position of the error
+        SynInfo
+        -- | The type that is not a pointer
+        Type
+    | -- | Constructor for when an identifer was expected
+      ExpectedIdentifier
+        -- | The source code position of the error
+        SynInfo
+        -- | The expression that is not an identifier
+        Par.Expr
+    | -- | Constructor for an expression that is not an lvalue
+      NotLValue
+        -- | The source code position of the error
+        SynInfo
+        -- | The expression that is not an LValue
+        Par.Expr
+    | -- | Constructor for circluar typedefs
+      TypeDefCircular
+        -- | The type that was circular
+        Type
+    | UnboundType
+        -- | The source code position of the error
+        SynInfo
+        -- | The type that does not exist
+        Type
     deriving (Show)
 
 parens :: Text -> Text
 parens s = "(" <> s <> ")"
+
+brackets :: Text -> Text
+brackets s = s <> "[]"
 
 class Report a where
     report :: a -> Text
@@ -160,6 +214,7 @@ instance Report Type where
         Boolean -> "boolean"
         TVar id -> report id
         Fun rt argTys -> report rt <> parens (report argTys)
+        Pointer ty -> report ty <> "*"
 
 instance Report Text where
     report = id
@@ -181,58 +236,72 @@ instance Report RelOp where
 instance Report FEError where
     report = \case
         UnboundVariable info (Id name) ->
-            pretty $ combine [i|Unbound variable '#{name}'|] info
+            pretty $ combine info [i|Unbound variable '#{name}'|]
         TypeMismatch info given expected ->
             let one = case expected of
                     (x :| []) -> "'" <> report x <> "'"
                     (x :| xs) -> "one of " <> report (x : xs)
-             in pretty $ combine [i|Type '#{report given}' does not match with #{one}|] info
-        ExpectedFn pos typ ->
+             in pretty $ combine info [i|Type '#{report given}' does not match with #{one}|]
+        ExpectedFn info typ ->
             pretty $
                 combine
+                    info
                     [i|Expected a function type, but got '#{report typ}'|]
-                    pos
         NotComparable info op typ ->
             pretty $
                 combine
-                    [i|Can't perform '#{report op}' on type '#{report typ}'|]
                     info
-        IllegalEmptyReturn pos typ ->
+                    [i|Can't perform '#{report op}' on tyoe '#{report typ}'|]
+        IllegalEmptyReturn info typ ->
             pretty $
                 combine
+                    info
                     [i|Can't use empty return where a return type of '#{report typ}' is expected|]
-                    pos
         ExpectedType info expected given ->
             pretty $
                 combine
-                    [i|Expected type '#{report expected}' but got '#{report given}'|]
                     info
+                    [i|Expected type '#{report expected}' but got '#{report given}'|]
         ExpectedNumber info ty ->
             pretty $
                 combine
-                    [i|Expected a numeric type, but got '#{report ty}'|]
                     info
+                    [i|Expected a numeric type, but got '#{report ty}'|]
         BoundVariable info id ->
             pretty $
                 combine
-                    [i|Variable '#{report id}' already declared earlier|]
                     info
+                    [i|Variable '#{report id}' already declared earlier|]
         BreakNotInLoop info ->
             [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
-        UnreachableStatement info -> pretty $ combine [i|unreachable statement|] (oneLine info)
-        MissingReturn info (Par.FnDef _ _ name _ _) -> pretty $ combine [i|missing return in function #{report name}|] (oneLine info)
-        NotStatement info _ -> pretty $ combine [i|The expression is not a statement|] info
-        ArgumentMismatch info name expected given -> pretty $ combine [i|in the call to the function '#{report name}', #{report expected} arguments were expected, but got #{report given} |] info
-        DuplicateTopDef info tp -> pretty $ combine [i|duplicate top definition\n#{thow tp}|] info
-        DuplicateArgument info tp -> pretty $ combine [i|duplicate argument in definition\n#{thow tp}|] info
-        VoidDeclare info _ -> pretty $ combine [i|can not declare a variable with type '#{report Void}'|] info
-        NotRelational info ty -> pretty $ combine [i|can not perform relational operations on #{report ty}|] info
+        UnreachableStatement info -> pretty $ combine (oneLine info) [i|unreachable statement|]
+        MissingReturn info name -> pretty $ combine (oneLine info) [i|missing return in function #{report name}|]
+        NotStatement info _ -> pretty $ combine info [i|The expression is not a statement|]
+        ArgumentMismatch info name expected given ->
+            pretty $
+                combine
+                    info
+                    [i|in the call to the function '#{report name}', #{report expected} arguments were expected, but got #{report given} |]
+        DuplicateTopDef info tp -> pretty $ combine info [i|duplicate top definition\n#{report tp}|]
+        DuplicateArgument info tp -> pretty $ combine info [i|duplicate argument in definition\n#{report tp}|]
+        VoidDeclare info _ -> pretty $ combine info [i|can not declare a variable with type '#{report Void}'|]
+        NotRelational info ty -> pretty $ combine info [i|can not perform relational operations on #{report ty}|]
         VoidParameter info ident ->
             pretty $
-                combine [i|can not have parameters of type '#{report Void}' in the function #{report ident}|] info
+                combine info [i|can not have parameters of type '#{report Void}' in the function #{report ident}|]
+        TypeUninferrable info _expr -> pretty $ combine info [i|can't infer type of expression TODO: show expression|]
+        UnboundStruct info name -> pretty $ combine info [i|unknown struct '#{report name}'|]
+        UnboundField info name -> pretty $ combine info [i|unknown struct field '#{report name}'|]
+        NotFieldType info ty -> pretty $ combine info [i|expected a struct type, but got '#{report ty}'|]
+        NotPointer info ty -> pretty $ combine info [i|can not access a struct field on the non-pointer type '#{report ty}'|]
+        ExpectedIdentifier info _expr -> pretty $ combine info [i|expected an identifier, not an expression TODO: show expression|]
+        NotLValue info _expr -> pretty $ combine info [i|lhs must be an lvalue, got TODO: show expression|]
+        TypeDefCircular ty -> pretty $ combine NoInfo [i| circular typedef found for '#{report ty}'|]
+        UnboundType info ty -> pretty $ combine info [i|unbound type '#{report ty}'|]
+
 
 oneLine :: SynInfo -> SynInfo
-oneLine info = info { sourceCode = takeWhile (/='\n') info.sourceCode}
+oneLine info = info {sourceCode = takeWhile (/= '\n') info.sourceCode}
 
 errMissingRet :: Par.TopDef -> Text
 errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
@@ -251,9 +320,16 @@ errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
             <> "\n"
             <> report (last xs)
             <> "\nexpected\n  a return statement"
+errMissingRet _ = error "Front end ERROR: Should not happen"
 
 instance Report Par.Id where
     report (Par.Id _ name) = name
+
+instance Report Par.TopDef where
+    report = \case
+        Par.FnDef _ _ name _ _ -> report name
+        Par.StructDef _ name _ -> report name
+        Par.TypeDef _ _ name -> report name
 
 instance Report Par.Stmt where
     report stmt =
@@ -263,6 +339,9 @@ instance Report Par.Stmt where
                 <> pack (show info.sourceLine)
                 <> ":"
                 <> pack (show info.sourceColumn)
+
+instance Report Par.Arg where
+    report (Par.Argument _ _ name) = report name
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"
@@ -275,8 +354,8 @@ pretty (x : xs) = unlines (bold x : xs)
 bold :: Text -> Text
 bold s = s
 
-combine :: (Report a) => Text -> a -> [Text]
-combine xs info = (star `cons` ' ' `cons` xs) : [report info]
+combine :: (Report a) => a -> Text -> [Text]
+combine info xs = (star `cons` ' ' `cons` xs) : [report info]
 
 star :: Char
 star = '•'
@@ -299,6 +378,7 @@ instance Convert Par.Type Type where
         Par.Void _ -> Void
         Par.TVar _ t -> TVar (convert t)
         Par.Fun _ rt argtys -> Fun (convert rt) (convert argtys)
+        Par.Pointer _ ty -> Pointer (convert ty)
 
 instance Convert Par.Id Id where
     convert (Par.Id _ s) = Id s

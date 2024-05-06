@@ -1,14 +1,34 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
+import Control.Arrow ((>>>))
+import Control.Monad.Except (runExceptT)
+import Control.Monad.Reader
+import Control.Monad.State
 import Data.Either (isLeft, isRight)
+import Data.Functor.Identity
 import Data.Text
-import ParserTypes
-import System.Exit (exitFailure, exitSuccess)
+import Frontend.Error (report)
+import Frontend.Parser.ParserTypes
 import Frontend.Tc.Tc
+import System.Exit (exitFailure, exitSuccess)
 import Test.Hspec
 import Test.QuickCheck
+
+run :: TcM a -> Either Text a
+run =
+    runTcM
+        >>> flip evalStateT (Env mempty mempty)
+        >>> flip
+            runReaderT
+            (Ctx mempty mempty mempty mempty mempty)
+        >>> runExceptT
+        >>> runIdentity
+        >>> \case
+            Left err -> Left $ report err
+            Right p -> Right p
 
 instance Arbitrary Text where
     arbitrary = pack <$> listOf (elements "abcdefghijklmnopqrstuvwxyz")
@@ -35,12 +55,12 @@ genDoubleGood :: Gen Expr
 genDoubleGood =
     frequency
         [ (55, ELitDouble NoInfo <$> arbitrary)
-        , (15, EAdd NoInfo <$> genIntGood <*> arbitrary <*> genDoubleGood)
-        , (15, EAdd NoInfo <$> genDoubleGood <*> arbitrary <*> genIntGood)
-        , (15, EAdd NoInfo <$> genDoubleGood <*> arbitrary <*> genDoubleGood)
-        , (15, EMul NoInfo <$> genIntGood <*> arbitrary <*> genDoubleGood)
-        , (15, EMul NoInfo <$> genDoubleGood <*> arbitrary <*> genIntGood)
-        , (15, EMul NoInfo <$> genDoubleGood <*> arbitrary <*> genDoubleGood)
+        , -- , (15, EAdd NoInfo <$> genIntGood <*> arbitrary <*> genDoubleGood)
+          -- , (15, EAdd NoInfo <$> genDoubleGood <*> arbitrary <*> genIntGood)
+          (15, EAdd NoInfo <$> genDoubleGood <*> arbitrary <*> genDoubleGood)
+        , -- , (15, EMul NoInfo <$> genIntGood <*> arbitrary <*> genDoubleGood)
+          -- , (15, EMul NoInfo <$> genDoubleGood <*> arbitrary <*> genIntGood)
+          (15, EMul NoInfo <$> genDoubleGood <*> arbitrary <*> genDoubleGood)
         ]
 
 genBoolGood :: Gen Expr

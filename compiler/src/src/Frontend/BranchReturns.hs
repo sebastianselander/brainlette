@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -10,14 +9,14 @@ import Control.Monad.Extra (anyM, unless)
 import Control.Monad.Reader (MonadReader, ReaderT (runReaderT), ask, local)
 import Control.Monad.State (MonadState, StateT, execStateT, get, put)
 import Data.Fixed (mod')
-import Data.Functor (($>), void)
+import Data.Functor (void, ($>))
 import Data.List (intersperse)
 import Data.Maybe (listToMaybe)
 import Data.Text (Text, concat, unlines)
 import Frontend.Error (FEError (..), report)
+import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes
 import Prelude hiding (concat, takeWhile, unlines)
-import Frontend.Tc.Tc (hasInfo)
 
 data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}
     deriving (Show)
@@ -40,10 +39,12 @@ branchCheck p = case runExcept $
                 branchReturns p of
     Left err -> Left (report err)
     Right (Env [] []) -> Right p
-    Right (Env stmts topdefs) ->
+    Right (Env stmts topdefs) -> do
+        let getName (FnDef _ _ name _ _) = name
+            getName _ = error "Branch return check BUG: report"
         Left $
             concat (intersperse "\n\n" $ map (report . UnreachableStatement . hasInfo) stmts)
-                <> unlines (map (\def -> report $ MissingReturn (hasInfo def) def) topdefs)
+                <> unlines (map (\def -> report $ MissingReturn (hasInfo def) (getName def)) topdefs)
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"
@@ -65,6 +66,8 @@ branchReturns (Program _ topdefs) = mapM_ breakDefs topdefs >> mapM_ retDefs top
 
 breakDefs :: TopDef -> Br ()
 breakDefs (FnDef _ _ _ _ stmts) = mapM_ breaks stmts
+breakDefs (StructDef {}) = return ()
+breakDefs (TypeDef {}) = return ()
 
 breaks :: Stmt -> Br ()
 breaks = \case
@@ -85,6 +88,8 @@ breaks = \case
         unless b $ throwError (BreakNotInLoop info)
 
 retDefs :: TopDef -> Br ()
+retDefs (StructDef {}) = return ()
+retDefs (TypeDef {}) = return ()
 retDefs self@(FnDef _ ty _ _ stmts) =
     case ty of
         Void _ -> void $ returns stmts
@@ -116,8 +121,8 @@ returnsStmt = \case
             then unreachable stmt $> False
             else return False -- (always expr &&) <$> returnsStmt stmt
     CondElse _ _ stmt1 stmt2 -> (&&) <$> returnsStmt stmt1 <*> returnsStmt stmt2
-            -- | never expr -> unreachable stmt1 >> returnsStmt stmt2
-            -- | always expr -> unreachable stmt2 >> returnsStmt stmt1
+    -- \| never expr -> unreachable stmt1 >> returnsStmt stmt2
+    -- \| always expr -> unreachable stmt2 >> returnsStmt stmt1
     While _ expr stmt ->
         if never expr
             then unreachable stmt $> False
@@ -142,8 +147,11 @@ interpret = \case
     ELitDouble _ n -> return $ IsDouble n
     ELitTrue _ -> return $ IsBool True
     ELitFalse _ -> return $ IsBool False
-    EApp {} -> Nothing
+    ELitNull _ _ -> Nothing
     EString _ str -> return $ IsString str
+    ENew _ _ -> Nothing
+    EDeref {} -> Nothing
+    EApp {} -> Nothing
     Neg _ e -> case interpret e of
         Just (IsDouble n) -> return $ IsDouble (-n)
         Just (IsInt n) -> return $ IsInt (-n)

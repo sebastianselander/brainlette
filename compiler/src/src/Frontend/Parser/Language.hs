@@ -1,25 +1,36 @@
 module Frontend.Parser.Language where
 
+import Control.Monad (void, when)
+import Data.Char (isSpace)
 import Data.Functor.Identity (Identity)
-import Data.Text (Text, length, pack, take, stripEnd)
+import Data.List (nub)
+import Data.Text (Text, length, pack, stripEnd, take)
 import Frontend.Parser.ParserTypes
-import Text.Parsec (
-    alphaNum,
-    char,
-    getInput,
-    getPosition,
-    letter,
-    oneOf,
-    (<|>), sourceColumn, sourceLine, sourceName, satisfy, try, (<?>), skipMany1, string, noneOf,
- )
+import Text.Parsec
+    ( alphaNum,
+      char,
+      getInput,
+      getPosition,
+      letter,
+      many,
+      noneOf,
+      oneOf,
+      satisfy,
+      skipMany1,
+      sourceColumn,
+      sourceLine,
+      sourceName,
+      string,
+      try,
+      (<?>),
+      (<|>),
+    )
+import Text.Parsec qualified as P (lower, upper)
 import Text.Parsec.Language (GenLanguageDef)
+import Text.Parsec.Prim (skipMany)
 import Text.Parsec.Token (GenLanguageDef (..), GenTokenParser, makeTokenParser)
 import Text.Parsec.Token qualified as P
 import Prelude hiding (length, take)
-import Control.Monad (void)
-import Text.Parsec.Prim (skipMany)
-import Data.Char (isSpace)
-import Data.List (nub)
 
 brainletteDef :: GenLanguageDef Text st Identity
 brainletteDef =
@@ -60,6 +71,10 @@ brainletteDef =
             , "void"
             , "string"
             , "break"
+            , "struct"
+            , "null"
+            , "new"
+            , "typedef"
             ]
         , opStart = oneOf ""
         , opLetter = oneOf ""
@@ -77,6 +92,23 @@ bl = makeTokenParser brainletteDef
 
 identifier :: Parser Text
 identifier = pack <$> lexeme (P.identifier bl)
+
+identifier_ :: Parser Text
+identifier_ = pack <$> P.identifier bl
+
+upper :: Parser Text
+upper = do
+    text <- lexeme ((:) <$> P.upper <*> many (alphaNum <|> char '_'))
+    let names = reservedNames brainletteDef
+    when (text `elem` names) (fail $ "'" <> text <> "' is a reserved keyword")
+    return $ pack text
+
+lower :: Parser Text
+lower = do
+    text <- lexeme ((:) <$> P.lower <*> many (alphaNum <|> char '_'))
+    let names = reservedNames brainletteDef
+    when (text `elem` names) (fail $ "'" <> text <> "' is a reserved keyword")
+    return $ pack text
 
 integer :: Parser Integer
 integer = lexeme (P.integer bl)
@@ -111,6 +143,12 @@ semiSep = lexeme . P.semiSep bl
 braces :: Parser a -> Parser a
 braces = lexeme . P.braces bl
 
+brackets :: Parser a -> Parser a
+brackets = lexeme . P.brackets bl
+
+semicolon :: Parser ()
+semicolon = reservedOp ";"
+
 whiteSpace :: Parser ()
 whiteSpace = whiteSpace' brainletteDef
 
@@ -129,53 +167,51 @@ info p = do
     let code = stripEnd $ take (length before - length after) before
     return (SynInfo line column (pack sourceNm) code, a)
 
-
 pragma :: Parser ()
 pragma = char '#' *> skipMany (satisfy (/= '\n'))
 
 whiteSpace' :: GenLanguageDef s u m -> Parser ()
 whiteSpace' languageDef
-    | noLine && noMulti  = skipMany (simpleSpace <|> pragma <?> "")
-    | noLine             = skipMany (simpleSpace <|> multiLineComment <|> pragma <?> "")
-    | noMulti            = skipMany (simpleSpace <|> oneLineComment <|> pragma <?> "")
-    | otherwise          = skipMany (simpleSpace <|> oneLineComment <|> multiLineComment <|> pragma <?> "")
-    where
-      noLine  = null (commentLine languageDef)
-      noMulti = null (commentStart languageDef)
+    | noLine && noMulti = skipMany (simpleSpace <|> pragma <?> "")
+    | noLine = skipMany (simpleSpace <|> multiLineComment <|> pragma <?> "")
+    | noMulti = skipMany (simpleSpace <|> oneLineComment <|> pragma <?> "")
+    | otherwise =
+        skipMany (simpleSpace <|> oneLineComment <|> multiLineComment <|> pragma <?> "")
+  where
+    noLine = null (commentLine languageDef)
+    noMulti = null (commentStart languageDef)
 
+    simpleSpace =
+        skipMany1 (satisfy isSpace)
 
-      simpleSpace =
-          skipMany1 (satisfy isSpace)
-  
-      oneLineComment =
-          do{ _ <- try (string (commentLine languageDef))
-            ; skipMany (satisfy (/= '\n'))
-            ; return ()
-            }
-  
-      multiLineComment =
-          do { _ <- try (string (commentStart languageDef))
-             ; inComment
-             }
-  
-      inComment
-          | nestedComments languageDef  = inCommentMulti
-          | otherwise                = inCommentSingle
-  
-      inCommentMulti
-          =   do{ _ <- try (string (commentEnd languageDef)) ; return () }
-          <|> do{ multiLineComment                     ; inCommentMulti }
-          <|> do{ skipMany1 (noneOf startEnd)          ; inCommentMulti }
-          <|> do{ _ <- oneOf startEnd                  ; inCommentMulti }
-          <?> "end of comment"
-          where
-            startEnd   = nub (commentEnd languageDef ++ commentStart languageDef)
-  
-      inCommentSingle
-          =   do{ _ <- try (string (commentEnd languageDef)); return () }
-          <|> do{ skipMany1 (noneOf startEnd)         ; inCommentSingle }
-          <|> do{ _ <- oneOf startEnd                 ; inCommentSingle }
-          <?> "end of comment"
-          where
-            startEnd   = nub (commentEnd languageDef ++ commentStart languageDef)
-  
+    oneLineComment =
+        do
+            _ <- try (string (commentLine languageDef))
+            skipMany (satisfy (/= '\n'))
+            return ()
+
+    multiLineComment =
+        do
+            _ <- try (string (commentStart languageDef))
+            inComment
+
+    inComment
+        | nestedComments languageDef = inCommentMulti
+        | otherwise = inCommentSingle
+
+    inCommentMulti =
+        do _ <- try (string (commentEnd languageDef)); return ()
+        <|> do multiLineComment; inCommentMulti
+        <|> do skipMany1 (noneOf startEnd); inCommentMulti
+        <|> do _ <- oneOf startEnd; inCommentMulti
+            <?> "end of comment"
+      where
+        startEnd = nub (commentEnd languageDef ++ commentStart languageDef)
+
+    inCommentSingle =
+        do _ <- try (string (commentEnd languageDef)); return ()
+        <|> do skipMany1 (noneOf startEnd); inCommentSingle
+        <|> do _ <- oneOf startEnd; inCommentSingle
+            <?> "end of comment"
+      where
+        startEnd = nub (commentEnd languageDef ++ commentStart languageDef)

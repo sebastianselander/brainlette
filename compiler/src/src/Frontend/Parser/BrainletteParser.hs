@@ -45,8 +45,10 @@ instance HasInfo Expr where
     hasInfo (ELitDouble a _) = a
     hasInfo (ELitTrue a) = a
     hasInfo (ELitFalse a) = a
-    hasInfo (EApp a _ _) = a
+    hasInfo (ELitNull a _) = a
     hasInfo (EString a _) = a
+    hasInfo (EApp a _ _) = a
+    hasInfo (EDeref a _ _) = a
     hasInfo (Neg a _) = a
     hasInfo (Not a _) = a
     hasInfo (EMul a _ _ _) = a
@@ -54,10 +56,17 @@ instance HasInfo Expr where
     hasInfo (ERel a _ _ _) = a
     hasInfo (EAnd a _ _) = a
     hasInfo (EOr a _ _) = a
+    hasInfo (ENew a _) = a
 
 instance HasInfo Type where
     hasInfo (TVar a _) = a
     hasInfo (Fun a _ _) = a
+    hasInfo (String a) = a
+    hasInfo (Int a) = a
+    hasInfo (Double a) = a
+    hasInfo (Void a) = a
+    hasInfo (Boolean a) = a
+    hasInfo (Pointer a _) = a
 
 instance HasInfo Stmt where
     hasInfo (Empty a) = a
@@ -83,6 +92,8 @@ instance HasInfo Arg where
 
 instance HasInfo TopDef where
     hasInfo (FnDef a _ _ _ _) = a
+    hasInfo (StructDef a _ _) = a
+    hasInfo (TypeDef a _ _) = a
 
 instance HasInfo Prog where
     hasInfo (Program a _) = a

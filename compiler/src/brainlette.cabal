@@ -11,6 +11,7 @@ extra-doc-files: CHANGELOG.md
 
 common warnings
   ghc-options: -Wall -Wextra -Wno-name-shadowing -O0
+  cpp-options: -DDEBUG
 
 library brainlette-lib
   import:           warnings
@@ -49,8 +50,8 @@ library brainlette-lib
     , mtl
     , parsec
     , string-interpolate
-    , text
     , template-haskell
+    , text
 
   hs-source-dirs:   src
   default-language: GHC2021
@@ -79,6 +80,22 @@ test-suite tc
     , base
     , brainlette-lib
     , hspec
+    , mtl
+    , QuickCheck
+    , text
+
+  default-language: GHC2021
+
+test-suite parser
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   parser-test
+  main-is:          Main.hs
+  other-modules:    Generator
+  build-depends:
+    , base
+    , brainlette-lib
+    , hspec
+    , parsec
     , QuickCheck
     , text
 

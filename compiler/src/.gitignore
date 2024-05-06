@@ -1,3 +1,6 @@
 jlc
 .direnv
 dist-newstyle/
+output.ll
+output
+output-linked.ll

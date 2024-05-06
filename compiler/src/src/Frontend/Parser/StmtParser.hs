@@ -2,12 +2,12 @@ module Frontend.Parser.StmtParser where
 
 import Frontend.Parser.ExprParser
 import Frontend.Parser.Language
-import Frontend.Parser.TypeParser
 import Frontend.Parser.ParserTypes
+import Frontend.Parser.TypeParser
 import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
-import Prelude hiding (id, init, break)
 import Text.ParserCombinators.Parsec (many)
+import Prelude hiding (break, id, init)
 
 -- Items
 
@@ -33,15 +33,15 @@ stmt =
         [ try while
         , try condElse
         , try cond
-        , try ret
-        , try vret
-        , try decl
-        , try ass
-        , try incr
-        , try decr
         , try blk
-        , try sexp
-        , try break
+        , try decl <* semicolon
+        , try ret <* semicolon
+        , try vret <* semicolon
+        , try ass <* semicolon
+        , try incr <* semicolon
+        , try decr <* semicolon
+        , try sexp <* semicolon
+        , try break <* semicolon
         , empty
         ]
 
@@ -59,29 +59,28 @@ decl = do
     (i, (ty, items)) <- info $ do
         ty <- typ
         items <- commaSep1 item
-        _ <- reservedOp ";"
         return (ty, items)
     return $ Decl i ty items
 
 ass :: Parser Stmt
 ass = do
-    (i, (ident, e)) <- info $ do
-        ident <- id
-        e <- reservedOp "=" *> expr <* reservedOp ";"
-        return (ident, e)
-    return (Ass i ident e)
+    (i, (lv, e)) <- info $ do
+        lv <- expr
+        e <- reservedOp "=" *> expr
+        return (lv, e)
+    return (Ass i lv e)
 
 incr :: Parser Stmt
-incr = uncurry Incr <$> info (id <* reservedOp "++" <* reservedOp ";")
+incr = uncurry Incr <$> info (id <* reservedOp "++")
 
 decr :: Parser Stmt
-decr = uncurry Decr <$> info (id <* reservedOp "--" <* reservedOp ";")
+decr = uncurry Decr <$> info (id <* reservedOp "--")
 
 ret :: Parser Stmt
-ret = uncurry Ret <$> info (reserved "return" *> expr <* reservedOp ";")
+ret = uncurry Ret <$> info (reserved "return" *> expr)
 
 vret :: Parser Stmt
-vret = VRet . fst <$> info (reserved "return" *> reservedOp ";")
+vret = VRet . fst <$> info (reserved "return")
 
 cond :: Parser Stmt
 cond = do
@@ -113,4 +112,4 @@ while = do
     return (While i e s)
 
 sexp :: Parser Stmt
-sexp = uncurry SExp <$> info (expr <* reservedOp ";")
+sexp = uncurry SExp <$> info expr

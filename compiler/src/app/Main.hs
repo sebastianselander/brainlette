@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -11,17 +10,15 @@ import Data.Text (Text, unlines)
 import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
 import Frontend.BranchReturns (branchCheck)
 import Frontend.Parser.BrainletteParser
-import Frontend.Parser.ParserTypes
 import Frontend.Renamer (rename)
 import Frontend.Tc.Tc (tc)
+import Runtime (runtime)
 import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
 import System.IO (stderr)
-import Utils (thow)
+import Utils (Pretty (..), thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
-import Runtime (readRuntime)
-import Data.Functor (void)
 
 main :: IO ()
 main = do
@@ -52,6 +49,8 @@ main = do
 
     ePutStrLn "\n--- Check output ---"
 
+    ePrint res
+
     res <- case tc res of
         Left err -> errorExit err
         Right res -> return res
@@ -59,18 +58,17 @@ main = do
     ePutStrLn "\n--- Typecheck output ---"
     ePrint res
 
-    res <- return $ bmm res
-
     ePutStrLn "\n--- BMM output ---"
-    ePrint res
+
+    res <- return $ bmm res
+    ePutStrLn (pretty 0 res)
 
     res <- return $ braingen res
 
     ePutStrLn "\n--- LLVM IR output ---"
-
-    let runtime = $(readRuntime "llvm/runtime.ll")
     let res' = unlines [runtime, res]
     ePutStrLn res'
+
     writeFile "output.ll" res'
     putStrLn res'
     ok
