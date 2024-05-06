@@ -311,9 +311,27 @@ braingenExpr (ty, e) = case e of
         store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
 
         pure array
-    B.EIndex _ _ -> do
-        comment "EXPR-TODO: EIndex"
-        pure (Variable "TODO")
+    B.EIndex base index -> do
+        baseVar <- braingenExpr base
+        indexVar <- braingenExpr index
+
+        arrayPtr <- getTempVariable
+        getElementPtr
+            arrayPtr
+            Ptr
+            (Argument (Just . CustomType $ "Array") baseVar)
+            (ConstArgument (Just I64) (LitInt 0))
+
+        -- TODO: add bounds checking
+
+        resPtr <- getTempVariable
+        getElementPtr
+            resPtr
+            Ptr
+            (Argument (Just Ptr) arrayPtr)
+            (Argument (Just I64) indexVar)
+
+        pure resPtr
 
 -- _ -> do
 --     output . Comment $ "EXPR-TODO: " <> thow e
