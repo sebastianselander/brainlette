@@ -77,11 +77,10 @@ braingenStmts =
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of
     B.BStmt block -> mapM_ (braingenStm breakpoint) block
-    B.Decl t (B.Id i) -> do
-        output $ Alloca (Variable i) (braingenType t)
+    B.Decl t (B.Id i) -> alloca (Variable i) (braingenType t)
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
         result <- braingenExpr expr
-        output $ Store (Argument (pure $ braingenType t) result) (Variable a)
+        store (Argument (pure $ braingenType t) result) (Variable a)
     B.Ass ty (B.LIndex b i) expr -> do
         let ty' = braingenType ty
         b <- braingenExpr b
@@ -93,20 +92,19 @@ braingenStm breakpoint stmt = case stmt of
             (Argument (Just Ptr) b)
             (Argument (Just I64) i)
         var <- braingenExpr expr
-        output $ Store (Argument (Just ty') var) ptr
+        store (Argument (Just ty') var) ptr
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
         let ty' = braingenType ty
         let tyE = braingenType innerE
         e <- braingenExpr e
         ptr <- getTempVariable
-        output $
-            GetElementPtr
-                ptr
-                ty'
-                (Argument (Just tyE) e)
-                (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+        getElementPtr
+            ptr
+            ty'
+            (Argument (Just tyE) e)
+            (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
-        output $ Store (Argument (Just ty') var) ptr
+        store (Argument (Just ty') var) ptr
     B.Ret (Just expr@(t, _)) -> do
         result <- braingenExpr expr
         ret (Argument (pure $ braingenType t) result)
@@ -287,14 +285,13 @@ braingenExpr (ty, e) = case e of
         let ty' = braingenType ty
         e <- braingenExpr e
         ptr <- getTempVariable
-        output $
-            GetElementPtr
-                ptr
-                ty'
-                (Argument (Just Ptr) e)
-                (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+        getElementPtr
+            ptr
+            ty'
+            (Argument (Just Ptr) e)
+            (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         var <- getTempVariable
-        output $ Load var ty' ptr
+        load var ty' ptr
         return var
     B.EAlloc arrSize -> do
         let t' = braingenType ty
@@ -433,10 +430,10 @@ braingenLit = \case
     B.LitNull -> do
         let ty = Ptr
         intermediate <- getTempVariable
-        output $ Alloca intermediate ty
-        output $ Store (ConstArgument (pure ty) LitNull) intermediate
+        alloca intermediate ty
+        store (ConstArgument (pure ty) LitNull) intermediate
         var <- getTempVariable
-        output $ Load var ty intermediate
+        load var ty intermediate
         return var
 
 lit :: B.Lit -> Lit
