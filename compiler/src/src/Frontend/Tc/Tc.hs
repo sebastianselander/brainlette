@@ -139,6 +139,17 @@ tcStmt retTy = go
                             ty <- unify info tyl tyr
                             return . return $ Tc.Ass ty (Tc.LDeref e id) (ty, rhs')
                         _ -> error "TYPECHECK BUG: Dereference"
+                Par.EIndex _ l r -> do
+                    l' <- infExpr l
+                    case typeOf l' of
+                        Tc.Array ty -> do
+                            r'@(tyr, _) <- infExpr r
+                            unless (isInt tyr) (throwError $ ExpectedType info Tc.Int tyr)
+                            (tyr, rhs') <- infExpr rhs
+                            ty <- unify info ty tyr
+                            return . return $ Tc.Ass ty (Tc.LIndex l' r') (ty, rhs')
+                        ty -> throwError $ ExpectedArray info ty
+                    
                 _ -> throwError $ NotLValue info lhs
         Par.Incr info var -> do
             typ <- getVar var
