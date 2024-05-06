@@ -38,7 +38,10 @@ instance Pretty Arg where
     pretty :: Int -> Arg -> Text
     pretty _ (Argument t id) = [i|#{pretty 0 t} #{pretty 0 id}|]
 
-data LValue = LVar Id | LDeref Expr Int
+data LValue
+    = LVar Id
+    | LDeref Expr Int
+    | LIndex Expr Expr
     deriving (Show)
 
 instance Pretty LValue where
@@ -46,6 +49,7 @@ instance Pretty LValue where
     pretty _ = \case
         LVar id -> pretty 0 id
         LDeref e int -> [i|#{pretty 0 e}->#{int}|]
+        LIndex b index -> [i|#{pretty 0 b}[#{pretty 0 index}]|]
 
 data Stmt
     = BStmt [Stmt]
@@ -70,8 +74,7 @@ instance Pretty Stmt where
             CondElse e s1 s2 ->
                 let s1' = intercalate "\n" $ map (pretty n) s1
                     s2' = intercalate "\n" $ map (pretty n) s2
-                 in [i|if (#{pretty 0 e})\n#{pretty n s1'}\n#{indent n ("else" :: Text)}\n#{pretty n s2'}
-                |]
+                 in [i|if (#{pretty 0 e})\n#{pretty n s1'}\n#{indent n ("else" :: Text)}\n#{pretty n s2'}|]
             Loop e s ->
                 [i|loop (#{pretty 0 e})
 #{pretty (n + 1) (BStmt s)}|]
