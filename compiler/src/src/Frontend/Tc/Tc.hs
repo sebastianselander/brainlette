@@ -16,7 +16,7 @@ import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Either.Extra
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, fromJust)
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, unpack)
@@ -25,7 +25,6 @@ import Frontend.Error
 import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
-import Debug.Trace (traceShowM)
 
 -- BUG: Custom types must exist as structs!!
 
