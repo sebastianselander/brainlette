@@ -2,6 +2,7 @@
 
 module Frontend.Parser.ExprParser where
 
+import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.Language
     ( brackets,
       commaSep,
@@ -17,12 +18,13 @@ import Frontend.Parser.Language
     )
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.TypeParser (typ)
-import Text.Parsec (choice, optionMaybe, try)
+import Text.Parsec (choice, many1, optionMaybe, try)
 import Text.Parsec.Expr
     ( Assoc (AssocLeft, AssocNone),
-      Operator (Infix),
+      Operator (Infix, Postfix),
       buildExpressionParser,
     )
+import Utils (flat3)
 import Prelude hiding (id, length, null, take)
 
 id :: Parser Id
@@ -80,21 +82,19 @@ atom =
         , parens expr
         ]
 
-expr :: Parser Expr
-expr = choice [try go, expr1]
-  where
-    go = do
-        (i, (e1, e2)) <- info $ do
-            e1 <- expr1
-            e2 <- brackets expr
-            return (e1, e2)
-        return $ EIndex i e1 e2
+singleIndex :: Parser (Expr -> Expr)
+singleIndex = do
+    (info, index) <- info $ brackets expr
+    return $ \l -> EIndex info l index
 
-expr1 :: Parser Expr
-expr1 = uncurry putInfo <$> info (buildExpressionParser table atom)
+expr :: Parser Expr
+expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
-        [ [Infix (EDeref . fst <$> info (reservedOp "->")) AssocLeft]
+        [
+            [ Infix (EDeref . fst <$> info (reservedOp "->")) AssocLeft
+            , Postfix $ foldr1 (.) <$> many1 singleIndex
+            ]
         ,
             [ prefix (Neg . fst <$> info (reservedOp "-"))
             , prefix (Not . fst <$> info (reservedOp "!"))
