@@ -26,6 +26,7 @@ import Frontend.Error
 import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
+import Utils (apN)
 
 -- BUG: Custom types must exist as structs!!
 
@@ -203,6 +204,13 @@ typeExist = \case
     Tc.Pointer ty -> typeExist ty
     Tc.Array ty -> typeExist ty
 
+tcExpr :: Tc.Type -> Par.Expr -> TcM Tc.Expr
+tcExpr ty e = do
+    e' <- infExpr e
+    void (unify (hasInfo e) ty (typeOf e'))
+    return e'
+
+
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
     Par.ELitInt _ n -> return (Tc.Int, Tc.ELit (Tc.LitInt n))
@@ -213,18 +221,13 @@ infExpr e = pushExpr e $ case e of
         (,Tc.ELit Tc.LitNull)
             <$> maybe (throwError $ TypeUninferrable info e) (return . convert) ty
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
-    Par.ENew info ty size -> do
-        let f = maybe Tc.Pointer (const Tc.Array) size
-        size' <- case size of
-            Nothing -> void (getStruct info (convert ty)) >> return Nothing
-            Just expr -> do
-                expr' <- infExpr expr
-                let exprTy = typeOf expr'
-                unless
-                    (isInt exprTy)
-                    (throwError $ ExpectedType (hasInfo expr) Tc.Int exprTy)
-                return (Just expr')
-        return (f (convert ty), Tc.ENew size')
+    Par.ENew info ty sizes -> do
+        case ty of
+            Par.TVar {} -> void $ getStruct info (convert ty)
+            _ -> return ()
+        sizes <- mapM (tcExpr Tc.Int) sizes
+        let ty' = apN (length sizes) Tc.Array (convert ty)
+        return (ty', Tc.ENew sizes)
     Par.EDeref info l r -> do
         l' <- infExpr l
         ty <-

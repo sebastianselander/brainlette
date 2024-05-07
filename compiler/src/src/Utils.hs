@@ -49,5 +49,9 @@ class Pretty a where
   semi :: Int -> a -> Text
   semi n a = pretty n a <> ";"
 
+apN :: Int -> (a -> a) -> a -> a
+apN 0 _ x = x
+apN !n f !x = apN (n - 1) f (f x)
+
 instance Pretty Text where
   pretty _ t = t

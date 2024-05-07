@@ -4,12 +4,13 @@
 
 module Frontend.Parser.TypeParser where
 
+import Control.Arrow ((>>>))
 import Data.Text (Text, unpack)
 import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
 import Text.Parsec hiding (lower, string, upper)
-import Text.Parsec.Expr (buildExpressionParser, Operator (Postfix))
+import Text.Parsec.Expr (Operator (Postfix), buildExpressionParser)
 import Utils (flat3)
 
 primType :: Text -> Parser Type
@@ -47,21 +48,27 @@ postfixTypes = repair <$> buildExpressionParser table atom
                 then Pointer (info {sourceCode = "*"}) (repair ty)
                 else Array (info {sourceCode = "[]"}) (repair ty)
         ty -> ty
-    post p = Postfix . chainl1 p $ return (flip (.))
+    post p = Postfix . chainl1 p $ return (>>>)
 
 custom :: Parser Type
 custom = uncurry TVar <$> info (uncurry Id <$> info (upper <|> lower))
 
-atom :: Parser Type
-atom =
+atomicType :: Parser Type
+atomicType =
     choice
-        [ try (parens typ)
-        , try boolean
+        [ try boolean
         , try int
         , try double
         , try string
         , try void
         , custom
+        ]
+
+atom :: Parser Type
+atom =
+    choice
+        [ try (parens typ)
+        , atomicType
         ]
 
 funTy :: Parser Type

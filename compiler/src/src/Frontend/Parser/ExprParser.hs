@@ -2,6 +2,8 @@
 
 module Frontend.Parser.ExprParser where
 
+import Control.Arrow (Arrow (second), (>>>))
+import Data.Text (pack)
 import Frontend.Parser.Language
     ( brackets,
       commaSep,
@@ -16,8 +18,8 @@ import Frontend.Parser.Language
       stringLiteral,
     )
 import Frontend.Parser.ParserTypes
-import Frontend.Parser.TypeParser (typ)
-import Text.Parsec (choice, many1, optionMaybe, try)
+import Frontend.Parser.TypeParser (typ, atomicType)
+import Text.Parsec (alphaNum, char, choice, letter, many, many1, optionMaybe, try, upper, (<|>))
 import Text.Parsec.Expr
     ( Assoc (AssocLeft, AssocNone),
       Operator (Infix, Postfix),
@@ -46,14 +48,13 @@ false = ELitFalse . fst <$> info (reserved "false")
 null :: Parser Expr
 null = uncurry ELitNull <$> info (optionMaybe (parens typ) <* reserved "null")
 
--- TODO: Fix parsing of multi-dimensional initialisation
 new :: Parser Expr
 new = do
-    (i, (ident, size)) <- info $ do
-        ident <- reserved "new" *> typ
-        mby <- optionMaybe (brackets expr)
-        return (ident, mby)
-    return $ ENew i ident size
+    (i, (ident, sizes)) <- info $ do
+        ident <- reserved "new" *> atomicType
+        sizes <- many (brackets expr)
+        return (ident, sizes)
+    return $ ENew i ident sizes
 
 app :: Parser Expr
 app = do
@@ -92,7 +93,7 @@ expr = uncurry putInfo <$> info (buildExpressionParser table atom)
     table =
         [
             [ Infix (EDeref . fst <$> info (reservedOp "->")) AssocLeft
-            , Postfix $ foldr1 (.) <$> many1 singleIndex
+            , Postfix $ foldr1 (>>>) <$> many1 singleIndex
             ]
         ,
             [ prefix (Neg . fst <$> info (reservedOp "-"))

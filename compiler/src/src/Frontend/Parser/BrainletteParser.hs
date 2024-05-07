@@ -58,6 +58,7 @@ instance HasInfo Expr where
     hasInfo (EAnd a _ _) = a
     hasInfo (EOr a _ _) = a
     hasInfo (ENew a _ _) = a
+    hasInfo (EIndex a _ _) = a
 
 instance HasInfo Type where
     hasInfo (TVar a _) = a

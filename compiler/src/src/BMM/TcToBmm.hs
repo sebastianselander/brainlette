@@ -205,14 +205,14 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
                 <*> bmmExpr e2
         Tc.EAnd e1 e2 -> EAnd <$> bmmExpr e1 <*> bmmExpr e2
         Tc.EOr e1 e2 -> EOr <$> bmmExpr e1 <*> bmmExpr e2
-        Tc.ENew (Just sz) -> EAlloc . Left <$> bmmExpr sz
-        Tc.ENew Nothing -> do
+        Tc.ENew [] -> do
             struct <- lookupStruct ty
             let initialize (Tc.Argument ty _) = do
                     ty' <- bmmType ty
                     let v = defaultValue ty'
                     return (ty', v)
             ENew <$> mapM initialize struct
+        Tc.ENew szs@(_ : _) -> EAlloc <$> mapM bmmExpr szs
         Tc.Neg e -> Neg <$> bmmExpr e
         Tc.Deref expr@(t, _) field -> do
             fields <- fmap (fmap argName) (lookupStruct t)
@@ -223,7 +223,7 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
             expr' <- bmmExpr expr
             return $ Deref expr' fieldIdx
         Tc.EIndex l r -> EIndex <$> bmmExpr l <*> bmmExpr r
-        Tc.ArrayLit exprs -> EAlloc . return <$> mapM bmmExpr exprs
+        Tc.ArrayLit exprs -> EAllocInit <$> mapM bmmExpr exprs
             
 
 bmmLit :: Tc.Lit -> Lit

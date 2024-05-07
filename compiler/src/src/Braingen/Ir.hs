@@ -296,7 +296,8 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.EAlloc arr -> generateArray ty arr
+    B.EAlloc _ -> error "TODO: {EAlloc} Adapt to new changes"
+    B.EAllocInit _ -> error "TODO: {EAllocInit} Adapt to new changes"
     B.EIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index

@@ -101,7 +101,7 @@ data Expr' a
     | ELitFalse a
     | ELitNull a (Maybe (Type' a))
     | EString a Text
-    | ENew a (Type' a) (Maybe (Expr' a))
+    | ENew a (Type' a) [Expr' a]
     | EDeref a (Expr' a) (Expr' a)
     | EIndex a (Expr' a) (Expr' a)
     | EApp a (Id' a) [Expr' a]
@@ -176,7 +176,9 @@ instance Pretty Expr where
         ERel _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
         EAnd _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
         EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
-        ENew _ a size -> pretty n $ unwords ["new", pretty n a] <> maybe "" (\a -> "[" <> thow a <> "]") size
+        ENew _ name sizes -> pretty n $ unwords ["new", pretty n name] <> case map (\e -> "[" <> pretty n e <> "]") sizes of
+            [] -> ""
+            xs -> concat xs
         EIndex _ e1 e2 -> pretty n $ unwords [pretty n e1, "[" <> pretty n e2 <> "]"]
 
 instance Pretty Type where
