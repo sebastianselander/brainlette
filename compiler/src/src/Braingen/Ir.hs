@@ -270,9 +270,9 @@ braingenExpr (ty, e) = case e of
         false <- getLabel "false"
         lazyLogical l r False Braingen.Ir.and false true
     B.ENew vals -> do
-        let size = fromIntegral $ length vals * 8
+        sizeVar <- braingenExpr (mkLitIntE (fromIntegral (length vals * 8)))
         var1 <- getTempVariable
-        malloc var1 size
+        malloc var1 sizeVar
 
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
@@ -318,16 +318,26 @@ braingenExpr (ty, e) = case e of
 
         pure res
 
-generateArray :: B.Type -> Either Integer [B.Expr] -> BgM Variable
+mkLitIntE :: Integer -> B.Expr
+mkLitIntE n = (B.Int, B.ELit $ B.LitInt n)
+
+generateArray :: B.Type -> Either B.Expr [B.Expr] -> BgM Variable
 generateArray ty arr = do
-    let arrSize = case arr of
-            Left s -> s
-            Right arr -> fromIntegral $ length arr
-    let t' = braingenType ty
-    let size = sizeOf t' * arrSize
+    arrSize <- case arr of
+        Left e ->
+            braingenExpr
+                (B.Int, B.EMul e B.Times (mkLitIntE (sizeOf (braingenType ty))))
+        Right arr ->
+            braingenExpr
+                ( B.Int
+                , B.EMul
+                    (mkLitIntE (sizeOf (braingenType ty)))
+                    B.Times
+                    (mkLitIntE (fromIntegral $ length arr))
+                )
 
     addr <- getTempVariable
-    malloc addr size
+    malloc addr arrSize
 
     array <- getTempVariable
     alloca array (CustomType "Array")
@@ -346,7 +356,7 @@ generateArray ty arr = do
         Ptr
         (Argument (Just . RawPtr . CustomType $ "Array") array)
         (ConstArgument (Just I64) (LitInt 1))
-    store (ConstArgument (Just I64) (LitInt arrSize)) sizeAddr
+    store (Argument (Just I64) arrSize) sizeAddr
 
     onStack <- getTempVariable
     load onStack (CustomType "Array") array
@@ -446,6 +456,7 @@ braingenLit = \case
         var <- getTempVariable
         load var ty intermediate
         return var
+    B.LitArrNull -> error "TODO: `braingenLit` LitArrNul"
 
 lit :: B.Lit -> Lit
 lit = \case
@@ -454,6 +465,7 @@ lit = \case
     B.LitBool b -> LitBool b
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
     B.LitNull -> LitNull
+    B.LitArrNull -> error "TODO: `lit` LitArrNul"
 
 -- | Push a statement onto the state
 output :: Stmt -> BgM ()

@@ -7,6 +7,7 @@
 module Frontend.Tc.Tc where
 
 import Control.Arrow ((>>>))
+import Control.Exception (throw)
 import Control.Monad (unless, void, when)
 import Control.Monad.Except
 import Control.Monad.Extra (allM, mapMaybeM, unlessM)
@@ -149,7 +150,6 @@ tcStmt retTy = go
                             ty <- unify info ty tyr
                             return . return $ Tc.Ass ty (Tc.LIndex l' r') (ty, rhs')
                         ty -> throwError $ ExpectedArray info ty
-                    
                 _ -> throwError $ NotLValue info lhs
         Par.Incr info var -> do
             typ <- getVar var
@@ -215,8 +215,16 @@ infExpr e = pushExpr e $ case e of
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
     Par.ENew info ty size -> do
         let f = maybe Tc.Pointer (const Tc.Array) size
-        when (isNothing size) (void $ getStruct info (convert ty))
-        return (f (convert ty), Tc.ENew size)
+        size' <- case size of
+            Nothing -> void (getStruct info (convert ty)) >> return Nothing
+            Just expr -> do
+                expr' <- infExpr expr
+                let exprTy = typeOf expr'
+                unless
+                    (isInt exprTy)
+                    (throwError $ ExpectedType (hasInfo expr) Tc.Int exprTy)
+                return (Just expr')
+        return (f (convert ty), Tc.ENew size')
     Par.EDeref info l r -> do
         l' <- infExpr l
         ty <-

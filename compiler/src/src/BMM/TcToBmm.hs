@@ -205,7 +205,7 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
                 <*> bmmExpr e2
         Tc.EAnd e1 e2 -> EAnd <$> bmmExpr e1 <*> bmmExpr e2
         Tc.EOr e1 e2 -> EOr <$> bmmExpr e1 <*> bmmExpr e2
-        Tc.ENew (Just sz) -> return $ EAlloc (Left sz)
+        Tc.ENew (Just sz) -> EAlloc . Left <$> bmmExpr sz
         Tc.ENew Nothing -> do
             struct <- lookupStruct ty
             let initialize (Tc.Argument ty _) = do

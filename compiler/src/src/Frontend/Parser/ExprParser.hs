@@ -50,7 +50,7 @@ new :: Parser Expr
 new = do
     (i, (ident, size)) <- info $ do
         ident <- reserved "new" *> typ
-        mby <- optionMaybe (brackets integer)
+        mby <- optionMaybe (brackets expr)
         return (ident, mby)
     return $ ENew i ident size
 

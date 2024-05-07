@@ -119,7 +119,7 @@ data Stmt
     | Or Variable Type Argument Argument
     | GetElementPtr Variable Type Argument Argument
     | Alloca Variable Type
-    | Malloc Variable Integer
+    | Malloc Variable Variable
     | Store Argument Variable
     | Load Variable Type Variable
     | Ret Argument
