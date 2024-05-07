@@ -2,7 +2,6 @@
 
 module Frontend.Parser.ExprParser where
 
-import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.Language
     ( brackets,
       commaSep,
@@ -24,7 +23,6 @@ import Text.Parsec.Expr
       Operator (Infix, Postfix),
       buildExpressionParser,
     )
-import Utils (flat3)
 import Prelude hiding (id, length, null, take)
 
 id :: Parser Id
@@ -48,6 +46,7 @@ false = ELitFalse . fst <$> info (reserved "false")
 null :: Parser Expr
 null = uncurry ELitNull <$> info (optionMaybe (parens typ) <* reserved "null")
 
+-- TODO: Fix parsing of multi-dimensional initialisation
 new :: Parser Expr
 new = do
     (i, (ident, size)) <- info $ do
