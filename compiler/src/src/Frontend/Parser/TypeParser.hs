@@ -31,23 +31,18 @@ void = Void . fst <$> info (reserved (unpack "void"))
 boolean :: Parser Type
 boolean = Boolean . fst <$> info (reserved (unpack "boolean"))
 
-data Intermediate = Arr SynInfo | Poi SynInfo
-
 postfixTypes :: Parser Type
-postfixTypes = repair <$> buildExpressionParser table atom
+postfixTypes = buildExpressionParser table atom
   where
     table =
         [
-            [ post (Array . fst <$> info (reservedOp "*" <|> reservedOp "[]"))
+            [ post $
+                choice
+                    [ Array . fst <$> info (reservedOp "[]")
+                    , Pointer . fst <$> info (reservedOp "*")
+                    ]
             ]
         ]
-    repair :: Type -> Type
-    repair = \case
-        Array info ty ->
-            if info.sourceCode == "*"
-                then Pointer (info {sourceCode = "*"}) (repair ty)
-                else Array (info {sourceCode = "[]"}) (repair ty)
-        ty -> ty
     post p = Postfix . chainl1 p $ return (>>>)
 
 custom :: Parser Type
