@@ -5,7 +5,7 @@
 module BMM.Bmm where
 
 import Data.String.Interpolate (i)
-import Data.Text (Text, intercalate, concat)
+import Data.Text (Text, intercalate)
 import Utils (Pretty (..), thow)
 import Prelude hiding (concatMap, concat)
 
@@ -103,7 +103,7 @@ instance Pretty Type where
         Boolean -> "Bool"
         Int -> "I32"
         Fun rt ts -> [i|(#{commaSeparated 0 ts}) -> #{pretty 0 rt}|]
-        Pointer t -> "*" <> pretty 0 t
+        Pointer t -> pretty 0 t <> "*" 
         Array t -> pretty 0 t <> "[]"
 
 type Expr = (Type, Expr')
