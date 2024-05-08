@@ -8,13 +8,17 @@ import BMM.StringToTop (moveStringsToTop)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
 import Control.Monad.State (State, execState, get, put)
-import Data.List
+import Data.List hiding (reverse)
+import Data.List.NonEmpty (reverse)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Frontend.Tc.Types qualified as Tc
+import Prelude hiding (reverse)
+import Data.List.NonEmpty.Extra (NonEmpty((:|)))
+import Debug.Trace (traceShowM)
 
 data TypeInfo = TI
     { typedefs :: Map Tc.Type Tc.Type
@@ -212,7 +216,13 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
                     let v = defaultValue ty'
                     return (ty', v)
             StructInit <$> mapM initialize struct
-        Tc.ArrayAlloc szs -> ArrayAlloc <$> mapM bmmExpr szs
+        -- NOTE: Reverse the list to make the first element the expression to multiply by the type
+        Tc.ArrayAlloc szs -> do
+            ty <- bmmType ty
+            (sz :| szs) <- mapM bmmExpr (reverse szs)
+            let sz' = (ty, EMul (ty, ELit (LitInt (innerSizeOf ty))) Times sz)
+            let adjustSize e = (ty, EMul (Int, ELit (LitInt (sizeOf (Array undefined)))) Times e)
+            return $ ArrayAlloc (sz' :| map adjustSize szs)
         Tc.ArrayInit exprs -> ArrayInit <$> mapM bmmExpr exprs
         Tc.Neg e -> Neg <$> bmmExpr e
         Tc.Deref expr@(t, _) field -> do
@@ -225,7 +235,24 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
             return $ Deref expr' fieldIdx
         Tc.EIndex l r -> EIndex <$> bmmExpr l <*> bmmExpr r
         Tc.ArrayLit exprs -> ArrayInit <$> mapM bmmExpr exprs
-            
+
+innerSizeOf :: Num a => Type -> a
+innerSizeOf = \case
+    Pointer ty -> innerSizeOf ty
+    Array ty -> innerSizeOf ty
+    ty -> sizeOf ty
+
+sizeOf :: Num a => Type -> a
+sizeOf = \case
+    TVar _ -> 8
+    String -> 8
+    Double -> 8
+    Void -> 0
+    Boolean -> 1
+    Int -> 8
+    Fun _ _ -> 8
+    Pointer _ -> 8
+    Array _ -> sizeOf (Pointer undefined) + 8
 
 bmmLit :: Tc.Lit -> Lit
 bmmLit = \case

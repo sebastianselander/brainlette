@@ -13,6 +13,7 @@ import Control.Arrow ((>>>))
 import Control.Monad (forM_, void)
 import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (foldr, map)
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
@@ -296,8 +297,16 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.ArrayAlloc _ -> error "TODO: {EAlloc} Adapt to new changes"         -- new int[123][321]
-    B.ArrayInit _ -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
+    B.ArrayAlloc (sz :| []) -> generateArray ty (Left sz)
+    B.ArrayAlloc (sz :| szs) -> do
+        {-
+            alloc the array inner arrays
+            alloc outer
+            initialize
+
+        -}
+        undefined
+    B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
     B.EIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index
@@ -586,5 +595,5 @@ sizeOf = \case
     RawPtr _ -> sizeOf Ptr
     Void -> 0
     FunPtr _ _ -> 8
-    Array _ _ -> sizeOf Ptr
+    Array _ _ -> sizeOf Ptr + 8
     CustomType _ -> 8
