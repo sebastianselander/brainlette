@@ -291,6 +291,7 @@ infExpr e = pushExpr e $ case e of
             (Tc.Int, Tc.Int) -> return Tc.Int
             (Tc.Double, Tc.Double) -> return Tc.Double
             (Tc.Boolean, Tc.Boolean) -> return Tc.Boolean
+            (Tc.String, Tc.String) -> throwError (ErrText info "String comparison not yet supported")
             (l, r) -> do
                 ty1 <- concreteType l
                 ty2 <- concreteType r

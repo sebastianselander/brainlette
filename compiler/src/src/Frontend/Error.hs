@@ -12,11 +12,11 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes (SynInfo (..))
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types
-import GHC.Generics (Constructor)
 import Prelude hiding (takeWhile, unlines, unwords)
 
 data FEError
-    = -- | Constructor for an unbound variable error
+    = ErrText SynInfo Text
+    | -- | Constructor for an unbound variable error
       UnboundVariable
         -- | The source code position of the error
         SynInfo
@@ -242,6 +242,7 @@ instance Report RelOp where
 
 instance Report FEError where
     report = \case
+        ErrText info txt -> pretty $ combine info txt
         UnboundVariable info (Id name) ->
             pretty $ combine info [i|Unbound variable '#{name}'|]
         TypeMismatch info given expected ->
