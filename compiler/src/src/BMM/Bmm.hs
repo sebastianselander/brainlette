@@ -7,7 +7,7 @@ module BMM.Bmm where
 import Data.String.Interpolate (i)
 import Data.Text (Text, intercalate)
 import Utils (Pretty (..), thow)
-import Prelude hiding (concatMap, concat)
+import Prelude hiding (concat, concatMap)
 
 newtype Prog = Program [TopDef] deriving (Show)
 
@@ -74,7 +74,8 @@ instance Pretty Stmt where
             CondElse e s1 s2 ->
                 let s1' = intercalate "\n" $ map (pretty n) s1
                     s2' = intercalate "\n" $ map (pretty n) s2
-                 in [i|if (#{pretty 0 e})\n#{pretty n s1'}\n#{indent n ("else" :: Text)}\n#{pretty n s2'}|]
+                    els = "else" :: Text
+                 in [i|if (#{pretty 0 e})\n#{pretty n s1'}\n#{indent n els}\n#{pretty n s2'}|]
             Loop e s ->
                 [i|loop (#{pretty 0 e})
 #{pretty (n + 1) (BStmt s)}|]
@@ -103,7 +104,7 @@ instance Pretty Type where
         Boolean -> "Bool"
         Int -> "I32"
         Fun rt ts -> [i|(#{commaSeparated 0 ts}) -> #{pretty 0 rt}|]
-        Pointer t -> pretty 0 t <> "*" 
+        Pointer t -> pretty 0 t <> "*"
         Array t -> pretty 0 t <> "[]"
 
 type Expr = (Type, Expr')
@@ -125,9 +126,11 @@ data Expr'
     | EAnd Expr Expr
     | EOr Expr Expr
     | ENew [(Type, Lit)]
-    | EAllocInit [Expr] -- | Alloc the array and initialize all elements with the given expression
-    | EAlloc [Expr] -- | Alloc the array n-dimensional array with the given list of expression as array sizes
-    | Cast Expr
+    | EAllocInit [Expr]
+    | -- | Alloc the array and initialize all elements with the given expression
+      EAlloc [Expr]
+    | -- | Alloc the array n-dimensional array with the given list of expression as array sizes
+      Cast Expr
     | Deref Expr Int
     | EIndex Expr Expr
     deriving (Show)
