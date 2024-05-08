@@ -7,7 +7,6 @@
 module Frontend.Tc.Tc where
 
 import Control.Arrow ((>>>))
-import Control.Exception (throw)
 import Control.Monad (unless, void, when)
 import Control.Monad.Except
 import Control.Monad.Extra (allM, mapMaybeM, unlessM)
@@ -17,7 +16,7 @@ import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Either.Extra
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, unpack)
@@ -27,6 +26,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
+import Data.List.NonEmpty (NonEmpty((:|)))
 
 -- BUG: Custom types must exist as structs!!
 
@@ -225,9 +225,14 @@ infExpr e = pushExpr e $ case e of
         case ty of
             Par.TVar {} -> void $ getStruct info (convert ty)
             _ -> return ()
-        sizes <- mapM (tcExpr Tc.Int) sizes
-        let ty' = apN (length sizes) Tc.Array (convert ty)
-        return (ty', Tc.ENew sizes)
+        case sizes of
+            [] -> do
+                return (convert ty, Tc.StructInit)
+            (sz:szs) -> do
+                sz <- tcExpr Tc.Int sz
+                szs <- mapM (tcExpr Tc.Int) szs
+                let ty' = apN (length sizes) Tc.Array (convert ty)
+                return (ty', Tc.ArrayAlloc (sz :| szs))
     Par.EDeref info l r -> do
         l' <- infExpr l
         ty <-

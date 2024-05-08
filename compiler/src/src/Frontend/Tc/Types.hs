@@ -2,6 +2,7 @@ module Frontend.Tc.Types where
 
 import Data.String (IsString)
 import Data.Text (Text)
+import Data.List.NonEmpty (NonEmpty)
 
 newtype Prog = Program [TopDef]
     deriving (Eq, Ord, Show, Read)
@@ -52,7 +53,9 @@ type Expr = (Type, Expr')
 
 data Expr'
     = EVar Id
-    | ENew [Expr]
+    | ArrayAlloc (NonEmpty Expr)
+    | ArrayInit [Expr]
+    | StructInit
     | ELit Lit
     | EApp Id [Expr]
     | Neg Expr

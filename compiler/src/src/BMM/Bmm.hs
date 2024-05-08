@@ -8,6 +8,8 @@ import Data.String.Interpolate (i)
 import Data.Text (Text, intercalate)
 import Utils (Pretty (..), thow)
 import Prelude hiding (concat, concatMap)
+import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty qualified as NonEmpty
 
 newtype Prog = Program [TopDef] deriving (Show)
 
@@ -125,10 +127,10 @@ data Expr'
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
-    | ENew [(Type, Lit)]
-    | EAllocInit [Expr]
+    | StructInit [(Type, Lit)]
+    | ArrayInit [Expr]
     | -- | Alloc the array and initialize all elements with the given expression
-      EAlloc [Expr]
+      ArrayAlloc (NonEmpty Expr)
     | -- | Alloc the array n-dimensional array with the given list of expression as array sizes
       Cast Expr
     | Deref Expr Int
@@ -150,9 +152,9 @@ instance Pretty Expr' where
             ERel e1 op e2 -> [i|#{pretty 0 e1} #{pretty 0 op} #{pretty 0 e2}|]
             EAnd e1 e2 -> [i|#{pretty 0 e1} && #{pretty 0 e2}|]
             EOr e1 e2 -> [i|#{pretty 0 e1} || #{pretty 0 e2}|]
-            ENew _ -> "new"
-            EAlloc si -> [i|alloc[#{(map (bracket . pretty n) si)}]|]
-            EAllocInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
+            StructInit _ -> "new"
+            ArrayAlloc si -> [i|alloc[#{(NonEmpty.map (bracket . pretty n) si)}]|]
+            ArrayInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
             EIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]

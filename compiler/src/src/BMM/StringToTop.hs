@@ -59,7 +59,7 @@ fixStmt = \case
 
 fixExpr :: Expr -> St Expr
 fixExpr (t, e) = case e of
-    ENew {} -> return (t, e)
+    StructInit {} -> return (t, e)
     EGlobalVar {} -> return (t, e)
     ELit (LitString str) -> do
         var <- addString str
@@ -95,7 +95,8 @@ fixExpr (t, e) = case e of
         v <- fixExpr v
         i <- fixExpr i
         return (t, EIndex v i)
-    EAlloc i -> pure (t, EAlloc i)
+    ArrayAlloc sizes -> pure (t, ArrayAlloc sizes)
+    ArrayInit exprs -> (t,) . ArrayInit <$> mapM fixExpr exprs
 
 --- aux fucns ---
 addString :: Text -> St Text

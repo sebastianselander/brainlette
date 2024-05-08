@@ -269,7 +269,7 @@ braingenExpr (ty, e) = case e of
         true <- getLabel "true"
         false <- getLabel "false"
         lazyLogical l r False Braingen.Ir.and false true
-    B.ENew vals -> do
+    B.StructInit vals -> do
         sizeVar <- braingenExpr (mkLitIntE (fromIntegral (length vals * 8)))
         var1 <- getTempVariable
         malloc var1 sizeVar
@@ -296,8 +296,8 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.EAlloc _ -> error "TODO: {EAlloc} Adapt to new changes"         -- new int[123][321]
-    B.EAllocInit _ -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
+    B.ArrayAlloc _ -> error "TODO: {EAlloc} Adapt to new changes"         -- new int[123][321]
+    B.ArrayInit _ -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
     B.EIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index
