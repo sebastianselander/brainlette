@@ -2,8 +2,7 @@
 
 module Frontend.Parser.ExprParser where
 
-import Control.Arrow (Arrow (second), (>>>))
-import Data.Text (pack)
+import Control.Arrow ((>>>))
 import Frontend.Parser.Language
     ( brackets,
       commaSep,
@@ -18,8 +17,8 @@ import Frontend.Parser.Language
       stringLiteral,
     )
 import Frontend.Parser.ParserTypes
-import Frontend.Parser.TypeParser (typ, atomicType)
-import Text.Parsec (alphaNum, char, choice, letter, many, many1, optionMaybe, try, upper, (<|>))
+import Frontend.Parser.TypeParser (atomicType, typ)
+import Text.Parsec (choice, many, many1, optionMaybe, try, (<?>) )
 import Text.Parsec.Expr
     ( Assoc (AssocLeft, AssocNone),
       Operator (Infix, Postfix),
@@ -84,16 +83,27 @@ atom =
 
 singleIndex :: Parser (Expr -> Expr)
 singleIndex = do
-    (info, index) <- info $ brackets expr
+    (info, index) <- info (brackets expr) <?> "expression"
     return $ \l -> EIndex info l index
+
+field :: Parser (Expr -> Expr)
+field = do
+    (info, field) <- reservedOp "." *> info id <?> "struct field"
+    return $ \l -> EStructIndex info l field
+
+deref :: Parser (Expr -> Expr)
+deref = do
+    (info, field) <- reservedOp "->" *> info id <?> "struct field"
+    return $ \l -> EDeref info l field
 
 expr :: Parser Expr
 expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
         [
-            [ Infix (EDeref . fst <$> info (reservedOp "->")) AssocLeft
+            [ Postfix $ foldr1 (>>>) <$> many1 deref
             , Postfix $ foldr1 (>>>) <$> many1 singleIndex
+            , Postfix $ foldr1 (>>>) <$> many1 field
             ]
         ,
             [ prefix (Neg . fst <$> info (reservedOp "-"))
@@ -148,3 +158,4 @@ putInfo i = \case
     EOr _ a b -> EOr i a b
     ENew _ a b -> ENew i a b
     EIndex _ a b -> EIndex i a b
+    EStructIndex _ a b -> EStructIndex i a b

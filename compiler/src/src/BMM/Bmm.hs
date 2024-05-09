@@ -134,6 +134,7 @@ data Expr'
     | -- | Alloc the array n-dimensional array with the given list of expression as array sizes
       Cast Expr
     | Deref Expr Int
+    | StructIndex Expr Int
     | EIndex Expr Expr
     deriving (Show)
 
@@ -157,6 +158,7 @@ instance Pretty Expr' where
             ArrayInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
+            StructIndex e id -> [i|#{pretty 0 e}.#{id}|]
             EIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]
 
 bracket :: Text -> Text

@@ -60,6 +60,9 @@ brainletteDef =
             , ","
             , "="
             , "[]"
+            , "."
+            , "->"
+            , ":"
             ]
         , reservedNames =
             [ "while"

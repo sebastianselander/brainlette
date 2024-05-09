@@ -33,7 +33,7 @@ newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
 initEnv :: Env
 initEnv =
     Env
-        (singleton mempty)
+        (singleton (Map.singleton (Id NoInfo "length") (Id NoInfo "length")))
         0
         ( Set.fromList
             [ Id NoInfo "printInt"
@@ -97,6 +97,11 @@ rnDef = \case
 rnType :: Type -> RnM Type
 rnType = return
 
+-- TODO: make differenet scopes for fields and variables
+rnField :: SynInfo -> Id -> RnM Id
+rnField info (Id info' "length") = return (Id info' "length")
+rnField info id = rnId info id
+
 rnId :: SynInfo -> Id -> RnM Id
 rnId info id = do
     gets (Set.member id . functions) >>= \case
@@ -143,6 +148,7 @@ rnStmt = \case
             <*> newBlock (rnStmt stmt1)
             <*> newBlock (rnStmt stmt2)
     While info expr stmt -> While info <$> rnExpr expr <*> newBlock (rnStmt stmt)
+    ForEach info arg expr stmt -> ForEach info <$> rnArg arg <*> rnExpr expr <*> rnStmt stmt
     Break info -> return (Break info)
     SExp info expr -> SExp info <$> rnExpr expr
 
@@ -183,7 +189,7 @@ rnExpr = \case
     ELitFalse info -> return (ELitFalse info)
     ELitNull info ty -> return (ELitNull info ty)
     EString info text -> return (EString info text)
-    EDeref info l r -> EDeref info <$> rnExpr l <*> rnExpr r
+    EDeref info l r -> EDeref info <$> rnExpr l <*> rnField info r
     EApp info id exprs -> EApp info <$> rnId info id <*> mapM rnExpr exprs
     Neg info expr -> Neg info <$> rnExpr expr
     Not info expr -> Not info <$> rnExpr expr
@@ -201,6 +207,10 @@ rnExpr = \case
         size <- mapM rnExpr size
         return $ ENew info ty size
     EIndex info e1 e2 -> EIndex info <$> rnExpr e1 <*> rnExpr e2
+    EStructIndex info e1 field ->
+        EStructIndex info
+            <$> rnExpr e1
+            <*> rnField info field
 
 newBlock :: (MonadState Env m) => m a -> m a
 newBlock ma = do

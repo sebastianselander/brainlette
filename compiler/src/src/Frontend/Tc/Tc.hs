@@ -14,6 +14,7 @@ import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Either.Extra
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
@@ -26,7 +27,6 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
-import Data.List.NonEmpty (NonEmpty((:|)))
 
 -- BUG: Custom types must exist as structs!!
 
@@ -185,6 +185,14 @@ tcStmt retTy = go
             errNotBoolean (hasInfo cond) (typeOf cond')
             stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
             return (Just (Tc.While cond' stmt'))
+        Par.ForEach _ (Par.Argument _ ty name) expr stmt -> do
+            let ty' = convert ty
+            let name' = convert name
+            expr' <- tcExpr (Tc.Array ty') expr
+            insertVar name' ty'
+            stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
+            return . Just $ Tc.ForEach (Tc.Argument ty' name') expr' stmt'
+            
         Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
         Par.SExp info expr -> throwError (NotStatement info expr)
         Par.Break _ -> return $ Just Tc.Break
@@ -210,7 +218,6 @@ tcExpr ty e = do
     void (unify (hasInfo e) ty (typeOf e'))
     return e'
 
-
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
     Par.ELitInt _ n -> return (Tc.Int, Tc.ELit (Tc.LitInt n))
@@ -228,28 +235,25 @@ infExpr e = pushExpr e $ case e of
         case sizes of
             [] -> do
                 return (convert ty, Tc.StructInit)
-            (sz:szs) -> do
+            (sz : szs) -> do
                 sz <- tcExpr Tc.Int sz
                 szs <- mapM (tcExpr Tc.Int) szs
                 let ty' = apN (length sizes) Tc.Array (convert ty)
                 return (ty', Tc.ArrayAlloc (sz :| szs))
-    Par.EDeref info l r -> do
+    Par.EDeref info l field -> do
         l' <- infExpr l
         ty <-
             concreteType (typeOf l') >>= \case
                 Tc.Pointer ty -> return ty
                 ty -> throwError $ NotPointer info ty
         fields <- getStruct info ty
-        case r of
-            (Par.EVar _ id) -> do
-                let id' = convert id
-                ty <-
-                    maybe
-                        (throwError $ UnboundField info id)
-                        return
-                        (Map.lookup id' fields)
-                return (ty, Tc.Deref l' id')
-            e -> throwError (ExpectedIdentifier info e)
+        let id' = convert field
+        ty <-
+            maybe
+                (throwError $ UnboundField info field)
+                return
+                (Map.lookup id' fields)
+        return (ty, Tc.Deref l' id')
     Par.EVar _ i -> do
         ty <- getVar i
         return (ty, Tc.EVar (convert i))
@@ -327,6 +331,18 @@ infExpr e = pushExpr e $ case e of
                 unless (isInt tyr) (throwError $ ExpectedType info Tc.Int tyr)
                 return (ty, Tc.EIndex l' r')
             ty -> throwError $ ExpectedArray info ty
+    Par.EStructIndex info l field -> do
+        expr <- infExpr l
+        case typeOf expr of
+            Tc.Array _ -> do -- NOTE: For now hard coded for arrays
+                if | (Par.Id _ "length") <- field -> return (Tc.Int, Tc.StructIndex expr (Tc.Id "length"))
+                   | otherwise -> throwError $ UnboundField info field
+            ty ->  do
+                fieldTy <- Map.lookup (convert field) <$> getStruct info ty
+                ty' <- case fieldTy of
+                    Nothing -> throwError $ UnboundField info field
+                    Just ty -> return ty
+                return (ty', Tc.StructIndex expr (convert field))
 
 isPointer :: Tc.Type -> Bool
 isPointer (Tc.Pointer _) = True

@@ -9,6 +9,7 @@ import GHC.Generics
 import Text.Parsec (Parsec)
 import Utils (Pretty (..), thow)
 import Prelude hiding (concat, replicate, unlines, unwords)
+import GHC.Read (paren)
 
 type Parser a = Parsec Text () a
 
@@ -77,6 +78,7 @@ data Stmt' a
     | Cond a (Expr' a) (Stmt' a)
     | CondElse a (Expr' a) (Stmt' a) (Stmt' a)
     | While a (Expr' a) (Stmt' a)
+    | ForEach a (Arg' a) (Expr' a) (Stmt' a)
     | Break a
     | SExp a (Expr' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
@@ -102,7 +104,8 @@ data Expr' a
     | ELitNull a (Maybe (Type' a))
     | EString a Text
     | ENew a (Type' a) [Expr' a]
-    | EDeref a (Expr' a) (Expr' a)
+    | EDeref a (Expr' a) (Id' a)
+    | EStructIndex a (Expr' a) (Id' a)
     | EIndex a (Expr' a) (Expr' a)
     | EApp a (Id' a) [Expr' a]
     | Neg a (Expr' a)
@@ -180,6 +183,7 @@ instance Pretty Expr where
             [] -> ""
             xs -> concat xs
         EIndex _ e1 e2 -> pretty n $ unwords [pretty n e1, "[" <> pretty n e2 <> "]"]
+        EStructIndex _ expr field -> pretty n $ concat [pretty n expr, ".", pretty n field]
 
 instance Pretty Type where
     pretty n (String _) = replicate n " " <> "string"
@@ -205,6 +209,7 @@ instance Pretty Stmt where
         Cond _ expr stmt -> unlines ["if " <> parenthesis n expr, pretty n stmt]
         CondElse _ expr stmt1 stmt2 -> unlines ["if " <> parenthesis n expr, pretty n stmt1, "else", pretty n stmt2]
         While _ expr stmt -> unlines ["while " <> parenthesis n expr, pretty n stmt]
+        ForEach _ arg expr stmt -> unlines ["for" <> parenthesis n (pretty n arg <> " : " <> pretty n expr), pretty n stmt]
         Break _ -> "break;"
         SExp _ expr -> semi n expr
 

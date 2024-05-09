@@ -561,7 +561,7 @@ braingenMulOp = \case
         B.Times -> FMul
         B.Div -> FDiv
         B.Mod -> FRem
-    _ -> error "error: report bug as a typeerror"
+    ty -> error $ "error: report bug as a typeerror" <> show ty
 
 -- | Gets all constants
 getConsts :: [B.TopDef] -> Set Text

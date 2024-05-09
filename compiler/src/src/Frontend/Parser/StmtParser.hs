@@ -8,6 +8,7 @@ import Text.Parsec (try)
 import Text.Parsec.Combinator (choice)
 import Text.ParserCombinators.Parsec (many)
 import Prelude hiding (break, id, init)
+import Frontend.Parser.ArgumentParser (arg)
 
 -- Items
 
@@ -31,6 +32,7 @@ stmt :: Parser Stmt
 stmt =
     choice
         [ try while
+        , try foreach
         , try condElse
         , try cond
         , try blk
@@ -110,6 +112,14 @@ while = do
         s <- stmt
         return (e, s)
     return (While i e s)
+
+foreach :: Parser Stmt
+foreach = do
+    (i, (a, e, s)) <- info $ do
+        (arg, expr) <- reserved "for" *> parens ((,) <$> arg <* reservedOp ":" <*> expr)
+        s <- stmt
+        return (arg, expr, s)
+    return $ ForEach i a e s
 
 sexp :: Parser Stmt
 sexp = uncurry SExp <$> info expr

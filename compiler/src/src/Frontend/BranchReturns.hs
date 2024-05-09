@@ -93,10 +93,9 @@ retDefs (TypeDef {}) = return ()
 retDefs self@(FnDef _ ty _ _ stmts) =
     case ty of
         Void _ -> void $ returns stmts
-        _ -> do
-            returns stmts >>= \case
-                True -> return ()
-                False -> missingFn self
+        _ -> returns stmts >>= \case
+            True -> return ()
+            False -> missingFn self
   where
     returns :: [Stmt] -> Br Bool
     returns [] = return False
@@ -215,6 +214,8 @@ interpret = \case
             (IsDouble n, IsInt m) ->
                 Just $ IsBool $ relOp op n (fromInteger m)
             _ -> Nothing
+    EStructIndex {} -> Nothing
+    EIndex {} -> Nothing
 
 relOp :: RelOp -> ((Ord a) => a -> a -> Bool)
 relOp (LTH _) = (<)

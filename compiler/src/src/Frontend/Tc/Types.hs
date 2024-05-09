@@ -30,6 +30,7 @@ data Stmt
     | Cond Expr Stmt
     | CondElse Expr Stmt Stmt
     | While Expr Stmt
+    | ForEach Arg Expr Stmt
     | SExp Expr
     | Break
     deriving (Eq, Ord, Show, Read)
@@ -61,6 +62,7 @@ data Expr'
     | Neg Expr
     | Not Expr
     | Deref Expr Id
+    | StructIndex Expr Id
     | EMul Expr MulOp Expr
     | EAdd Expr AddOp Expr
     | ERel Expr RelOp Expr
