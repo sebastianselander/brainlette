@@ -17,11 +17,11 @@ import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (pack)
+import Debug.Trace (traceShow)
 import Frontend.Tc.Types qualified as Tc
 import GHC.Base (NonEmpty (..))
 import Utils (thow)
 import Prelude hiding (reverse)
-import Debug.Trace (traceShow)
 
 data TypeInfo = TI
     { typedefs :: Map Tc.Type Tc.Type
@@ -122,9 +122,11 @@ bmmArg (Tc.Argument t id) = Argument <$> bmmType t <*> bmmId id
 
 bmmStmts :: [Tc.Stmt] -> Bmm [Stmt]
 bmmStmts s = flip concatMapM s $ \case
-    Tc.BStmt stmts -> singleton . BStmt <$> bmmStmts stmts
+    Tc.BStmt stmts -> bmmStmts stmts
     Tc.Decl t items -> concatMapM (itemDeclToBmm t) items
-    Tc.Ass ty id expr -> singleton <$> (Ass <$> bmmType ty <*> bmmLValue id <*> bmmExpr expr)
+    Tc.Ass ty id expr ->
+        singleton
+            <$> (Ass <$> bmmType ty <*> bmmLValue id <*> bmmExpr expr)
     Tc.Incr t id -> do
         id' <- bmmId id
         t' <- bmmType t
@@ -151,16 +153,26 @@ bmmStmts s = flip concatMapM s $ \case
     Tc.CondElse e s1 s2 ->
         singleton
             <$> (CondElse <$> bmmExpr e <*> bmmStmts [s1] <*> bmmStmts [s2])
-    Tc.While e s -> singleton <$> (Loop <$> bmmExpr e <*> bmmStmts [s]) -- Just yoink whatever is in main later
+    Tc.While e s -> singleton <$> (Loop <$> bmmExpr e <*> bmmStmts [s])
     Tc.ForEach (Tc.Argument ty name) expr stmt -> do
+        ty <- bmmType ty
         expr <- bmmExpr expr
         stmts <- bmmStmts [stmt]
-        var <- freshVar
-        let declIndex = Decl Int var
-        let assIndex = Ass Int (LVar var) (Int, ELit (LitInt 0))
-        arg <- Decl <$> bmmType ty <*> bmmId name
-        let stmts = [declIndex, assIndex]
-        undefined
+        name <- bmmId name
+        fresh <- freshVar
+        let declIndex = Decl ty fresh
+        let assIndex = Ass Int (LVar fresh) (Int, ELit (LitInt 0))
+        return
+            [ declIndex
+            , assIndex
+            , Loop
+                (Boolean, ERel (Int, EVar fresh) LTH (Int, StructIndex expr 1))
+                $ [ Decl ty name
+                  , Ass ty (LVar name) (ty, EIndex expr (Int, EVar fresh))
+                  , Ass Int (LVar fresh) (Int, EAdd (Int, EVar fresh) Plus (Int, ELit (LitInt 1)))
+                  ]
+                    ++ stmts
+            ]
     Tc.SExp e -> do
         e' <- bmmExpr e
         return [SExp e']

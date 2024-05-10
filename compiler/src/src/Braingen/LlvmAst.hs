@@ -118,6 +118,7 @@ data Stmt
     | Fneg Variable Type Argument
     | Or Variable Type Argument Argument
     | GetElementPtr Variable Type Argument Argument
+    | ExtractValue Variable Type Variable Integer
     | Alloca Variable Type
     | Malloc Variable Variable
     | Store Argument Variable
@@ -130,7 +131,6 @@ data Stmt
     | Jump Label
     | Cast CastOp Variable Type Variable Type
     | Unreachable
-    | ExtractValue Variable Type Variable Integer
     deriving (Show)
 
 data Lit

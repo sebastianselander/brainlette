@@ -86,6 +86,7 @@ breaks = \case
     Break info -> do
         b <- ask
         unless b $ throwError (BreakNotInLoop info)
+    ForEach _ _ _ stmt -> local (const True) $ breaks stmt
 
 retDefs :: TopDef -> Br ()
 retDefs (StructDef {}) = return ()
@@ -126,6 +127,7 @@ returnsStmt = \case
         if never expr
             then unreachable stmt $> False
             else (always expr &&) <$> returnsStmt stmt
+    ForEach {} -> return False
     SExp _ _ -> return False
     Break _ -> return False
 

@@ -5,9 +5,9 @@
 module BMM.Bmm where
 
 import Data.String.Interpolate (i)
-import Data.Text (Text, intercalate)
+import Data.Text (Text, intercalate, takeWhile, concatMap, concat)
 import Utils (Pretty (..), thow)
-import Prelude hiding (concat, concatMap)
+import Prelude hiding (takeWhile, concat, concatMap)
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NonEmpty
 
@@ -54,7 +54,7 @@ instance Pretty LValue where
         LIndex b index -> [i|#{pretty 0 b}[#{pretty 0 index}]|]
 
 data Stmt
-    = BStmt [Stmt]
+    = BStmt [Stmt] -- TODO: Remove
     | Decl Type Id
     | Ass Type LValue Expr
     | Ret (Maybe Expr)
@@ -154,7 +154,7 @@ instance Pretty Expr' where
             EAnd e1 e2 -> [i|#{pretty 0 e1} && #{pretty 0 e2}|]
             EOr e1 e2 -> [i|#{pretty 0 e1} || #{pretty 0 e2}|]
             StructInit _ -> "new"
-            ArrayAlloc si -> [i|alloc[#{(NonEmpty.map (bracket . pretty n) si)}]|]
+            ArrayAlloc si -> [i|alloc[#{concat $ map (pretty n) (NonEmpty.toList si)}]|]
             ArrayInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
@@ -234,4 +234,4 @@ newtype Id = Id Text
     deriving (Show, Eq, Ord)
 
 instance Pretty Id where
-    pretty _ (Id id) = indent 0 ("\ESC[93m" <> id <> "\ESC[0m")
+    pretty _ (Id id) = indent 0 ("\ESC[93m" <> takeWhile (/= '$') id <> "\ESC[0m")

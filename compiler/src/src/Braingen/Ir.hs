@@ -327,6 +327,11 @@ braingenExpr (ty, e) = case e of
         load res I64 resPtr
 
         pure res
+    B.StructIndex (ty, e) i -> do
+        e <- braingenExpr (ty, e)
+        var <- getTempVariable
+        extractValue var (braingenType ty) e (fromIntegral i)
+        return var
 
 mkLitIntE :: Integer -> B.Expr
 mkLitIntE n = (B.Int, B.ELit $ B.LitInt n)
@@ -334,17 +339,8 @@ mkLitIntE n = (B.Int, B.ELit $ B.LitInt n)
 generateArray :: B.Type -> Either B.Expr [B.Expr] -> BgM Variable
 generateArray ty arr = do
     arrSize <- case arr of
-        Left e ->
-            braingenExpr
-                (B.Int, B.EMul e B.Times (mkLitIntE (sizeOf (braingenType ty))))
-        Right arr ->
-            braingenExpr
-                ( B.Int
-                , B.EMul
-                    (mkLitIntE (sizeOf (braingenType ty)))
-                    B.Times
-                    (mkLitIntE (fromIntegral $ length arr))
-                )
+        Left e -> braingenExpr e
+        Right arr -> undefined
 
     addr <- getTempVariable
     malloc addr arrSize
