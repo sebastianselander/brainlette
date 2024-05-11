@@ -173,9 +173,23 @@ bmmStmts s = flip concatMapM s $ \case
     Tc.ArrayNew ty name (expr :| _) -> do
         ty <- bmmType ty
         name <- bmmId name
-        expr <- bmmExpr expr
-        return [Decl ty name, Ass ty (LVar name) (ty, ArrayAlloc expr)]
+        expr@(ety, _) <- bmmExpr expr
+        firstFresh <- freshVar
+        secondFresh <- freshVar
+        let tySize = LitInt $ innerSizeOf ty
+        let size = [Decl ety secondFresh, Ass ety (LVar secondFresh) (Int, EMul (Int, ELit tySize) Times expr)]
+        let sizeVar = (ety, EVar secondFresh)
+        let stmts =
+                size <> [Decl ty name, Ass ty (LVar name) (ty, ArrayAlloc sizeVar)]
+                    <> foriLoop
+                        firstFresh
+                        sizeVar 
+                        [] --[arrayAssign name firstFresh (Int, ELit (defaultValue Int))]
+        return stmts
     Tc.StructNew {} -> undefined
+
+arrayAssign :: Id -> Id -> Expr -> Stmt
+arrayAssign variable index value@(ty, _) = Ass ty (LIndex (Array ty, EVar variable) (Int, EVar index)) value
 
 foriLoop :: Id -> Expr -> [Stmt] -> [Stmt]
 foriLoop name expr stmts = do

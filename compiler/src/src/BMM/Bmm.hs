@@ -113,7 +113,8 @@ type Expr = (Type, Expr')
 
 instance Pretty Expr where
     pretty :: Int -> Expr -> Text
-    pretty n (t, e) = indent n ([i|#{pretty 0 e}|] :: Text)
+    --pretty n (t, e) = indent n ([i|#{pretty 0 e}|] :: Text)
+    -- Disable pretty printing of types
     pretty n (t, e) = indent n ([i|(#{pretty 0 e} :: #{pretty 0 t})|] :: Text)
 
 data Expr'

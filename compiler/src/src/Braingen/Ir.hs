@@ -82,16 +82,16 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
         result <- braingenExpr expr
         store (Argument (pure $ braingenType t) result) (Variable a)
-    B.Ass ty (B.LIndex b i) expr -> do
+    B.Ass ty (B.LIndex arr index) expr -> do
         let ty' = braingenType ty
-        b <- braingenExpr b
-        i <- braingenExpr i
+        arr <- braingenExpr arr
+        index <- braingenExpr index
         ptr <- getTempVariable
         getElementPtr
             ptr
             ty'
-            (Argument (Just Ptr) b)
-            (Argument (Just I64) i)
+            (Argument (Just Ptr) arr)
+            (Argument (Just I64) index)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
@@ -300,29 +300,31 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.ArrayAlloc sz-> do
+    B.ArrayAlloc sz -> do
         arrSize <- braingenExpr sz
         addr <- getTempVariable
         malloc addr arrSize
         array <- getTempVariable
         alloca array Ptr
-        arrayPtr <- getTempVariable
-        getElementPtr
-            arrayPtr
-            Ptr
-            (Argument (Just Ptr) array)
-            (ConstArgument (Just I64) (LitInt 0))
-        store (Argument (Just Ptr) addr) arrayPtr
-        sizeAddr <- getTempVariable
-        getElementPtr
-            sizeAddr
-            Ptr
-            (Argument (Just Ptr) array)
-            (ConstArgument (Just I64) (LitInt 1))
-        store (Argument (Just I64) arrSize) sizeAddr
-        onStack <- getTempVariable
-        load onStack Ptr array
-        pure onStack
+        store (Argument (Just Ptr) addr) array
+        return array
+        -- arrayPtr <- getTempVariable
+        -- getElementPtr
+        --     arrayPtr
+        --     Ptr
+        --     (Argument (Just Ptr) array)
+        --     (ConstArgument (Just I64) (LitInt 0))
+        -- store (Argument (Just Ptr) addr) arrayPtr
+        -- sizeAddr <- getTempVariable
+        -- getElementPtr
+        --     sizeAddr
+        --     Ptr
+        --     (Argument (Just Ptr) array)
+        --     (ConstArgument (Just I64) (LitInt 1))
+        -- store (Argument (Just I64) arrSize) sizeAddr
+        -- onStack <- getTempVariable
+        -- load onStack Ptr array
+        -- pure onStack
     B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
     B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
