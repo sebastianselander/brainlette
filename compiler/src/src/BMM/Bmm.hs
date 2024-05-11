@@ -4,12 +4,12 @@
 
 module BMM.Bmm where
 
-import Data.String.Interpolate (i)
-import Data.Text (Text, intercalate, takeWhile, concatMap, concat)
-import Utils (Pretty (..), thow)
-import Prelude hiding (takeWhile, concat, concatMap)
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NonEmpty
+import Data.String.Interpolate (i)
+import Data.Text (Text, concat, concatMap, intercalate, takeWhile)
+import Utils (Pretty (..), thow)
+import Prelude hiding (concat, concatMap, takeWhile)
 
 newtype Prog = Program [TopDef] deriving (Show)
 
@@ -113,6 +113,7 @@ type Expr = (Type, Expr')
 
 instance Pretty Expr where
     pretty :: Int -> Expr -> Text
+    pretty n (t, e) = indent n ([i|#{pretty 0 e}|] :: Text)
     pretty n (t, e) = indent n ([i|(#{pretty 0 e} :: #{pretty 0 t})|] :: Text)
 
 data Expr'
@@ -127,15 +128,15 @@ data Expr'
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
-    | StructInit [(Type, Lit)]
-    | ArrayInit [Expr]
-    | -- | Alloc the array and initialize all elements with the given expression
-      ArrayAlloc (NonEmpty Expr)
-    | -- | Alloc the array n-dimensional array with the given list of expression as array sizes
-      Cast Expr
+    | StructInit Bool [(Type, Lit)]
+    | -- | Alloc the array and initialize all elements with the given expressions
+      ArrayInit [Expr]
+    | -- | Alloc one-dimensional array with the expression as the size of the array
+      ArrayAlloc Expr
+    | Cast Expr
     | Deref Expr Int
     | StructIndex Expr Int
-    | EIndex Expr Expr
+    | ArrayIndex Expr Expr
     deriving (Show)
 
 instance Pretty Expr' where
@@ -153,13 +154,13 @@ instance Pretty Expr' where
             ERel e1 op e2 -> [i|#{pretty 0 e1} #{pretty 0 op} #{pretty 0 e2}|]
             EAnd e1 e2 -> [i|#{pretty 0 e1} && #{pretty 0 e2}|]
             EOr e1 e2 -> [i|#{pretty 0 e1} || #{pretty 0 e2}|]
-            StructInit _ -> "new"
-            ArrayAlloc si -> [i|alloc[#{concat $ map (pretty n) (NonEmpty.toList si)}]|]
+            StructInit _ _ -> "new"
+            ArrayAlloc si -> [i|alloc[#{pretty n si}]|]
             ArrayInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
             StructIndex e id -> [i|#{pretty 0 e}.#{id}|]
-            EIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]
+            ArrayIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]
 
 bracket :: Text -> Text
 bracket t = "[" <> t <> "]"

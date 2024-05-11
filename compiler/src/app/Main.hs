@@ -19,6 +19,7 @@ import System.Exit
 import System.IO (stderr)
 import Utils (Pretty (..), thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
+import Lifting.Lifter (lift)
 
 main :: IO ()
 main = do
@@ -59,6 +60,11 @@ main = do
         Right res -> return res
 
     ePutStrLn "\n--- Typecheck output ---"
+    ePrint res
+
+    ePutStrLn "\n--- Lifter output ---"
+
+    res <- return (lift res)
     ePrint res
 
     ePutStrLn "\n--- BMM output ---"

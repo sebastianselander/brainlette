@@ -92,10 +92,10 @@ fixExpr (t, e) = case e of
     Cast e -> (t,) . Cast <$> fixExpr e
     Deref expr field -> (t,) <$> (Deref <$> fixExpr expr <*> return field)
     StructIndex expr field -> (t,) <$> (StructIndex <$> fixExpr expr <*> return field)
-    EIndex v i -> do
+    ArrayIndex v i -> do
         v <- fixExpr v
         i <- fixExpr i
-        return (t, EIndex v i)
+        return (t, ArrayIndex v i)
     ArrayAlloc sizes -> pure (t, ArrayAlloc sizes)
     ArrayInit exprs -> (t,) . ArrayInit <$> mapM fixExpr exprs
 

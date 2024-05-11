@@ -9,6 +9,7 @@ import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
 import Control.Monad.State (MonadState, State, StateT, evalStateT, execState, get, put)
 import Data.List hiding (reverse)
+import Data.List.Extra (snoc)
 import Data.List.NonEmpty (reverse)
 import Data.List.NonEmpty.Extra (NonEmpty)
 import Data.Map (Map)
@@ -18,8 +19,8 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (pack)
 import Debug.Trace (traceShow)
-import Frontend.Tc.Types qualified as Tc
 import GHC.Base (NonEmpty (..))
+import Lifting.Types qualified as Tc
 import Utils (thow)
 import Prelude hiding (reverse)
 
@@ -36,7 +37,7 @@ freshVar :: Bmm Id
 freshVar = do
     n <- get
     put (n + 1)
-    return (Id $ pack "fresh$$" <> thow n)
+    return (Id $ pack "bmm_fresh$$_" <> thow n)
 
 bmm :: Tc.Prog -> Prog
 bmm (Tc.Program defs) =
@@ -105,17 +106,16 @@ bmmType = go Change
             Tc.Fun t ts -> Fun <$> go Change t <*> mapM (go Change) ts
             Tc.Pointer ty' -> Pointer <$> go Keep ty'
             Tc.Array ty -> Array <$> go Change ty
-    go Keep ty = do
-        case ty of
-            Tc.String -> return String
-            Tc.Int -> return Int
-            Tc.Double -> return Double
-            Tc.Void -> return Void
-            Tc.Boolean -> return Boolean
-            Tc.TVar id -> TVar <$> bmmId id
-            Tc.Fun t ts -> Fun <$> go Keep t <*> mapM (go Keep) ts
-            Tc.Pointer ty' -> Pointer <$> go Keep ty'
-            Tc.Array ty -> Array <$> go Change ty
+    go Keep ty = case ty of
+        Tc.String -> return String
+        Tc.Int -> return Int
+        Tc.Double -> return Double
+        Tc.Void -> return Void
+        Tc.Boolean -> return Boolean
+        Tc.TVar id -> TVar <$> bmmId id
+        Tc.Fun t ts -> Fun <$> go Keep t <*> mapM (go Keep) ts
+        Tc.Pointer ty' -> Pointer <$> go Keep ty'
+        Tc.Array ty -> Array <$> go Change ty
 
 bmmArg :: Tc.Arg -> Bmm Arg
 bmmArg (Tc.Argument t id) = Argument <$> bmmType t <*> bmmId id
@@ -160,23 +160,43 @@ bmmStmts s = flip concatMapM s $ \case
         stmts <- bmmStmts [stmt]
         name <- bmmId name
         fresh <- freshVar
-        let declIndex = Decl ty fresh
-        let assIndex = Ass Int (LVar fresh) (Int, ELit (LitInt 0))
-        return
-            [ declIndex
-            , assIndex
-            , Loop
-                (Boolean, ERel (Int, EVar fresh) LTH (Int, StructIndex expr 1))
-                $ [ Decl ty name
-                  , Ass ty (LVar name) (ty, EIndex expr (Int, EVar fresh))
-                  , Ass Int (LVar fresh) (Int, EAdd (Int, EVar fresh) Plus (Int, ELit (LitInt 1)))
-                  ]
-                    ++ stmts
-            ]
+        let stmts' =
+                [ Decl ty name
+                , Ass ty (LVar name) (ty, ArrayIndex expr (Int, EVar fresh))
+                ]
+                    <> stmts
+        return (foriLoop fresh (Int, StructIndex expr 1) stmts')
     Tc.SExp e -> do
         e' <- bmmExpr e
         return [SExp e']
     Tc.Break -> return [Break]
+    Tc.ArrayNew ty name (expr :| _) -> do
+        ty <- bmmType ty
+        name <- bmmId name
+        expr <- bmmExpr expr
+        return [Decl ty name, Ass ty (LVar name) (ty, ArrayAlloc expr)]
+    Tc.StructNew {} -> undefined
+
+foriLoop :: Id -> Expr -> [Stmt] -> [Stmt]
+foriLoop name expr stmts = do
+    let declIndex = Decl Int name
+    let assIndex = Ass Int (LVar name) (Int, ELit (LitInt 0))
+    let loop =
+            Loop
+                (Boolean, ERel (Int, EVar name) LTH expr)
+                ( stmts
+                    `snoc` Ass
+                        Int
+                        (LVar name)
+                        ( Int
+                        , EAdd
+                            (Int, EVar name)
+                            Plus
+                            (Int, ELit (LitInt 1))
+                        )
+                )
+
+    [declIndex, assIndex, loop]
 
 bmmLValue :: Tc.LValue -> Bmm LValue
 bmmLValue = \case
@@ -216,42 +236,46 @@ defaultValue ty = case ty of
     Array _ -> LitArrNull
 
 bmmExpr :: Tc.Expr -> Bmm Expr
-bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
+bmmExpr (ty', e) = bmmType ty' >>= go e
   where
-    go e = case e of
-        Tc.EVar i -> EVar <$> bmmId i
-        Tc.ELit l -> return (ELit (bmmLit l))
-        Tc.EApp i e -> EApp <$> bmmId i <*> mapM bmmExpr e
-        Tc.Not e -> Not <$> bmmExpr e
+    go :: Tc.Expr' -> Type -> Bmm Expr
+    go e ty = case e of
+        Tc.EVar i -> (ty,) . EVar <$> bmmId i
+        Tc.ELit l -> return (ty, ELit (bmmLit l))
+        Tc.EApp i e -> (ty,) <$> (EApp <$> bmmId i <*> mapM bmmExpr e)
+        Tc.Not e -> (ty,) . Not <$> bmmExpr e
         Tc.EMul e1 op e2 ->
-            EMul
-                <$> bmmExpr e1
-                <*> return (bmmMulOp op)
-                <*> bmmExpr e2
+            (ty,)
+                <$> ( EMul
+                        <$> bmmExpr e1
+                        <*> return (bmmMulOp op)
+                        <*> bmmExpr e2
+                    )
         Tc.EAdd e1 op e2 ->
-            EAdd
-                <$> bmmExpr e1
-                <*> return (bmmAddOp op)
-                <*> bmmExpr e2
+            (ty,)
+                <$> ( EAdd
+                        <$> bmmExpr e1
+                        <*> return (bmmAddOp op)
+                        <*> bmmExpr e2
+                    )
         Tc.ERel e1 op e2 ->
-            ERel
-                <$> bmmExpr e1
-                <*> return (bmmRelOp op)
-                <*> bmmExpr e2
-        Tc.EAnd e1 e2 -> EAnd <$> bmmExpr e1 <*> bmmExpr e2
-        Tc.EOr e1 e2 -> EOr <$> bmmExpr e1 <*> bmmExpr e2
-        Tc.StructInit -> do
-            struct <- lookupStruct ty
+            (ty,)
+                <$> ( ERel
+                        <$> bmmExpr e1
+                        <*> return (bmmRelOp op)
+                        <*> bmmExpr e2
+                    )
+        Tc.EAnd e1 e2 -> (ty,) <$> (EAnd <$> bmmExpr e1 <*> bmmExpr e2)
+        Tc.EOr e1 e2 -> (ty,) <$> (EOr <$> bmmExpr e1 <*> bmmExpr e2)
+        Tc.StructAlloc -> do
+            struct <- lookupStruct ty'
             let initialize (Tc.Argument ty _) = do
                     ty' <- bmmType ty
                     let v = defaultValue ty'
                     return (ty', v)
-            StructInit <$> mapM initialize struct
-        Tc.ArrayAlloc szs -> case ty of
-            Tc.Array ty -> arrayInitalize ty szs
-            _ -> error "BUG"
-        Tc.ArrayInit exprs -> ArrayInit <$> mapM bmmExpr exprs
-        Tc.Neg e -> Neg <$> bmmExpr e
+            (ty,) . StructInit True <$> mapM initialize struct
+        Tc.ArrayLit exprs -> (ty,) . ArrayInit <$> mapM bmmExpr exprs
+        Tc.Neg e -> (ty,) . Neg <$> bmmExpr e
         Tc.Deref expr@(t, _) field -> do
             fields <- fmap (fmap argName) (lookupStruct t)
             let fieldIdx =
@@ -259,27 +283,27 @@ bmmExpr (ty, e) = (,) <$> bmmType ty <*> go e
                         (error "TC BUG: unknown field")
                         $ elemIndex field fields
             expr' <- bmmExpr expr
-            return $ Deref expr' fieldIdx
-        Tc.EIndex l r -> EIndex <$> bmmExpr l <*> bmmExpr r
-        Tc.StructIndex expr@(ty, _) field -> case ty of
-            Tc.Array _ -> Deref <$> bmmExpr expr <*> return 1
-            ty -> do
-                fields <- fmap (fmap argName) (lookupStruct ty)
+            return (ty, Deref expr' fieldIdx)
+        Tc.ArrayIndex l r -> (ty,) <$> (ArrayIndex <$> bmmExpr l <*> bmmExpr r)
+        Tc.StructIndex expr@(exprTy, _) field -> case exprTy of
+            Tc.Array _ -> (ty,) <$> (Deref <$> bmmExpr expr <*> return 1)
+            _ -> do
+                fields <- fmap (fmap argName) (lookupStruct exprTy)
                 let fieldIdx =
                         fromMaybe
                             (error "TC BUG: unknown field")
                             $ elemIndex field fields
                 expr' <- bmmExpr expr
-                return $ StructIndex expr' fieldIdx
-        Tc.ArrayLit exprs -> ArrayInit <$> mapM bmmExpr exprs
+                return (ty, StructIndex expr' fieldIdx)
 
-arrayInitalize :: Tc.Type -> NonEmpty Tc.Expr -> Bmm Expr'
-arrayInitalize ty szs = do
+arrayInitalize :: Tc.Type -> Tc.Expr -> Bmm Expr'
+arrayInitalize ty size = do
     ty <- bmmType ty
-    (sz :| szs) <- mapM bmmExpr (reverse szs)
+    sz <- bmmExpr size
     let sz' = (ty, EMul (ty, ELit (LitInt (innerSizeOf ty))) Times sz)
-    let adjustSize e = (ty, EMul (Int, ELit (LitInt (sizeOf (Array undefined)))) Times e)
-    return $ ArrayAlloc (sz' :| map adjustSize szs)
+    let adjustSize e =
+            (ty, EMul (Int, ELit (LitInt (sizeOf (Array undefined)))) Times e)
+    return $ ArrayAlloc sz'
 
 innerSizeOf :: (Num a) => Type -> a
 innerSizeOf = \case
@@ -340,6 +364,9 @@ lookupStruct ty = do
     case Map.lookup id structs of
         Nothing -> error $ "Bmm BUG: unknown struct '" <> show id <> "'"
         Just fields -> return fields
+
+arrayStructTy :: Type
+arrayStructTy = TVar (Id (pack "ArrayStruct$Internal"))
 
 argName :: Tc.Arg -> Tc.Id
 argName (Tc.Argument _ name) = name

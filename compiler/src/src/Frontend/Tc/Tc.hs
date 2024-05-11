@@ -234,7 +234,7 @@ infExpr e = pushExpr e $ case e of
             _ -> return ()
         case sizes of
             [] -> do
-                return (convert ty, Tc.StructInit)
+                return (convert ty, Tc.StructAlloc)
             (sz : szs) -> do
                 sz <- tcExpr Tc.Int sz
                 szs <- mapM (tcExpr Tc.Int) szs

@@ -86,14 +86,11 @@ braingenStm breakpoint stmt = case stmt of
         let ty' = braingenType ty
         b <- braingenExpr b
         i <- braingenExpr i
-        arrayPtr <- getTempVariable
-        extractValue arrayPtr (CustomType "Array") b 0
-
         ptr <- getTempVariable
         getElementPtr
             ptr
             ty'
-            (Argument (Just Ptr) arrayPtr)
+            (Argument (Just Ptr) b)
             (Argument (Just I64) i)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
@@ -270,7 +267,7 @@ braingenExpr (ty, e) = case e of
         true <- getLabel "true"
         false <- getLabel "false"
         lazyLogical l r False Braingen.Ir.and false true
-    B.StructInit vals -> do
+    B.StructInit isPointer vals -> do
         sizeVar <- braingenExpr (mkLitIntE (fromIntegral (length vals * 8)))
         var1 <- getTempVariable
         malloc var1 sizeVar
@@ -283,6 +280,12 @@ braingenExpr (ty, e) = case e of
                 (Argument (Just . braingenType $ ty) var1)
                 (ConstArgument (Just I64) (LitInt i))
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
+
+            if isPointer 
+                then return ()
+                else do
+                    var <- getTempVariable
+                    load var (braingenType t) ptr
 
         return var1
     B.Deref e i -> do
@@ -297,22 +300,33 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.ArrayAlloc (sz :| []) -> generateArray ty (Left sz)
-    B.ArrayAlloc (sz :| szs) -> do
-        {-
-            alloc the array inner arrays
-            alloc outer
-            initialize
-
-        -}
-        undefined
+    B.ArrayAlloc sz-> do
+        arrSize <- braingenExpr sz
+        addr <- getTempVariable
+        malloc addr arrSize
+        array <- getTempVariable
+        alloca array Ptr
+        arrayPtr <- getTempVariable
+        getElementPtr
+            arrayPtr
+            Ptr
+            (Argument (Just Ptr) array)
+            (ConstArgument (Just I64) (LitInt 0))
+        store (Argument (Just Ptr) addr) arrayPtr
+        sizeAddr <- getTempVariable
+        getElementPtr
+            sizeAddr
+            Ptr
+            (Argument (Just Ptr) array)
+            (ConstArgument (Just I64) (LitInt 1))
+        store (Argument (Just I64) arrSize) sizeAddr
+        onStack <- getTempVariable
+        load onStack Ptr array
+        pure onStack
     B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
-    B.EIndex base index -> do
+    B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index
-
-        arrayPtr <- getTempVariable
-        extractValue arrayPtr (CustomType "Array") baseVar 0
 
         -- TODO: add bounds checking
 
@@ -320,7 +334,7 @@ braingenExpr (ty, e) = case e of
         getElementPtr
             resPtr
             Ptr
-            (Argument (Just Ptr) arrayPtr)
+            (Argument (Just Ptr) baseVar)
             (Argument (Just I64) indexVar)
 
         res <- getTempVariable
@@ -335,43 +349,6 @@ braingenExpr (ty, e) = case e of
 
 mkLitIntE :: Integer -> B.Expr
 mkLitIntE n = (B.Int, B.ELit $ B.LitInt n)
-
-generateArray :: B.Type -> Either B.Expr [B.Expr] -> BgM Variable
-generateArray ty arr = do
-    arrSize <- case arr of
-        Left e -> braingenExpr e
-        Right arr -> undefined
-
-    addr <- getTempVariable
-    malloc addr arrSize
-
-    array <- getTempVariable
-    alloca array (CustomType "Array")
-
-    arrayPtr <- getTempVariable
-    getElementPtr
-        arrayPtr
-        Ptr
-        (Argument (Just . RawPtr . CustomType $ "Array") array)
-        (ConstArgument (Just I64) (LitInt 0))
-    store (Argument (Just Ptr) addr) arrayPtr
-
-    sizeAddr <- getTempVariable
-    getElementPtr
-        sizeAddr
-        Ptr
-        (Argument (Just . RawPtr . CustomType $ "Array") array)
-        (ConstArgument (Just I64) (LitInt 1))
-    store (Argument (Just I64) arrSize) sizeAddr
-
-    onStack <- getTempVariable
-    load onStack (CustomType "Array") array
-
-    pure onStack
-
--- _ -> do
---     output . Comment $ "EXPR-TODO: " <> thow e
---     pure (Variable "TODO")
 
 lazyLogical ::
     B.Expr ->
@@ -518,7 +495,7 @@ braingenType = \case
     B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
     B.Pointer t -> RawPtr (braingenType t)
-    B.Array _ -> CustomType "Array"
+    B.Array _ -> Ptr
     B.Fun t ts -> do
         let ret = braingenType t
         let args = map braingenType ts

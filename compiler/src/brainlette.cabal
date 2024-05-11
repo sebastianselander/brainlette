@@ -38,6 +38,8 @@ library brainlette-lib
     Frontend.Renamer
     Frontend.Tc.Tc
     Frontend.Tc.Types
+    Lifting.Types
+    Lifting.Lifter
     Interpreter.Interpreter
     Utils
 
