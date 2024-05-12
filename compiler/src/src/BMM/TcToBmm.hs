@@ -176,15 +176,17 @@ bmmStmts s = flip concatMapM s $ \case
         expr@(ety, _) <- bmmExpr expr
         firstFresh <- freshVar
         secondFresh <- freshVar
+        thirdFresh <- freshVar
         let tySize = LitInt $ innerSizeOf ty
-        let size = [Decl ety secondFresh, Ass ety (LVar secondFresh) (Int, EMul (Int, ELit tySize) Times expr)]
+        let length = [Decl ety secondFresh, Ass ety (LVar secondFresh) expr]
+        let size = [Decl ety thirdFresh, Ass ety (LVar thirdFresh) (Int, EMul (Int, ELit tySize) Times (ety, EVar secondFresh))]
         let sizeVar = (ety, EVar secondFresh)
         let stmts =
-                size <> [Decl ty name, Ass ty (LVar name) (ty, ArrayAlloc sizeVar)]
+                length <> size <> [Decl ty name, Ass ty (LVar name) (ty, ArrayAlloc sizeVar)]
                     <> foriLoop
                         firstFresh
                         sizeVar 
-                        [] --[arrayAssign name firstFresh (Int, ELit (defaultValue Int))]
+                        [arrayAssign name firstFresh (Int, ELit (defaultValue Int))]
         return stmts
     Tc.StructNew {} -> undefined
 
