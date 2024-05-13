@@ -51,6 +51,7 @@ instance Pretty LValue where
         LVar id -> pretty 0 id
         LDeref e int -> [i|#{pretty 0 e}->#{int}|]
         LIndex b index -> [i|#{pretty 0 b}[#{pretty 0 index}]|]
+        LStructIndex e int -> [i|#{pretty 0 e}.#{int}|]
 
 data Stmt
     = BStmt [Stmt] -- TODO: Remove
@@ -115,7 +116,7 @@ type Expr = (Type, Expr')
 
 instance Pretty Expr where
     pretty :: Int -> Expr -> Text
-    --pretty n (t, e) = indent n ([i|#{pretty 0 e}|] :: Text)
+    -- pretty n (t, e) = indent n ([i|#{pretty 0 e}|] :: Text)
     -- Disable pretty printing of types
     pretty n (t, e) = indent n ([i|(#{pretty 0 e} : #{pretty 0 t})|] :: Text)
 
