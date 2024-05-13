@@ -16,7 +16,6 @@ common warnings
 library brainlette-lib
   import:           warnings
   exposed-modules:
-    BMM.ArrayWrap
     BMM.Bmm
     BMM.Optimize
     BMM.StringToTop
