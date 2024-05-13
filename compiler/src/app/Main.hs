@@ -68,6 +68,7 @@ main = do
 
     res <- return $ bmm res
     ePutStrLn (pretty 0 res)
+    ePrint res
     writeFile "output.bmm" (pretty 0 res)
 
     res <- return $ braingen res
