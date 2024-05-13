@@ -29,6 +29,7 @@ import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
 
 -- BUG: Custom types must exist as structs!!
+-- BUG: New init on structs does not work
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
