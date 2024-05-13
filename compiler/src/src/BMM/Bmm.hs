@@ -61,7 +61,7 @@ data Stmt
     | CondElse Expr [Stmt] [Stmt]
     | Loop Expr [Stmt]
     | -- | Alloc one-dimensional array with the expression as the size of the array
-      ArrayAlloc Type Id Expr
+      ArrayAlloc Type Id (Expr, Expr)
     | SExp Expr
     | Break
     deriving (Show)
@@ -83,7 +83,7 @@ instance Pretty Stmt where
             Loop e s ->
                 [i|loop (#{pretty 0 e})
 #{pretty (n + 1) (BStmt s)}|]
-            ArrayAlloc ty name si -> [i|#{pretty n ty} #{pretty n name} = {alloc[#{pretty n si}]|]
+            ArrayAlloc ty name (len, si) -> [i|#{pretty n ty} #{pretty n name} = {alloc[#{pretty n si}]|]
             SExp e -> pretty 0 e
             Break -> "break"
 

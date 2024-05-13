@@ -35,12 +35,15 @@ wrapStmt = \case
                 (concatMap wrapStmt trueS)
                 (concatMap wrapStmt falseS)
     Loop e s -> return $ Loop (wrapExpr e) (concatMap wrapStmt s)
-    ArrayAlloc ty name (tyE, expr) ->
+    ArrayAlloc ty name ((lenE, expr), (sizE, expr2)) ->
         let arrayVar = Id "fresh_burrito$$0"
-            intVar = Id "fresh_burrito$$1"
-         in [ Decl tyE intVar
-            , Ass Int (LVar intVar) (tyE, expr)
-            , ArrayAlloc ty arrayVar (tyE, EVar intVar)
+            lenVar = Id "fresh_burrito$$1"
+            sizVar = Id "fresh_burrito$$2"
+         in [ Decl lenE lenVar
+            , Ass Int (LVar lenVar) (lenE, expr)
+            , Decl sizE sizVar
+            , Ass Int (LVar sizVar) (sizE, expr2)
+            , ArrayAlloc ty arrayVar ((lenE, EVar lenVar), (sizE, EVar sizVar))
             , Decl (TVar arrayName) name
             , Ass
                 (TVar arrayName)
@@ -54,7 +57,7 @@ wrapStmt = \case
                 (Array Void)
                 (LStructIndex (TVar arrayName, EVar name) 0)
                 (Array Void, EVar arrayVar)
-            , Ass Int (LDeref (Int, EVar name) 1) (tyE, EVar intVar)
+            , Ass Int (LDeref (Int, EVar name) 1) (lenE, EVar lenVar)
             ]
     SExp expr -> return $ SExp (wrapExpr expr)
     Break -> return Break

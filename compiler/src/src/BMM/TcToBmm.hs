@@ -213,7 +213,7 @@ arrayAlloc ty name1 name2 expr stmts = do
     let stmts' =
             length
                 <> sizeStmts
-                    `snoc` ArrayAlloc (Array ty) name1 allocSize
+                    `snoc` ArrayAlloc (Array ty) name1 (lengthVar, allocSize)
                 <> foriLoop
                     indexVar
                     lengthVar

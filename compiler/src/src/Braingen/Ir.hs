@@ -164,7 +164,7 @@ braingenStm breakpoint stmt = case stmt of
         comment $ "sexp: " <> thow expr
         void $ braingenExpr expr
         comment "sexp done"
-    B.ArrayAlloc ty (B.Id name) sz -> do
+    B.ArrayAlloc ty (B.Id name) (_, sz) -> do
         let var = Variable name
         alloca var (braingenType ty)
         arrSize <- braingenExpr sz
