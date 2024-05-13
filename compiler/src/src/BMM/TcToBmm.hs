@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
@@ -10,8 +11,6 @@ import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
 import Control.Monad.State (MonadState, State, StateT, evalStateT, execState, get, put)
 import Data.List hiding (reverse)
 import Data.List.Extra (snoc)
-import Data.List.NonEmpty (reverse)
-import Data.List.NonEmpty.Extra (NonEmpty)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
@@ -23,6 +22,7 @@ import GHC.Base (NonEmpty (..))
 import Lifting.Types qualified as Tc
 import Utils (thow)
 import Prelude hiding (reverse)
+import Data.List.NonEmpty (reverse)
 
 data TypeInfo = TI
     { typedefs :: Map Tc.Type Tc.Type
@@ -170,28 +170,64 @@ bmmStmts s = flip concatMapM s $ \case
         e' <- bmmExpr e
         return [SExp e']
     Tc.Break -> return [Break]
-    Tc.ArrayNew ty name (expr :| _) -> do
-        ty <- bmmType ty
+    Tc.ArrayNew ty name exprs -> do
+        let ty' = innerMostTypeOf ty
         name <- bmmId name
-        expr@(ety, _) <- bmmExpr expr
-        firstFresh <- freshVar
-        secondFresh <- freshVar
-        thirdFresh <- freshVar
-        let tySize = LitInt $ innerSizeOf ty
-        let length = [Decl ety secondFresh, Ass ety (LVar secondFresh) expr]
-        let size = [Decl ety thirdFresh, Ass ety (LVar thirdFresh) (Int, EMul (Int, ELit tySize) Times (ety, EVar secondFresh))]
-        let sizeVar = (ety, EVar secondFresh)
-        let stmts =
-                length <> size <> [Decl ty name, Ass ty (LVar name) (ty, ArrayAlloc sizeVar)]
-                    <> foriLoop
-                        firstFresh
-                        sizeVar 
-                        [arrayAssign name firstFresh (Int, ELit (defaultValue Int))]
-        return stmts
+        snd <$> arrayAllocs (reverse exprs) ty' name Nothing []
     Tc.StructNew {} -> undefined
 
-arrayAssign :: Id -> Id -> Expr -> Stmt
-arrayAssign variable index value@(ty, _) = Ass ty (LIndex (Array ty, EVar variable) (Int, EVar index)) value
+arrayAllocs :: NonEmpty Tc.Expr -> Tc.Type -> Id -> Maybe Id -> [Stmt] -> Bmm (Id, [Stmt])
+arrayAllocs (expr :| []) ty name1 name2 stmts = arrayAlloc ty (Just name1) name2 expr stmts
+arrayAllocs (expr :| (x:xs)) ty name1 name2 stmts = do
+    (name, stmts) <- arrayAlloc ty Nothing name2 expr stmts
+    arrayAllocs (x :| xs) (Tc.Array ty) name1 (Just name) stmts
+
+
+innerMostTypeOf :: Tc.Type -> Tc.Type
+innerMostTypeOf = \case
+    Tc.Pointer ty -> innerMostTypeOf ty
+    Tc.Array ty -> innerMostTypeOf ty
+    ty -> ty
+
+arrayAlloc :: Tc.Type -> Maybe Id -> Maybe Id -> Tc.Expr -> [Stmt] -> Bmm (Id, [Stmt])
+arrayAlloc ty name1 name2 expr stmts = do
+    name1 <- maybe freshVar return name1
+    ty <- bmmType ty
+    expr@(ety, _) <- bmmExpr expr
+    firstFresh <- freshVar
+    secondFresh <- freshVar
+    let tySize = LitInt $ sizeOf ty
+    let length = [Decl ety firstFresh, Ass ety (LVar firstFresh) expr]
+    let sizeStmts =
+            [ Decl ety secondFresh
+            , Ass
+                ety
+                (LVar secondFresh)
+                (Int, EMul (Int, ELit tySize) Times (ety, EVar firstFresh))
+            ]
+    let lengthVar = (ety, EVar firstFresh)
+    let allocSize = (ety, EVar secondFresh)
+    indexVar <- freshVar
+    loopVar <- freshVar
+    let stmts' =
+            length
+                <> sizeStmts
+                <> [Decl (Array ty) name1, Ass ty (LVar name1) (Array ty, ArrayAlloc allocSize)]
+                <> foriLoop
+                    indexVar
+                    lengthVar
+                    ( stmts <> [ Decl ty loopVar
+                      , Ass ty (LVar loopVar) (maybe (ty, ELit $ defaultValue ty) (\x -> (ty, EVar x)) name2)
+                      , Ass ty (LIndex (Array ty, EVar name1) (Int, EVar indexVar)) (ty, EVar loopVar)
+                      ]
+
+                    )
+    return (name1, stmts')
+
+innerTypeOf :: Type -> Type
+innerTypeOf (Pointer ty) = ty
+innerTypeOf (Array ty) = ty
+innerTypeOf ty = ty
 
 foriLoop :: Id -> Expr -> [Stmt] -> [Stmt]
 foriLoop name expr stmts = do
@@ -323,8 +359,8 @@ arrayInitalize ty size = do
 
 innerSizeOf :: (Num a) => Type -> a
 innerSizeOf = \case
-    Pointer ty -> innerSizeOf ty
-    Array ty -> innerSizeOf ty
+    Pointer ty -> sizeOf ty
+    Array ty -> sizeOf ty
     ty -> sizeOf ty
 
 sizeOf :: (Num a) => Type -> a

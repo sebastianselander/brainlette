@@ -12,6 +12,7 @@ import Frontend.BranchReturns (branchCheck)
 import Frontend.Parser.BrainletteParser
 import Frontend.Renamer (rename)
 import Frontend.Tc.Tc (tc)
+import Lifting.Lifter (lift)
 import Runtime (runtime)
 import System.Directory (doesFileExist)
 import System.Environment
@@ -19,7 +20,6 @@ import System.Exit
 import System.IO (stderr)
 import Utils (Pretty (..), thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
-import Lifting.Lifter (lift)
 
 main :: IO ()
 main = do
@@ -43,13 +43,10 @@ main = do
         Left err -> errorExit err
         Right res -> return res
 
-
-
     ePutStrLn (pretty 0 res)
     res <- case branchCheck res of
         Left err -> errorExit err
         Right res -> return res
-    
 
     ePutStrLn "\n--- Branch check output ---"
 
@@ -71,6 +68,7 @@ main = do
 
     res <- return $ bmm res
     ePutStrLn (pretty 0 res)
+    writeFile "output.bmm" (pretty 0 res)
 
     res <- return $ braingen res
 

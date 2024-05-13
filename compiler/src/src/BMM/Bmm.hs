@@ -115,7 +115,7 @@ instance Pretty Expr where
     pretty :: Int -> Expr -> Text
     --pretty n (t, e) = indent n ([i|#{pretty 0 e}|] :: Text)
     -- Disable pretty printing of types
-    pretty n (t, e) = indent n ([i|(#{pretty 0 e} :: #{pretty 0 t})|] :: Text)
+    pretty n (t, e) = indent n ([i|(#{pretty 0 e} : #{pretty 0 t})|] :: Text)
 
 data Expr'
     = EVar Id -- implemented
@@ -236,4 +236,4 @@ newtype Id = Id Text
     deriving (Show, Eq, Ord)
 
 instance Pretty Id where
-    pretty _ (Id id) = indent 0 ("\ESC[93m" <> takeWhile (/= '$') id <> "\ESC[0m")
+    pretty _ (Id id) = indent 0 ("\ESC[93m" <> id <> "\ESC[0m")

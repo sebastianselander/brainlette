@@ -1,8 +1,5 @@
 int main() {
-    int[] z = new int[23];
-    z[2] = 56565;
-    printInt(z[2]);
-    // int y = z[2];
-    // printInt(y);
+    int[] z = new int[2];
+    printInt(z[1]);
     return 0;
 }
