@@ -77,13 +77,19 @@ braingenStmts =
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of
-    B.BStmt block -> mapM_ (braingenStm breakpoint) block
-    B.Decl t (B.Id i) -> alloca (Variable i) (braingenType t)
+    B.BStmt block -> do
+        comment "block"
+        mapM_ (braingenStm breakpoint) block
+        comment "block end"
+    B.Decl t (B.Id i) -> do
+        comment $ "decl: " <> i
+        alloca (Variable i) (braingenType t)
+        comment "decl done"
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
-        comment $ "store hehe: " <> thow t
+        comment $ "store: " <> thow t
         result <- braingenExpr expr
         store (Argument (pure $ braingenType t) result) (Variable a)
-        comment $ "store done"
+        comment "store done"
     B.Ass ty (B.LIndex arr index) expr -> do
         comment "index ass"
         let ty' = braingenType ty
@@ -91,9 +97,7 @@ braingenStm breakpoint stmt = case stmt of
         arr <- getTempVariable
         load arr Ptr arr'
         index <- braingenExpr index
-        comment $ "2: " <> thow index
         ptr <- getTempVariable
-        comment $ "3: " <> thow ptr
         getElementPtr
             ptr
             ty'
@@ -101,7 +105,9 @@ braingenStm breakpoint stmt = case stmt of
             (Argument (Just I64) index)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
+        comment "index ass done"
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
+        comment "deref ass"
         let ty' = braingenType ty
         let tyE = braingenType innerE
         e <- braingenExpr e
@@ -113,12 +119,18 @@ braingenStm breakpoint stmt = case stmt of
             (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
+        comment "deref ass done"
     B.Ret (Just expr@(t, _)) -> do
+        comment $ "ret: " <> thow t
         result <- braingenExpr expr
         ret (Argument (pure $ braingenType t) result)
+        comment "ret done"
     B.Ret Nothing -> do
+        comment "ret void"
         retVoid
+        comment "ret void done"
     B.CondElse expr s1 s2 -> do
+        comment "condelse"
         result <- braingenExpr expr
         lTrue <- getLabel "IfTrue"
         lFalse <- getLabel "IfFalse"
@@ -135,7 +147,9 @@ braingenStm breakpoint stmt = case stmt of
         jump lDone
         -- if done
         label lDone
+        comment "condelse done"
     B.Loop expr stmt -> do
+        comment "loop"
         start <- getLabel "loop_start"
         continue <- getLabel "loop_continue"
         exit <- getLabel "loop_exit"
@@ -147,13 +161,19 @@ braingenStm breakpoint stmt = case stmt of
         mapM_ (braingenStm (Just exit)) stmt
         jump continue
         label exit
-    B.SExp expr -> void $ braingenExpr expr
+        comment "loop done"
+    B.SExp expr -> do
+        comment $ "sexp: " <> thow expr
+        void $ braingenExpr expr
+        comment "sexp done"
     B.Break -> do
+        comment "break"
         let bp = case breakpoint of
                 Just bp -> bp
                 Nothing ->
                     error "break outside loop, report as INSERT BUG HERE :)"
         jump bp
+        comment "break done"
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr (ty, e) = case e of
