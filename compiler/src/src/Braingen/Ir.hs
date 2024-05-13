@@ -13,7 +13,6 @@ import Control.Arrow ((>>>))
 import Control.Monad (forM_, void)
 import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (foldr, map)
-import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
@@ -117,6 +116,21 @@ braingenStm breakpoint stmt = case stmt of
             (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
+        comment "deref ass done"
+    B.Ass ty1 (B.LStructIndex e@(ty2, _) i) expr -> do
+        comment "deref ass"
+        let ty1' = braingenType ty1
+        let ty2' = braingenType ty2
+        -- TODO: WE work here. Array is stack allocated
+        e <- braingenExpr e
+        ptr <- getTempVariable
+        getElementPtr
+            ptr
+            ty1'
+            (Argument (Just Ptr) e)
+            (ConstArgument (Just I64) (LitInt $ fromIntegral i))
+        var <- braingenExpr expr
+        store (Argument (Just ty2') var) ptr
         comment "deref ass done"
     B.Ret (Just expr@(t, _)) -> do
         comment $ "ret: " <> thow t
@@ -299,8 +313,24 @@ braingenExpr (ty, e) = case e of
         true <- getLabel "true"
         false <- getLabel "false"
         lazyLogical l r False Braingen.Ir.and false true
-    B.StructInit isPointer vals -> do
-        sizeVar <- braingenExpr (mkLitIntE (fromIntegral (length vals * 8)))
+    B.StructInit False vals -> do
+        var <- getTempVariable
+        comment "stack allocating a struct"
+        alloca var (braingenType ty)
+        forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
+            ptr <- getTempVariable
+            getElementPtr
+                ptr
+                (braingenType t)
+                (Argument (Just Ptr) var)
+                (ConstArgument (Just I64) (LitInt i))
+            store (ConstArgument (Just $ braingenType t) (lit v)) ptr
+        temp <- getTempVariable
+        load temp (braingenType ty) var
+        comment "stack allocating a struct done"
+        return temp
+    B.StructInit True vals -> do
+        sizeVar <- braingenExpr (mkLitIntE (sum (map (sizeOf . braingenType . fst) vals)))
         var1 <- getTempVariable
         malloc var1 sizeVar
 
@@ -312,13 +342,6 @@ braingenExpr (ty, e) = case e of
                 (Argument (Just . braingenType $ ty) var1)
                 (ConstArgument (Just I64) (LitInt i))
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
-
-            if isPointer
-                then return ()
-                else do
-                    var <- getTempVariable
-                    load var (braingenType t) ptr
-
         return var1
     B.Deref e i -> do
         let ty' = braingenType ty
@@ -566,6 +589,8 @@ getCastOp a b = case (a, b) of
 consName :: (Show a) => a -> Text
 consName = takeWhile (/= ' ') . thow
 
+arrayType = CustomType "Array$Internal"
+
 sizeOf :: Type -> Integer
 sizeOf = \case
     I32 -> 4
@@ -577,5 +602,6 @@ sizeOf = \case
     RawPtr _ -> sizeOf Ptr
     Void -> 0
     FunPtr _ _ -> 8
-    Array _ _ -> sizeOf Ptr + 8
+    Array _ _ -> sizeOf Ptr
+    CustomType "Array$Internal" -> 16
     CustomType _ -> 8

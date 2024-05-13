@@ -17,6 +17,9 @@ wrapTopDef e = case e of
 arrayName :: Id
 arrayName = Id "Array$Internal"
 
+arrayType :: Type
+arrayType = TVar arrayName
+
 arrayStruct :: TopDef
 arrayStruct = StructDef arrayName [arr, Int]
   where
@@ -44,20 +47,20 @@ wrapStmt = \case
             , Decl sizE sizVar
             , Ass Int (LVar sizVar) (sizE, expr2)
             , ArrayAlloc ty arrayVar ((lenE, EVar lenVar), (sizE, EVar sizVar))
-            , Decl (TVar arrayName) name
+            , Decl arrayType name
             , Ass
-                (TVar arrayName)
+                arrayType
                 (LVar name)
-                ( TVar arrayName
+                ( arrayType
                 , StructInit
                     False
                     [(Array Void, LitNull), (Int, LitInt 0)]
                 )
             , Ass
                 (Array Void)
-                (LStructIndex (TVar arrayName, EVar name) 0)
+                (LStructIndex (arrayType, EVar name) 0)
                 (Array Void, EVar arrayVar)
-            , Ass Int (LDeref (Int, EVar name) 1) (lenE, EVar lenVar)
+            , Ass Int (LStructIndex (Int, EVar name) 1) (lenE, EVar lenVar)
             ]
     SExp expr -> return $ SExp (wrapExpr expr)
     Break -> return Break
