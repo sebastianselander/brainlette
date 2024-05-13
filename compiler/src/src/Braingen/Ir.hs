@@ -281,7 +281,7 @@ braingenExpr (ty, e) = case e of
                 (ConstArgument (Just I64) (LitInt i))
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
 
-            if isPointer 
+            if isPointer
                 then return ()
                 else do
                     var <- getTempVariable
@@ -308,23 +308,23 @@ braingenExpr (ty, e) = case e of
         alloca array Ptr
         store (Argument (Just Ptr) addr) array
         return array
-        -- arrayPtr <- getTempVariable
-        -- getElementPtr
-        --     arrayPtr
-        --     Ptr
-        --     (Argument (Just Ptr) array)
-        --     (ConstArgument (Just I64) (LitInt 0))
-        -- store (Argument (Just Ptr) addr) arrayPtr
-        -- sizeAddr <- getTempVariable
-        -- getElementPtr
-        --     sizeAddr
-        --     Ptr
-        --     (Argument (Just Ptr) array)
-        --     (ConstArgument (Just I64) (LitInt 1))
-        -- store (Argument (Just I64) arrSize) sizeAddr
-        -- onStack <- getTempVariable
-        -- load onStack Ptr array
-        -- pure onStack
+    -- arrayPtr <- getTempVariable
+    -- getElementPtr
+    --     arrayPtr
+    --     Ptr
+    --     (Argument (Just Ptr) array)
+    --     (ConstArgument (Just I64) (LitInt 0))
+    -- store (Argument (Just Ptr) addr) arrayPtr
+    -- sizeAddr <- getTempVariable
+    -- getElementPtr
+    --     sizeAddr
+    --     Ptr
+    --     (Argument (Just Ptr) array)
+    --     (ConstArgument (Just I64) (LitInt 1))
+    -- store (Argument (Just I64) arrSize) sizeAddr
+    -- onStack <- getTempVariable
+    -- load onStack Ptr array
+    -- pure onStack
     B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
     B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
@@ -340,7 +340,7 @@ braingenExpr (ty, e) = case e of
             (Argument (Just I64) indexVar)
 
         res <- getTempVariable
-        load res I64 resPtr
+        load res (braingenType ty) resPtr
 
         pure res
     B.StructIndex (ty, e) i -> do
