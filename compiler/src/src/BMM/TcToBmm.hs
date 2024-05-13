@@ -385,7 +385,6 @@ bmmRelOp = \case
     Tc.NE -> NE
 
 lookupStruct :: (MonadReader TypeInfo m) => Tc.Type -> m [Tc.Arg]
-lookupStruct ty | traceShow ty undefined = undefined
 lookupStruct (Tc.Array _) = return [Tc.Argument Tc.Int (Tc.Id (pack "length"))]
 lookupStruct ty = do
     id <-
