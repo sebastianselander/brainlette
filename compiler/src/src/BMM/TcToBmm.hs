@@ -223,11 +223,6 @@ arrayAlloc ty name1 name2 expr stmts = do
                     )
     return (name1, stmts')
 
-innerTypeOf :: Type -> Type
-innerTypeOf (Pointer ty) = ty
-innerTypeOf (Array ty) = ty
-innerTypeOf ty = ty
-
 foriLoop :: Id -> Expr -> [Stmt] -> [Stmt]
 foriLoop name expr stmts = do
     let declIndex = Decl Int name
@@ -348,21 +343,6 @@ bmmExpr (ty', e) = bmmType ty' >>= go e
                 expr' <- bmmExpr expr
                 return (ty, StructIndex expr' fieldIdx)
 
-arrayInitalize :: Tc.Type -> Tc.Expr -> Bmm Expr'
-arrayInitalize ty size = do
-    ty <- bmmType ty
-    sz <- bmmExpr size
-    let sz' = (ty, EMul (ty, ELit (LitInt (innerSizeOf ty))) Times sz)
-    let adjustSize e =
-            (ty, EMul (Int, ELit (LitInt (sizeOf (Array undefined)))) Times e)
-    return $ ArrayAlloc sz'
-
-innerSizeOf :: (Num a) => Type -> a
-innerSizeOf = \case
-    Pointer ty -> sizeOf ty
-    Array ty -> sizeOf ty
-    ty -> sizeOf ty
-
 sizeOf :: (Num a) => Type -> a
 sizeOf = \case
     TVar _ -> 8
@@ -416,9 +396,6 @@ lookupStruct ty = do
     case Map.lookup id structs of
         Nothing -> error $ "Bmm BUG: unknown struct '" <> show id <> "'"
         Just fields -> return fields
-
-arrayStructTy :: Type
-arrayStructTy = TVar (Id (pack "ArrayStruct$Internal"))
 
 argName :: Tc.Arg -> Tc.Id
 argName (Tc.Argument _ name) = name
