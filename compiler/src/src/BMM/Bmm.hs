@@ -60,8 +60,7 @@ data Stmt
     | Ret (Maybe Expr)
     | CondElse Expr [Stmt] [Stmt]
     | Loop Expr [Stmt]
-    | -- | Alloc one-dimensional array with the expression as the size of the array
-      ArrayAlloc Type Id (Expr, Expr)
+    | ArrayAlloc Type Id (Expr, Expr) -- (len, size)
     | SExp Expr
     | Break
     deriving (Show)
@@ -72,7 +71,7 @@ instance Pretty Stmt where
         indent n . \case
             BStmt bs -> "{\n" <> intercalate "\n" (map (semi (n + 1)) bs) <> "\n" <> indent n ("}" :: Text)
             Decl t i -> pretty 0 t <> " " <> pretty 0 i
-            Ass _ l e -> pretty 0 l <> " = " <> pretty 0 e
+            Ass ty l e -> "@" <> pretty 0 ty <> " " <> pretty 0 l <> " = " <> pretty 0 e
             Ret (Just e) -> "return " <> pretty 0 e
             Ret Nothing -> "return-void"
             CondElse e s1 s2 ->
@@ -83,7 +82,7 @@ instance Pretty Stmt where
             Loop e s ->
                 [i|loop (#{pretty 0 e})
 #{pretty (n + 1) (BStmt s)}|]
-            ArrayAlloc ty name (len, si) -> [i|#{pretty n ty} #{pretty n name} = {alloc[#{pretty n si}]|]
+            ArrayAlloc ty name (_, si) -> [i|#{pretty n ty} #{pretty n name} = {alloc[#{pretty 0 si}]|]
             SExp e -> pretty 0 e
             Break -> "break"
 
