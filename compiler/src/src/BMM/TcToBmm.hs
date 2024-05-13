@@ -213,7 +213,7 @@ arrayAlloc ty name1 name2 expr stmts = do
     let stmts' =
             length
                 <> sizeStmts
-                <> [Decl (Array ty) name1, Ass ty (LVar name1) (Array ty, ArrayAlloc allocSize)]
+                    `snoc` ArrayAlloc (Array ty) name1 allocSize
                 <> foriLoop
                     indexVar
                     lengthVar
@@ -233,7 +233,6 @@ foriLoop name expr stmts = do
             Loop
                 (Boolean, ERel (Int, EVar name) LTH expr)
                 ( stmts
-                    `snoc` SExp (Void, EApp (Id "printInt") [(Int, EVar name)])
                     `snoc` Ass
                         Int
                         (LVar name)

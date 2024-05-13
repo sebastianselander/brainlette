@@ -54,6 +54,7 @@ fixStmt = \case
             <*> mapM fixStmt s1
             <*> mapM fixStmt s2
     Loop expr stmts -> Loop <$> fixExpr expr <*> mapM fixStmt stmts
+    ArrayAlloc ty name size -> return $ ArrayAlloc ty name size
     SExp e -> SExp <$> fixExpr e
     Break -> return Break
 
@@ -96,7 +97,6 @@ fixExpr (t, e) = case e of
         v <- fixExpr v
         i <- fixExpr i
         return (t, ArrayIndex v i)
-    ArrayAlloc sizes -> pure (t, ArrayAlloc sizes)
     ArrayInit exprs -> (t,) . ArrayInit <$> mapM fixExpr exprs
 
 --- aux fucns ---

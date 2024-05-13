@@ -4,10 +4,8 @@
 
 module BMM.Bmm where
 
-import Data.List.NonEmpty (NonEmpty)
-import Data.List.NonEmpty qualified as NonEmpty
 import Data.String.Interpolate (i)
-import Data.Text (Text, concat, concatMap, intercalate, takeWhile)
+import Data.Text (Text, intercalate)
 import Utils (Pretty (..), thow)
 import Prelude hiding (concat, concatMap, takeWhile)
 
@@ -44,6 +42,7 @@ data LValue
     = LVar Id
     | LDeref Expr Int
     | LIndex Expr Expr
+    | LStructIndex Expr Int
     deriving (Show)
 
 instance Pretty LValue where
@@ -60,6 +59,8 @@ data Stmt
     | Ret (Maybe Expr)
     | CondElse Expr [Stmt] [Stmt]
     | Loop Expr [Stmt]
+    | -- | Alloc one-dimensional array with the expression as the size of the array
+      ArrayAlloc Type Id Expr
     | SExp Expr
     | Break
     deriving (Show)
@@ -81,6 +82,7 @@ instance Pretty Stmt where
             Loop e s ->
                 [i|loop (#{pretty 0 e})
 #{pretty (n + 1) (BStmt s)}|]
+            ArrayAlloc ty name si -> [i|#{pretty n ty} #{pretty n name} = {alloc[#{pretty n si}]|]
             SExp e -> pretty 0 e
             Break -> "break"
 
@@ -132,8 +134,6 @@ data Expr'
     | StructInit Bool [(Type, Lit)]
     | -- | Alloc the array and initialize all elements with the given expressions
       ArrayInit [Expr]
-    | -- | Alloc one-dimensional array with the expression as the size of the array
-      ArrayAlloc Expr
     | Cast Expr
     | Deref Expr Int
     | StructIndex Expr Int
@@ -156,7 +156,6 @@ instance Pretty Expr' where
             EAnd e1 e2 -> [i|#{pretty 0 e1} && #{pretty 0 e2}|]
             EOr e1 e2 -> [i|#{pretty 0 e1} || #{pretty 0 e2}|]
             StructInit _ _ -> "new"
-            ArrayAlloc si -> [i|alloc[#{pretty n si}]|]
             ArrayInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]

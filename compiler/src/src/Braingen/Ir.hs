@@ -164,6 +164,13 @@ braingenStm breakpoint stmt = case stmt of
         comment $ "sexp: " <> thow expr
         void $ braingenExpr expr
         comment "sexp done"
+    B.ArrayAlloc ty (B.Id name) sz -> do
+        let var = Variable name
+        alloca var (braingenType ty)
+        arrSize <- braingenExpr sz
+        addr <- getTempVariable
+        malloc addr arrSize
+        store (Argument (Just Ptr) addr) var
     B.Break -> do
         comment "break"
         let bp = case breakpoint of
@@ -325,11 +332,6 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.ArrayAlloc sz -> do
-        arrSize <- braingenExpr sz
-        addr <- getTempVariable
-        malloc addr arrSize
-        return addr
     B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
     B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
