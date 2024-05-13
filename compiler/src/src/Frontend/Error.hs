@@ -187,6 +187,12 @@ data FEError
         SynInfo
         -- | The given type
         Type
+    | -- | Constructor for a type that can not be 'newed'
+      NotNewable
+        -- | The source code position of the error
+        SynInfo
+        -- | The given type
+        Type
     deriving (Show)
 
 parens :: Text -> Text
@@ -307,6 +313,7 @@ instance Report FEError where
         TypeDefCircular ty -> pretty $ combine NoInfo [i| circular typedef found for '#{report ty}'|]
         UnboundType info ty -> pretty $ combine info [i|unbound type '#{report ty}'|]
         ExpectedArray info ty -> pretty $ combine info [i|expected an array type, but got '#{report ty}'|]
+        NotNewable info ty -> pretty $ combine info [i|can not construct a new with type #{report ty}|]
 
 oneLine :: SynInfo -> SynInfo
 oneLine info = info {sourceCode = takeWhile (/= '\n') info.sourceCode}
