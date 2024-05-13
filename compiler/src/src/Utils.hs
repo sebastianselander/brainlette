@@ -55,3 +55,7 @@ apN !n f !x = apN (n - 1) f (f x)
 
 instance Pretty Text where
   pretty _ t = t
+
+pured :: (Functor f, Applicative t) => f a -> f (t a)
+pured thing = pure <$> thing
+
