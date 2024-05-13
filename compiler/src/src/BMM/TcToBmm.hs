@@ -4,6 +4,7 @@
 
 module BMM.TcToBmm (bmm) where
 
+import BMM.ArrayWrap
 import BMM.Bmm
 import BMM.StringToTop (moveStringsToTop)
 import Control.Monad.Extra (concatMapM)
@@ -41,7 +42,8 @@ freshVar = do
 
 bmm :: Tc.Prog -> Prog
 bmm (Tc.Program defs) =
-    moveStringsToTop
+    burrito
+        . moveStringsToTop
         . Program
         . flip
             runReader
