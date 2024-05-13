@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module BMM.TcToBmm (bmm) where
 
@@ -11,6 +11,7 @@ import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
 import Control.Monad.State (MonadState, State, StateT, evalStateT, execState, get, put)
 import Data.List hiding (reverse)
 import Data.List.Extra (snoc)
+import Data.List.NonEmpty (reverse)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
@@ -22,7 +23,6 @@ import GHC.Base (NonEmpty (..))
 import Lifting.Types qualified as Tc
 import Utils (thow)
 import Prelude hiding (reverse)
-import Data.List.NonEmpty (reverse)
 
 data TypeInfo = TI
     { typedefs :: Map Tc.Type Tc.Type
@@ -178,10 +178,9 @@ bmmStmts s = flip concatMapM s $ \case
 
 arrayAllocs :: NonEmpty Tc.Expr -> Tc.Type -> Id -> Maybe Id -> [Stmt] -> Bmm (Id, [Stmt])
 arrayAllocs (expr :| []) ty name1 name2 stmts = arrayAlloc ty (Just name1) name2 expr stmts
-arrayAllocs (expr :| (x:xs)) ty name1 name2 stmts = do
+arrayAllocs (expr :| (x : xs)) ty name1 name2 stmts = do
     (name, stmts) <- arrayAlloc ty Nothing name2 expr stmts
     arrayAllocs (x :| xs) (Tc.Array ty) name1 (Just name) stmts
-
 
 innerMostTypeOf :: Tc.Type -> Tc.Type
 innerMostTypeOf = \case
@@ -216,11 +215,11 @@ arrayAlloc ty name1 name2 expr stmts = do
                 <> foriLoop
                     indexVar
                     lengthVar
-                    ( stmts <> [ Decl ty loopVar
-                      , Ass ty (LVar loopVar) (maybe (ty, ELit $ defaultValue ty) (\x -> (ty, EVar x)) name2)
-                      , Ass ty (LIndex (Array ty, EVar name1) (Int, EVar indexVar)) (ty, EVar loopVar)
-                      ]
-
+                    ( stmts
+                        <> [ Decl ty loopVar
+                           , Ass ty (LVar loopVar) (maybe (ty, ELit $ defaultValue ty) (\x -> (ty, EVar x)) name2)
+                           , Ass ty (LIndex (Array ty, EVar name1) (Int, EVar indexVar)) (ty, EVar loopVar)
+                           ]
                     )
     return (name1, stmts')
 
@@ -237,6 +236,7 @@ foriLoop name expr stmts = do
             Loop
                 (Boolean, ERel (Int, EVar name) LTH expr)
                 ( stmts
+                    `snoc` SExp (Void, EApp (Id "printInt") [(Int, EVar name)])
                     `snoc` Ass
                         Int
                         (LVar name)

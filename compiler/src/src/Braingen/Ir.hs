@@ -80,13 +80,20 @@ braingenStm breakpoint stmt = case stmt of
     B.BStmt block -> mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> alloca (Variable i) (braingenType t)
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
+        comment $ "store hehe: " <> thow t
         result <- braingenExpr expr
         store (Argument (pure $ braingenType t) result) (Variable a)
+        comment $ "store done"
     B.Ass ty (B.LIndex arr index) expr -> do
+        comment "index ass"
         let ty' = braingenType ty
-        arr <- braingenExpr arr
+        arr' <- braingenExpr arr
+        arr <- getTempVariable
+        load arr Ptr arr'
         index <- braingenExpr index
+        comment $ "2: " <> thow index
         ptr <- getTempVariable
+        comment $ "3: " <> thow ptr
         getElementPtr
             ptr
             ty'
