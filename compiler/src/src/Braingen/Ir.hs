@@ -93,9 +93,7 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass ty (B.LIndex arr index) expr -> do
         comment "index ass"
         let ty' = braingenType ty
-        arr' <- braingenExpr arr
-        arr <- getTempVariable
-        load arr Ptr arr'
+        arr <- braingenExpr arr
         index <- braingenExpr index
         ptr <- getTempVariable
         getElementPtr
@@ -331,27 +329,7 @@ braingenExpr (ty, e) = case e of
         arrSize <- braingenExpr sz
         addr <- getTempVariable
         malloc addr arrSize
-        array <- getTempVariable
-        alloca array Ptr
-        store (Argument (Just Ptr) addr) array
-        return array
-    -- arrayPtr <- getTempVariable
-    -- getElementPtr
-    --     arrayPtr
-    --     Ptr
-    --     (Argument (Just Ptr) array)
-    --     (ConstArgument (Just I64) (LitInt 0))
-    -- store (Argument (Just Ptr) addr) arrayPtr
-    -- sizeAddr <- getTempVariable
-    -- getElementPtr
-    --     sizeAddr
-    --     Ptr
-    --     (Argument (Just Ptr) array)
-    --     (ConstArgument (Just I64) (LitInt 1))
-    -- store (Argument (Just I64) arrSize) sizeAddr
-    -- onStack <- getTempVariable
-    -- load onStack Ptr array
-    -- pure onStack
+        return addr
     B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
     B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
