@@ -272,12 +272,18 @@ itemDeclToBmm t = \case
     Tc.NoInit id -> do
         id' <- bmmId id
         t' <- bmmType t
-        return [Decl t' id', Ass t' (LVar id') (t', ELit $ defaultValue t')]
+        return [Decl t' id', Ass t' (LVar id') (defaultValueExpr t')]
     Tc.Init id expr -> do
         id' <- bmmId id
         t' <- bmmType t
         expr' <- bmmExpr expr
         return [Decl t' id', Ass t' (LVar id') expr']
+
+defaultValueExpr :: Type -> Expr
+defaultValueExpr ty = case ty of
+    Array _ -> (ty, StructInit False [(Array Void, LitNull),(Int, LitInt 0)])
+    ty -> (ty, ELit (defaultValue ty))
+
 
 defaultValue :: Type -> Lit
 defaultValue ty = case ty of

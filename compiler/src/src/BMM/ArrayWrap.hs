@@ -8,7 +8,6 @@ import BMM.Bmm
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.State
 import Utils (pured, thow)
-import Debug.Trace (traceShowM)
 
 newtype WrapM a = Wrap {unWrap :: State Int a}
     deriving (Functor, Applicative, Monad, MonadState Int)
@@ -19,8 +18,11 @@ burrito (Program defs) = flip evalState 0 $ unWrap $ do
 
 wrapTopDef :: TopDef -> WrapM TopDef
 wrapTopDef e = case e of
-    FnDef rt name args stmts -> FnDef rt name args <$> concatMapM wrapStmt stmts
-    StructDef _ _ -> return e
+    FnDef rt name args stmts ->
+        FnDef (wrapTy rt) name
+            <$> mapM wrapArg args
+            <*> concatMapM wrapStmt stmts
+    StructDef name tys -> return $ StructDef name (map wrapTy tys)
     StringGlobal _ _ -> return e
 
 freshVar :: WrapM Id
@@ -43,9 +45,9 @@ arrayStruct = StructDef arrayName [arr, Int]
 wrapStmt :: Stmt -> WrapM [Stmt]
 wrapStmt = \case
     BStmt stmts -> return . BStmt <$> concatMapM wrapStmt stmts
-    Decl ty id -> return (return (Decl (change ty) id))
+    Decl ty id -> return . return $ Decl (wrapTy ty) id
     Ass ty lv expr -> do
-        pured . Ass (change ty) <$> wrapLValue lv <*> wrapExpr expr
+        pured . Ass (wrapTy ty) <$> wrapLValue lv <*> wrapExpr expr
     Ret expr -> return . Ret <$> mapM wrapExpr expr
     CondElse e trueS falseS ->
         pured $
@@ -65,7 +67,7 @@ wrapStmt = \case
             , Ass Int (LVar lenVar) (lenE, expr1)
             , Decl sizE sizVar
             , Ass Int (LVar sizVar) (sizE, expr2)
-            , ArrayAlloc (change ty) arrayVar ((lenE, EVar lenVar), (sizE, EVar sizVar))
+            , ArrayAlloc (wrapTy ty) arrayVar ((lenE, EVar lenVar), (sizE, EVar sizVar))
             , Decl arrayType name
             , Ass
                 arrayType
@@ -95,7 +97,7 @@ wrapLValue lv = case lv of
     LStructIndex e n -> LStructIndex <$> wrapExpr e <*> return n
 
 wrapExpr :: Expr -> WrapM Expr
-wrapExpr (ty, e) = (change ty,) <$> go e
+wrapExpr (ty, e) = (wrapTy ty,) <$> go e
   where
     go :: Expr' -> WrapM Expr'
     go = \case
@@ -120,6 +122,9 @@ wrapExpr (ty, e) = (change ty,) <$> go e
             index <- wrapExpr index
             return (ArrayIndex (arrayType, StructIndex expr 0) index)
 
-change :: Type -> Type
-change (Array _) = arrayType
-change ty = ty
+wrapTy :: Type -> Type
+wrapTy (Array _) = arrayType
+wrapTy ty = ty
+
+wrapArg :: Arg -> WrapM Arg
+wrapArg (Argument ty name) = return $ Argument (wrapTy ty) name
