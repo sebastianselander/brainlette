@@ -121,8 +121,8 @@ braingenStm breakpoint stmt = case stmt of
         comment "structindex ass"
         let ty1' = braingenType ty1
         let ty2' = braingenType ty2
-        -- TODO: WE work here. Array is stack allocated
-        comment $ thow e
+        -- TODO: WE work here. The struct is stack allocated
+        -- and thus GEP will fail.
         e <- braingenExpr e
         ptr <- getTempVariable
         getElementPtr
