@@ -97,9 +97,7 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass ty (B.LIndex arr index) expr -> do
         comment "index ass"
         let ty' = braingenType ty
-        comment $ "ARR: " <> thow arr
         arr <- braingenExpr arr
-        comment $ "ARR OVER"
         index <- braingenExpr index
         ptr <- getTempVariable
         comment "One"
@@ -336,6 +334,7 @@ braingenExpr ogExpression@(ty, e) = case e of
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
             comment "Four"
+            comment (thow $ braingenType ty)
             getElementPtr
                 ptr
                 (braingenType t)
@@ -383,9 +382,10 @@ braingenExpr ogExpression@(ty, e) = case e of
 
         resPtr <- getTempVariable
         comment "Seven"
+        comment (thow $ braingenType ty)
         getElementPtr
             resPtr
-            Ptr
+            (braingenType ty)
             (Argument (Just Ptr) baseVar)
             (Argument (Just I64) indexVar)
 
