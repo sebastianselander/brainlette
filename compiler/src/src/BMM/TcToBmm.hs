@@ -257,6 +257,14 @@ bmmLValue = \case
                     $ elemIndex field fields
         expr' <- bmmExpr expr
         return $ LDeref expr' fieldIdx
+    Tc.LStructIndex expr@(t, _) field -> do
+        fields <- fmap (fmap argName) (lookupStruct t)
+        let fieldIdx =
+                fromMaybe
+                    (error "TC BUG: unknown field")
+                    $ elemIndex field fields
+        expr' <- bmmExpr expr
+        return $ LStructIndex expr' fieldIdx
     Tc.LIndex base ind -> LIndex <$> bmmExpr base <*> bmmExpr ind
 
 itemDeclToBmm :: Tc.Type -> Tc.Item -> Bmm [Stmt]
@@ -276,7 +284,7 @@ defaultValue ty = case ty of
     TVar _ -> LitNull
     Fun _ _ -> LitNull
     Int -> LitInt 0
-    String -> LitString mempty
+    String -> LitArrNull
     Boolean -> LitBool False
     Double -> LitDouble 0.0
     Void -> LitNull

@@ -103,6 +103,10 @@ liftLValue = \case
         (l, stmts1) <- liftExpr l
         (r, stmts2) <- liftExpr r
         return (LIndex l r, stmts1 <> stmts2)
+    Tc.LStructIndex l field -> do
+        (l, stmts) <- liftExpr l
+        field <- liftName field
+        return (LStructIndex l field, stmts)
         
 
 liftExpr :: Tc.Expr -> LiftM (Expr, [Stmt])

@@ -35,6 +35,7 @@ data DebugInfo
 data Argument
     = Argument (Maybe Type) Variable
     | ConstArgument (Maybe Type) Lit
+    | ConstArgumentAuto Lit
     deriving (Show)
 
 newtype Ir = Ir [TopDef]
@@ -138,4 +139,5 @@ data Lit
     | LitDouble Double
     | LitBool Bool
     | LitNull
+    | LitArrNull
     deriving (Show)

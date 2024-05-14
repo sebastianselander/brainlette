@@ -8,10 +8,10 @@ import Data.Text (Text)
 runtime :: Text
 runtime =
   [i|
-
 target triple = "x86_64-pc-linux-gnu"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 declare i32 @printf(ptr, ...)
+@.empty_arr = constant [0 x i8] c""
 @.empty_string = constant [1 x i8] c"\\00"
 declare i64 @getline(ptr, ptr, ptr)
 declare ptr @fdopen(i32, ptr)

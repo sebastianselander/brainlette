@@ -16,7 +16,7 @@ import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
-import Utils (concatFor, thow)
+import Utils (concatFor, thow, pretty)
 import Prelude hiding (takeWhile)
 
 $(gen "Stmt")
@@ -86,15 +86,22 @@ braingenStm breakpoint stmt = case stmt of
         comment "decl done"
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
         comment $ "store: " <> thow t
-        result <- braingenExpr expr
-        store (Argument (pure $ braingenType t) result) (Variable a)
+        argument <- case expr of
+            (_, B.ELit l) -> return (ConstArgumentAuto (lit l))
+            _ -> do
+                result <- braingenExpr expr
+                return (Argument (pure $ braingenType t) result)
+        store argument (Variable a)
         comment "store done"
     B.Ass ty (B.LIndex arr index) expr -> do
         comment "index ass"
         let ty' = braingenType ty
+        comment $ "ARR: " <> thow arr
         arr <- braingenExpr arr
+        comment $ "ARR OVER"
         index <- braingenExpr index
         ptr <- getTempVariable
+        comment "One"
         getElementPtr
             ptr
             ty'
@@ -109,6 +116,7 @@ braingenStm breakpoint stmt = case stmt of
         let tyE = braingenType innerE
         e <- braingenExpr e
         ptr <- getTempVariable
+        comment "Two"
         getElementPtr
             ptr
             ty'
@@ -117,22 +125,28 @@ braingenStm breakpoint stmt = case stmt of
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
         comment "deref ass done"
-    B.Ass ty1 (B.LStructIndex e@(ty2, _) i) expr -> do
+    B.Ass ty1 (B.LStructIndex e@(_, _) i) expr -> do
         comment "structindex ass"
         let ty1' = braingenType ty1
-        let ty2' = braingenType ty2
-        -- TODO: WE work here. The struct is stack allocated
-        -- and thus GEP will fail.
-        e <- braingenExpr e
+        e <- case e of
+            (_, B.EVar (B.Id v)) -> return (Variable v)
+            _ -> braingenExpr e
+        -- e <- braingenExpr e
         ptr <- getTempVariable
+        comment "Three"
         getElementPtr
             ptr
             ty1'
             (Argument (Just Ptr) e)
             (ConstArgument (Just I64) (LitInt $ fromIntegral i))
+        comment $ "HERE IT IS: " <> thow expr
+        comment $ "EXPRESSION: " <> thow expr
         var <- braingenExpr expr
-        store (Argument (Just ty2') var) ptr
+        store (Argument (Just ty1') var) ptr
         comment "structindex ass done"
+    B.Ret (Just (ty, B.ELit l)) -> do
+        ty <- return (braingenType ty)
+        ret (ConstArgument (Just ty) (lit l))
     B.Ret (Just expr@(t, _)) -> do
         comment $ "ret: " <> thow t
         result <- braingenExpr expr
@@ -196,7 +210,7 @@ braingenStm breakpoint stmt = case stmt of
         comment "break done"
 
 braingenExpr :: B.Expr -> BgM Variable
-braingenExpr (ty, e) = case e of
+braingenExpr ogExpression@(ty, e) = case e of
     B.EGlobalVar (B.Id ident) -> do
         return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
@@ -320,6 +334,7 @@ braingenExpr (ty, e) = case e of
         alloca var (braingenType ty)
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
+            comment "Four"
             getElementPtr
                 ptr
                 (braingenType t)
@@ -337,6 +352,7 @@ braingenExpr (ty, e) = case e of
 
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
+            comment "Five"
             getElementPtr
                 ptr
                 (braingenType t)
@@ -348,6 +364,7 @@ braingenExpr (ty, e) = case e of
         let ty' = braingenType ty
         e <- braingenExpr e
         ptr <- getTempVariable
+        comment "Six"
         getElementPtr
             ptr
             ty'
@@ -356,7 +373,7 @@ braingenExpr (ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.ArrayInit exprs -> error "TODO: {EAllocInit} Adapt to new changes" -- {1,2,3,foo(), bar()}
+    B.ArrayInit exprs -> error "TODO: {EAllocInit} Does not exist yet"
     B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index
@@ -364,6 +381,7 @@ braingenExpr (ty, e) = case e of
         -- TODO: add bounds checking
 
         resPtr <- getTempVariable
+        comment "Seven"
         getElementPtr
             resPtr
             Ptr
@@ -374,9 +392,12 @@ braingenExpr (ty, e) = case e of
         load res (braingenType ty) resPtr
 
         pure res
-    B.StructIndex (ty, e) i -> do
-        e <- braingenExpr (ty, e)
+    B.StructIndex e i -> do
+        comment $ thow ogExpression
+        e <- braingenExpr e
         var <- getTempVariable
+        comment "Eight"
+        -- getElementPtr var (braingenType ty) (Argument (Just Ptr) e) (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         extractValue var (braingenType ty) e (fromIntegral i)
         return var
 
@@ -481,7 +502,7 @@ lit = \case
     B.LitBool b -> LitBool b
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
     B.LitNull -> LitNull
-    B.LitArrNull -> error "TODO: `lit` LitArrNul"
+    B.LitArrNull -> LitArrNull
 
 -- | Push a statement onto the state
 output :: Stmt -> BgM ()
@@ -590,6 +611,7 @@ getCastOp a b = case (a, b) of
 consName :: (Show a) => a -> Text
 consName = takeWhile (/= ' ') . thow
 
+arrayType :: Type
 arrayType = CustomType "Array$Internal"
 
 sizeOf :: Type -> Integer

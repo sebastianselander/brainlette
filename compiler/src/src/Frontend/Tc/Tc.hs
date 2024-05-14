@@ -153,6 +153,18 @@ tcStmt retTy = go
                             ty <- unify info ty tyr
                             return . return $ Tc.Ass ty (Tc.LIndex l' r') (ty, rhs')
                         ty -> throwError $ ExpectedArray info ty
+                Par.EStructIndex _ l field -> do
+                    l@(tyl,_) <- infExpr l
+                    fields <- getStruct info tyl
+                    let field' = convert field
+                    case Map.lookup field' fields of
+                        Just ty -> do
+                            (tyr, rhs) <- infExpr rhs
+                            ty <- unify info ty tyr
+                            return . return $ Tc.Ass ty (Tc.LStructIndex l field') (ty, rhs)
+                        Nothing -> throwError $ UnboundField info field
+
+
                 _ -> throwError $ NotLValue info lhs
         Par.Incr info var -> do
             typ <- getVar var

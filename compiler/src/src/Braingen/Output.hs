@@ -116,9 +116,8 @@ instance OutputIr Stmt where
                 , ")"
                 ]
         Ret arg ->
-            "ret " <> case arg of
-                Argument t i -> out t <> " " <> out i
-                ConstArgument t i -> out t <> " " <> out i
+            "ret " <> out arg
+                    
         RetVoid -> "ret void"
         Comment t -> "; " <> t
         Arith var ar t a1 a2 ->
@@ -216,6 +215,14 @@ instance OutputIr Argument where
     out :: Argument -> Text
     out (ConstArgument t i) = out t <> " " <> out i
     out (Argument t i) = out t <> " " <> out i
+    out (ConstArgumentAuto l) = 
+                    let ty = case l of
+                           LitInt _ -> I64
+                           LitDouble _ -> F64
+                           LitBool _ -> I1
+                           LitNull -> Ptr
+                           LitArrNull -> Ptr
+                    in out (ConstArgument (pure ty) l)
 
 instance OutputIr Variable where
     out :: Variable -> Text
@@ -234,6 +241,7 @@ instance OutputIr Lit where
         LitBool True -> "1"
         LitBool False -> "0"
         LitNull -> "null"
+        LitArrNull -> "@.empty_arr"
 
 instance OutputIr Type where
     out :: Type -> Text

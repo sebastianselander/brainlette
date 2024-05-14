@@ -8,6 +8,7 @@ import BMM.Bmm
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.State
 import Utils (pured, thow)
+import Debug.Trace (traceShowM)
 
 newtype WrapM a = Wrap {unWrap :: State Int a}
     deriving (Functor, Applicative, Monad, MonadState Int)
@@ -42,15 +43,9 @@ arrayStruct = StructDef arrayName [arr, Int]
 wrapStmt :: Stmt -> WrapM [Stmt]
 wrapStmt = \case
     BStmt stmts -> return . BStmt <$> concatMapM wrapStmt stmts
-    Decl ty id -> return (return (Decl ty id))
-    Ass ty name (ety, expr) -> do
-        assTy <- case ty of
-            Array _ -> return arrayType
-            ty -> return ty
-        exprTy <- case ety of
-            Array _ -> return arrayType
-            ty -> return ty
-        pured . Ass assTy <$> wrapLValue name <*> wrapExpr (exprTy, expr)
+    Decl ty id -> return (return (Decl (change ty) id))
+    Ass ty lv expr -> do
+        pured . Ass (change ty) <$> wrapLValue lv <*> wrapExpr expr
     Ret expr -> return . Ret <$> mapM wrapExpr expr
     CondElse e trueS falseS ->
         pured $
@@ -59,16 +54,18 @@ wrapStmt = \case
                 <*> concatMapM wrapStmt trueS
                 <*> concatMapM wrapStmt falseS
     Loop e s -> pured . Loop <$> wrapExpr e <*> concatMapM wrapStmt s
-    ArrayAlloc ty name ((lenE, expr), (sizE, expr2)) -> do
+    ArrayAlloc ty name (expr1, expr2) -> do
         arrayVar <- freshVar
         lenVar <- freshVar
         sizVar <- freshVar
+        (lenE, expr1) <- wrapExpr expr1
+        (sizE, expr2) <- wrapExpr expr2
         return
             [ Decl lenE lenVar
-            , Ass Int (LVar lenVar) (lenE, expr)
+            , Ass Int (LVar lenVar) (lenE, expr1)
             , Decl sizE sizVar
             , Ass Int (LVar sizVar) (sizE, expr2)
-            , ArrayAlloc ty arrayVar ((lenE, EVar lenVar), (sizE, EVar sizVar))
+            , ArrayAlloc (change ty) arrayVar ((lenE, EVar lenVar), (sizE, EVar sizVar))
             , Decl arrayType name
             , Ass
                 arrayType
@@ -79,9 +76,9 @@ wrapStmt = \case
                     [(Array Void, LitNull), (Int, LitInt 0)]
                 )
             , Ass
-                (Array Void)
+                arrayType
                 (LStructIndex (arrayType, EVar name) 0)
-                (Array Void, EVar arrayVar)
+                (arrayType, EVar arrayVar)
             , Ass Int (LStructIndex (arrayType, EVar name) 1) (lenE, EVar lenVar)
             ]
     SExp expr -> return . SExp <$> wrapExpr expr
@@ -89,13 +86,16 @@ wrapStmt = \case
 
 wrapLValue :: LValue -> WrapM LValue
 wrapLValue lv = case lv of
-    LIndex (ty,expr) index -> return $ LIndex (ty, StructIndex (arrayType, expr) 0) index
-    LVar _ -> return lv
-    LDeref _ _ -> return lv
-    LStructIndex _ _ -> return lv
+    LIndex expr index -> do
+        (ty, expr) <- wrapExpr expr
+        index <- wrapExpr index
+        return $ LIndex (ty, StructIndex (arrayType, expr) 0) index
+    LVar id -> return $ LVar id
+    LDeref e n -> LDeref <$> wrapExpr e <*> return n
+    LStructIndex e n -> LStructIndex <$> wrapExpr e <*> return n
 
 wrapExpr :: Expr -> WrapM Expr
-wrapExpr (ty, e) = (ty,) <$> go e
+wrapExpr (ty, e) = (change ty,) <$> go e
   where
     go :: Expr' -> WrapM Expr'
     go = \case
@@ -115,5 +115,11 @@ wrapExpr (ty, e) = (ty,) <$> go e
         Cast expr -> Cast <$> wrapExpr expr
         Deref expr n -> Deref <$> wrapExpr expr <*> return n
         StructIndex expr n -> StructIndex <$> wrapExpr expr <*> return n
-        ArrayIndex expr index ->
-            return (ArrayIndex (Array Void, StructIndex expr 0) index)
+        ArrayIndex expr index -> do
+            expr <- wrapExpr expr
+            index <- wrapExpr index
+            return (ArrayIndex (arrayType, StructIndex expr 0) index)
+
+change :: Type -> Type
+change (Array _) = arrayType
+change ty = ty

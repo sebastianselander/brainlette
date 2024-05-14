@@ -16,7 +16,7 @@ data TopDef
 data Arg = Argument Type Id
     deriving (Eq, Ord, Show, Read)
 
-data LValue = LVar Id | LDeref Expr Id | LIndex Expr Expr
+data LValue = LVar Id | LDeref Expr Id | LIndex Expr Expr | LStructIndex Expr Id
     deriving (Eq, Ord, Show, Read)
 
 data Stmt
