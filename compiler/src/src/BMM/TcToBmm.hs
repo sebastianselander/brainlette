@@ -342,7 +342,7 @@ bmmExpr (ty', e) = bmmType ty' >>= go e
             return (ty, Deref expr' fieldIdx)
         Tc.ArrayIndex l r -> (ty,) <$> (ArrayIndex <$> bmmExpr l <*> bmmExpr r)
         Tc.StructIndex expr@(exprTy, _) field -> case exprTy of
-            Tc.Array _ -> (ty,) <$> (Deref <$> bmmExpr expr <*> return 1)
+            Tc.Array _ -> (ty,) <$> (StructIndex <$> bmmExpr expr <*> return 1)
             _ -> do
                 fields <- fmap (fmap argName) (lookupStruct exprTy)
                 let fieldIdx =
