@@ -18,7 +18,7 @@ import Frontend.Parser.Language
     )
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.TypeParser (atomicType, typ)
-import Text.Parsec (choice, many, many1, optionMaybe, try, (<?>))
+import Text.Parsec (choice, many, many1, optionMaybe, try, (<?>), (<|>))
 import Text.Parsec.Expr
     ( Assoc (AssocLeft, AssocNone),
       Operator (Infix, Postfix),
@@ -81,8 +81,8 @@ atom =
         , parens expr
         ]
 
-singleIndex :: Parser (Expr -> Expr)
-singleIndex = do
+index :: Parser (Expr -> Expr)
+index = do
     (info, index) <- info (brackets expr) <?> "expression"
     return $ \l -> EIndex info l index
 
@@ -101,11 +101,7 @@ expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
         [
-            [ Postfix $ foldr1 (>>>) <$> many1 deref
-            , Postfix $ foldr1 (>>>) <$> many1 field
-            ]
-        ,
-            [ Postfix $ foldr1 (>>>) <$> many1 singleIndex
+            [ Postfix $ foldr1 (>>>) <$> many1 (index <|> deref <|> field)
             ]
         ,
             [ prefix (Neg . fst <$> info (reservedOp "-"))
