@@ -11,7 +11,7 @@ import Frontend.Parser.Language
       parens,
       reserved,
       reservedOp,
-      upper,
+      identifier,
     )
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.StmtParser (stmt)
@@ -33,7 +33,7 @@ function = do
     return (FnDef i ty ident args stmts)
 
 structDecl :: Parser Id
-structDecl = uncurry Id <$> info (reserved "struct" *> upper) <?> "Expecting upper case word"
+structDecl = uncurry Id <$> info (reserved "struct" *> identifier) <?> "Expecting upper case word"
 
 struct :: Parser TopDef
 struct = do

@@ -148,7 +148,13 @@ rnStmt = \case
             <*> newBlock (rnStmt stmt1)
             <*> newBlock (rnStmt stmt2)
     While info expr stmt -> While info <$> rnExpr expr <*> newBlock (rnStmt stmt)
-    ForEach info arg expr stmt -> ForEach info <$> rnArg arg <*> rnExpr expr <*> rnStmt stmt
+    ForEach info arg expr stmt -> do
+        expr <- rnExpr expr 
+        (arg, stmt) <- newBlock $ do
+            arg <- rnArg arg 
+            stmt <- rnStmt stmt
+            return (arg,stmt)
+        return (ForEach info arg expr stmt)
     Break info -> return (Break info)
     SExp info expr -> SExp info <$> rnExpr expr
 
