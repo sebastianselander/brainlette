@@ -18,6 +18,7 @@ import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
 import Utils (concatFor, thow, pretty)
 import Prelude hiding (takeWhile)
+import Debug.Trace (traceShowM)
 
 $(gen "Stmt")
 
@@ -392,7 +393,7 @@ braingenExpr ogExpression@(ty, e) = case e of
         load res (braingenType ty) resPtr
 
         pure res
-    B.StructIndex e i -> do
+    B.StructIndex e@(ty,_) i -> do
         comment $ thow ogExpression
         e <- braingenExpr e
         var <- getTempVariable
