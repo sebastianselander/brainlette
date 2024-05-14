@@ -101,8 +101,11 @@ expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
         [
+            [
+            Postfix $ foldr1 (>>>) <$> many1 singleIndex
+            ]
+            ,
             [ Postfix $ foldr1 (>>>) <$> many1 deref
-            , Postfix $ foldr1 (>>>) <$> many1 singleIndex
             , Postfix $ foldr1 (>>>) <$> many1 field
             ]
         ,
