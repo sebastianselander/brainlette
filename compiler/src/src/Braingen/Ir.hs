@@ -118,10 +118,11 @@ braingenStm breakpoint stmt = case stmt of
         store (Argument (Just ty') var) ptr
         comment "deref ass done"
     B.Ass ty1 (B.LStructIndex e@(ty2, _) i) expr -> do
-        comment "deref ass"
+        comment "structindex ass"
         let ty1' = braingenType ty1
         let ty2' = braingenType ty2
         -- TODO: WE work here. Array is stack allocated
+        comment $ thow e
         e <- braingenExpr e
         ptr <- getTempVariable
         getElementPtr
@@ -131,7 +132,7 @@ braingenStm breakpoint stmt = case stmt of
             (ConstArgument (Just I64) (LitInt $ fromIntegral i))
         var <- braingenExpr expr
         store (Argument (Just ty2') var) ptr
-        comment "deref ass done"
+        comment "structindex ass done"
     B.Ret (Just expr@(t, _)) -> do
         comment $ "ret: " <> thow t
         result <- braingenExpr expr
