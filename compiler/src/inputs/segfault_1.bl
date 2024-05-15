@@ -34,19 +34,23 @@ Screen createScreen(){
   return screen;
 }
 
+void printBool(boolean b) {
+    if (b) printString("true");
+    else printString("false");
+}
+
 int main(){
   // This one does not
-  //Screen screen = createScreen();
-  //printInt(screen->pixels[4][2]->r);
-  //printInt(screen->pixels[4][2]->g);
-  //printInt(screen->pixels[4][2]->b);
+  Screen screen = createScreen();
+  printInt(screen->pixels[4][2]->g);
+  printInt(screen->pixels[4][2]->b);
 
-  // This lower part works correctyl
-  Pixel[][] pixels = new Pixel[10][10];
-  initPixel(pixels);
-  printInt(pixels[4][2]->r);
-  printInt(pixels[4][2]->g);
-  printInt(pixels[4][2]->b);
+  // This lower part works correctly
+  // Pixel[][] pixels = new Pixel[10][10];
+  // initPixel(pixels);
+  // printInt(pixels[4][2]->r);
+  // printInt(pixels[4][2]->g);
+  // printInt(pixels[4][2]->b);
   // prints 4
   //        2
   //        8
