@@ -59,6 +59,7 @@ instance HasInfo Expr where
     hasInfo (EOr a _ _) = a
     hasInfo (ENew a _ _) = a
     hasInfo (EIndex a _ _) = a
+    hasInfo (EStructIndex a _ _) = a
 
 instance HasInfo Type where
     hasInfo (TVar a _) = a
