@@ -77,7 +77,11 @@ infDef = \case
             Tc.TypeDef
                 (Tc.Pointer $ Tc.TVar $ convert name1)
                 (convert name2)
-    Par.StructDef _ name args ->
+    Par.StructDef _ name args -> do
+        let checkVoid (Par.Argument info ty _) = case ty of
+                Par.Void _ -> throwError (VoidField info)
+                _ -> return ()
+        mapM_ checkVoid args                
         return $ Tc.StructDef (convert name) (convert args)
     def@(Par.FnDef _ rt name args block) -> do
         let rt' = convert rt

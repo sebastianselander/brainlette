@@ -18,19 +18,19 @@ data FEError
     = ErrText SynInfo Text
     | -- | Constructor for an unbound variable error
       UnboundVariable
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | Name of the unbound variable
         Id
     | -- | Constructor for when a type can't be inferred
       TypeUninferrable
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The given expression
         Par.Expr
     | -- | Constructor for mismatched types
       TypeMismatch
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The given type
         Type
@@ -38,13 +38,13 @@ data FEError
         (NonEmpty Type)
     | -- | Constructor for when a function type was expected
       ExpectedFn
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The given type
         Type
     | -- | Constructor for when a value of a type is non-comparable
       NotComparable
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | Comparison operator
         RelOp
@@ -52,13 +52,13 @@ data FEError
         Type
     | -- | Constructor for an illegal empty return
       IllegalEmptyReturn
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The expected type
         Type
     | -- | Constructor for when the expected type was not given
       ExpectedType
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The expected type
         Type
@@ -66,39 +66,39 @@ data FEError
         Type
     | -- | Constructor for when a number is expected
       ExpectedNumber
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The given type
         Type
     | -- | Constructor for an already bound variable
       BoundVariable
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | Name of the bound variable
         Id
     | -- | Constructor for break statement outside a loop
       BreakNotInLoop
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
     | -- | Constructor for unreachable statements outside a loop
       UnreachableStatement
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
     | -- | Constructor for functions missing a return statement
       MissingReturn
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The function missing return
         Par.Id
     | -- | Constructor for an expression that is not a statement
       NotStatement
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The expression that is not a statement
         Par.Expr
     | -- | Constructor for a function call that has a mismatched number of argument
       ArgumentMismatch
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The expression that has an invalid amount of arguments
         Par.Id
@@ -108,67 +108,67 @@ data FEError
         Int
     | -- | Constructor for duplicate top definitions
       DuplicateTopDef
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The duplicate top definition
         Par.TopDef
     | -- | Constructor for a duplicate error
       DuplicateArgument
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The duplicate argument
         Par.Arg
     | -- | Constructor for declaring a void variable
       VoidDeclare
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The bogus statement
         Par.Stmt
     | -- | Constructor for having parameters of type void
       VoidParameter
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | Name of the function
         Par.Id
     | -- | Constructor for types that can not be compared
       NotRelational
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The type that is not relational
         Type
     | -- | Constructor for an unknown struct
       UnboundStruct
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | Name of the struct
         Id
     | -- | Constructor for an unbound field
       UnboundField
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The unbound field
         Par.Id
     | -- | Constructor for field lookup on an incompatible type
       NotStructType
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | Name of the struct
         Type
     | -- | Constructor for a type that is not a pointer
       NotPointer
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The type that is not a pointer
         Type
     | -- | Constructor for when an identifer was expected
       ExpectedIdentifier
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The expression that is not an identifier
         Par.Expr
     | -- | Constructor for an expression that is not an lvalue
       NotLValue
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The expression that is not an LValue
         Par.Expr
@@ -177,22 +177,26 @@ data FEError
         -- | The type that was circular
         Type
     | UnboundType
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The type that does not exist
         Type
     | -- | Constructor for when an array was expected
       ExpectedArray
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The given type
         Type
     | -- | Constructor for a type that can not be 'newed'
       NotNewable
-        -- | The source code position of the error
+        -- | The source code information of the error
         SynInfo
         -- | The given type
         Type
+    | -- | Constructor for when a struct field is void
+      VoidField
+        -- | The source code information of the error
+        SynInfo
     deriving (Show)
 
 parens :: Text -> Text
@@ -314,6 +318,7 @@ instance Report FEError where
         UnboundType info ty -> pretty $ combine info [i|unbound type '#{report ty}'|]
         ExpectedArray info ty -> pretty $ combine info [i|expected an array type, but got '#{report ty}'|]
         NotNewable info ty -> pretty $ combine info [i|can not construct a new with type #{report ty}|]
+        VoidField info -> pretty $ combine info [i|struct field can not be of type void|]
 
 oneLine :: SynInfo -> SynInfo
 oneLine info = info {sourceCode = takeWhile (/= '\n') info.sourceCode}
