@@ -27,6 +27,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
+import Debug.Trace (traceShowM)
 
 -- BUG: Custom types must exist as structs!!
 
@@ -81,7 +82,7 @@ infDef = \case
         let checkVoid (Par.Argument info ty _) = case ty of
                 Par.Void _ -> throwError (VoidField info)
                 _ -> return ()
-        mapM_ checkVoid args                
+        mapM_ checkVoid args
         return $ Tc.StructDef (convert name) (convert args)
     def@(Par.FnDef _ rt name args block) -> do
         let rt' = convert rt
@@ -156,7 +157,7 @@ tcStmt retTy = go
                             return . return $ Tc.Ass ty (Tc.LIndex l' r') (ty, rhs')
                         ty -> throwError $ ExpectedArray info ty
                 Par.EStructIndex _ l field -> do
-                    l@(tyl,_) <- infExpr l
+                    l@(tyl, _) <- infExpr l
                     fields <- getStruct info tyl
                     let field' = convert field
                     case Map.lookup field' fields of
@@ -165,8 +166,6 @@ tcStmt retTy = go
                             ty <- unify info ty tyr
                             return . return $ Tc.Ass ty (Tc.LStructIndex l field') (ty, rhs)
                         Nothing -> throwError $ UnboundField info field
-
-
                 _ -> throwError $ NotLValue info lhs
         Par.Incr info var -> do
             typ <- getVar var
@@ -208,7 +207,6 @@ tcStmt retTy = go
             insertVar name' ty'
             stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
             return . Just $ Tc.ForEach (Tc.Argument ty' name') expr' stmt'
-
         Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
         Par.SExp info expr -> throwError (NotStatement info expr)
         Par.Break _ -> return $ Just Tc.Break
@@ -246,14 +244,16 @@ infExpr e = pushExpr e $ case e of
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
     Par.ENew info ty sizes -> do
         let tyC = convert ty
+        tyC' <- concreteType tyC
         case ty of
             Par.TVar {} -> do
-                concreteType tyC >>= \case
+                case tyC' of
                     Tc.Pointer ty -> void $ getStruct info ty
                     ty -> void $ getStruct info ty
             Par.Array {} -> return ()
-            _ | null sizes -> throwError $ NotNewable info tyC
-              | otherwise -> return ()
+            _
+                | null sizes -> throwError $ NotNewable info tyC
+                | otherwise -> return ()
         case sizes of
             [] -> do
                 asks (Map.lookup tyC . typedefGraph) >>= \case
@@ -358,10 +358,12 @@ infExpr e = pushExpr e $ case e of
     Par.EStructIndex info l field -> do
         expr <- infExpr l
         case typeOf expr of
-            Tc.Array _ -> do -- NOTE: For now hard coded for arrays
-                if | (Par.Id _ "length") <- field -> return (Tc.Int, Tc.StructIndex expr (Tc.Id "length"))
-                   | otherwise -> throwError $ UnboundField info field
-            ty ->  do
+            Tc.Array _ -> do
+                -- NOTE: For now hard coded for arrays
+                if
+                    | (Par.Id _ "length") <- field -> return (Tc.Int, Tc.StructIndex expr (Tc.Id "length"))
+                    | otherwise -> throwError $ UnboundField info field
+            ty -> do
                 fieldTy <- Map.lookup (convert field) <$> getStruct info ty
                 ty' <- case fieldTy of
                     Nothing -> throwError $ UnboundField info field
@@ -430,14 +432,16 @@ addDefs (Par.Program _ defs) =
             )
 
 lookupFunc :: Par.Id -> TcM (Maybe Tc.Type)
-lookupFunc i = gets (Map.lookup (convert i) . functions) >>= \case
-    Nothing -> return Nothing
-    Just rt -> return (return rt)
+lookupFunc i =
+    gets (Map.lookup (convert i) . functions) >>= \case
+        Nothing -> return Nothing
+        Just rt -> return (return rt)
 
 lookupVar :: Par.Id -> TcM (Maybe Tc.Type)
-lookupVar i = gets (Map.lookup (convert i) . variables) >>= \case
-    Nothing -> return Nothing
-    Just rt -> return (return rt)
+lookupVar i =
+    gets (Map.lookup (convert i) . variables) >>= \case
+        Nothing -> return Nothing
+        Just rt -> return (return rt)
 
 getStruct :: Par.SynInfo -> Tc.Type -> TcM (Map Tc.Id Tc.Type)
 getStruct info ty@(Tc.TVar ty') = do
