@@ -27,7 +27,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
-import Debug.Trace (traceShow, traceShowM)
+import Debug.Trace (traceShow, traceShowM, traceShowId)
 
 -- BUG: Custom types must exist as structs!!
 -- BUG: New init on structs does not work
@@ -245,12 +245,18 @@ infExpr e = pushExpr e $ case e of
     Par.ENew info ty sizes -> do
         let tyC = convert ty
         case ty of
-            Par.TVar {} -> void $ getStruct info tyC
+            Par.TVar {} -> do
+                concreteType tyC >>= \case
+                    Tc.Pointer ty -> void $ getStruct info ty
+                    ty -> void $ getStruct info ty
             Par.Array {} -> return ()
             _ | null sizes -> throwError $ NotNewable info tyC
               | otherwise -> return ()
         case sizes of
-            [] -> return (Tc.Pointer tyC, Tc.StructAlloc)
+            [] -> do
+                asks (Map.lookup tyC . typedefGraph) >>= \case
+                    Nothing -> return (Tc.Pointer tyC, Tc.StructAlloc)
+                    Just ty -> return (ty, Tc.StructAlloc)
             (sz : szs) -> do
                 sz <- tcExpr Tc.Int sz
                 szs <- mapM (tcExpr Tc.Int) szs
