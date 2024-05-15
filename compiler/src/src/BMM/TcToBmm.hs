@@ -19,7 +19,6 @@ import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (pack)
-import Debug.Trace (traceShow)
 import GHC.Base (NonEmpty (..))
 import Lifting.Types qualified as Tc
 import Utils (thow)

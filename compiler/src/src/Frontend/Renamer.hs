@@ -17,8 +17,6 @@ import Frontend.Error (FEError (..), Report (report), convert)
 import Frontend.Parser.ParserTypes
 import Utils
 import Prelude hiding (head)
-import Data.List (nubBy)
-import Foreign.C (throwErrnoIfRetry)
 
 -- Make mapping from old names to new names as well
 data Env = Env

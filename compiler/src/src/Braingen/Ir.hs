@@ -16,9 +16,8 @@ import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
-import Utils (concatFor, thow, pretty)
+import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
-import Debug.Trace (traceShowM)
 
 $(gen "Stmt")
 
@@ -373,7 +372,7 @@ braingenExpr ogExpression@(ty, e) = case e of
         var <- getTempVariable
         load var ty' ptr
         return var
-    B.ArrayInit exprs -> error "TODO: {EAllocInit} Does not exist yet"
+    B.ArrayInit _ -> error "TODO: {EAllocInit} Does not exist yet"
     B.ArrayIndex base index -> do
         baseVar <- braingenExpr base
         indexVar <- braingenExpr index

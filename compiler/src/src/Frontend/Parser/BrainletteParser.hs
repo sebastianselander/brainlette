@@ -86,6 +86,7 @@ instance HasInfo Stmt where
     hasInfo (While a _ _) = a
     hasInfo (SExp a _) = a
     hasInfo (Break a) = a
+    hasInfo (ForEach a _ _ _) = a
 
 instance HasInfo Item where
     hasInfo (NoInit a _) = a
