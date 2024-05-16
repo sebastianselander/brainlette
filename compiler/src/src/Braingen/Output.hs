@@ -117,7 +117,6 @@ instance OutputIr Stmt where
                 ]
         Ret arg ->
             "ret " <> out arg
-                    
         RetVoid -> "ret void"
         Comment t -> "; " <> t
         Arith var ar t a1 a2 ->
@@ -146,7 +145,7 @@ instance OutputIr Stmt where
         Or var ty l r -> [i|#{out var} = or #{out ty} #{out l}, #{out r}|]
         Fneg var ty arg -> [i|#{out var} = fneg #{out ty} #{out arg}|]
         Unreachable -> "unreachable"
-        GetElementPtr var ty arg1 arg2 -> [i|#{out var} = getelementptr #{out ty}, #{out arg1}, #{out arg2}|]
+        GetElementPtr var ty arg1 arg2 -> [i|#{out var} = getelementptr #{out ty}, #{out arg1}, i64 0, #{out arg2}|]
         ExtractValue var ty arg ind -> [i|#{out var} = extractvalue #{out ty} #{out arg}, #{ind}|]
 
 instance OutputIr CastOp where
@@ -215,14 +214,14 @@ instance OutputIr Argument where
     out :: Argument -> Text
     out (ConstArgument t i) = out t <> " " <> out i
     out (Argument t i) = out t <> " " <> out i
-    out (ConstArgumentAuto l) = 
-                    let ty = case l of
-                           LitInt _ -> I64
-                           LitDouble _ -> F64
-                           LitBool _ -> I1
-                           LitNull -> Ptr
-                           LitArrNull -> Ptr
-                    in out (ConstArgument (pure ty) l)
+    out (ConstArgumentAuto l) =
+        let ty = case l of
+                LitInt _ -> I64
+                LitDouble _ -> F64
+                LitBool _ -> I1
+                LitNull -> Ptr
+                LitArrNull -> Ptr
+         in out (ConstArgument (pure ty) l)
 
 instance OutputIr Variable where
     out :: Variable -> Text

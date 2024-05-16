@@ -104,7 +104,7 @@ braingenStm breakpoint stmt = case stmt of
             ptr
             ty'
             (Argument (Just Ptr) arr')
-            (Argument (Just I64) index)
+            (Argument (Just I32) index)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
         comment "index ass done"
@@ -119,7 +119,7 @@ braingenStm breakpoint stmt = case stmt of
             ptr
             ty'
             (Argument (Just tyE) e)
-            (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+            (ConstArgument (Just I32) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
         comment "deref ass done"
@@ -135,7 +135,7 @@ braingenStm breakpoint stmt = case stmt of
             ptr
             ty1'
             (Argument (Just Ptr) e')
-            (ConstArgument (Just I64) (LitInt $ fromIntegral i))
+            (ConstArgument (Just I32) (LitInt $ fromIntegral i))
         comment $ "HERE IT IS: " <> thow expr
         comment $ "EXPRESSION: " <> thow expr
         var <- braingenExpr expr
@@ -336,7 +336,7 @@ braingenExpr ogExpression@(ty, e) = case e of
                 ptr
                 (braingenType t)
                 (Argument (Just Ptr) var)
-                (ConstArgument (Just I64) (LitInt i))
+                (ConstArgument (Just I32) (LitInt i))
             comment "START"
             comment (thow $ braingenType t)
             comment $ thow (lit v)
@@ -359,7 +359,7 @@ braingenExpr ogExpression@(ty, e) = case e of
                 ptr
                 (braingenType ty)
                 (Argument (Just . braingenType $ ty) var1)
-                (ConstArgument (Just I64) (LitInt i))
+                (ConstArgument (Just I32) (LitInt i))
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
         return var1
     B.Deref e i -> do
@@ -371,7 +371,7 @@ braingenExpr ogExpression@(ty, e) = case e of
             ptr
             ty'
             (Argument (Just (braingenType $ typeOf e)) e')
-            (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+            (ConstArgument (Just I32) (LitInt (fromIntegral i)))
         var <- getTempVariable
         load var ty' ptr
         return var
