@@ -1,0 +1,23 @@
+typedef struct B* B;
+struct B {
+    int field;
+};
+typedef struct A* A;
+struct A {
+    B[] bs;
+};
+
+void initBs(B[] bs) {
+    bs[0]->field = 69;
+} 
+
+A initA() {
+    A a = new A;
+    initBs(a->bs);
+    return a;
+}
+
+void main () {
+    A a = initA();
+    printInt(a->bs[0]->field);
+}
