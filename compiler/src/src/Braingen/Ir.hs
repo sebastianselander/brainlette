@@ -77,29 +77,21 @@ braingenStmts =
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of
     B.BStmt block -> do
-        comment "block"
         mapM_ (braingenStm breakpoint) block
-        comment "block end"
     B.Decl t (B.Id i) -> do
-        comment $ "decl: " <> i
         alloca (Variable i) (braingenType t)
-        comment "decl done"
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
-        comment $ "store: " <> thow t
         argument <- case expr of
             (_, B.ELit l) -> return (ConstArgumentAuto (lit l))
             _ -> do
                 result <- braingenExpr expr
                 return (Argument (pure $ braingenType t) result)
         store argument (Variable a)
-        comment "store done"
     B.Ass ty (B.LIndex arr index) expr -> do
-        comment "index ass"
         let ty' = braingenType ty
         arr <- braingenExpr arr
         index <- braingenExpr index
         ptr <- getTempVariable
-        comment "One"
         getElementPtr
             ptr
             ty'
@@ -107,15 +99,11 @@ braingenStm breakpoint stmt = case stmt of
             (Argument (Just I64) index)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
-        comment "index ass done"
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
-        comment "deref ass"
         let ty' = braingenType ty
         let tyE = braingenType innerE
         e <- braingenExpr e
         ptr <- getTempVariable
-        comment "Two"
-        comment $ thow ty
         getElementPtr
             ptr
             (braingenType innerE)
@@ -123,40 +111,29 @@ braingenStm breakpoint stmt = case stmt of
             (ConstArgument (Just I32) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
-        comment "deref ass done"
     B.Ass ty1 (B.LStructIndex e@(_, _) i) expr -> do
-        comment "structindex ass"
         let ty1' = braingenType ty1
         e <- case e of
             (_, B.EVar (B.Id v)) -> return (Variable v)
             _ -> braingenExpr e
         -- e <- braingenExpr e
         ptr <- getTempVariable
-        comment "Three"
         getElementPtr
             ptr
             ty1'
             (Argument (Just Ptr) e)
             (ConstArgument (Just I64) (LitInt $ fromIntegral i))
-        comment $ "HERE IT IS: " <> thow expr
-        comment $ "EXPRESSION: " <> thow expr
         var <- braingenExpr expr
         store (Argument (Just ty1') var) ptr
-        comment "structindex ass done"
     B.Ret (Just (ty, B.ELit l)) -> do
         ty <- return (braingenType ty)
         ret (ConstArgument (Just ty) (lit l))
     B.Ret (Just expr@(t, _)) -> do
-        comment $ "ret: " <> thow t
         result <- braingenExpr expr
         ret (Argument (pure $ braingenType t) result)
-        comment "ret done"
     B.Ret Nothing -> do
-        comment "ret void"
         retVoid
-        comment "ret void done"
     B.CondElse expr s1 s2 -> do
-        comment "condelse"
         result <- braingenExpr expr
         lTrue <- getLabel "IfTrue"
         lFalse <- getLabel "IfFalse"
@@ -173,9 +150,7 @@ braingenStm breakpoint stmt = case stmt of
         jump lDone
         -- if done
         label lDone
-        comment "condelse done"
     B.Loop expr stmt -> do
-        comment "loop"
         start <- getLabel "loop_start"
         continue <- getLabel "loop_continue"
         exit <- getLabel "loop_exit"
@@ -187,11 +162,8 @@ braingenStm breakpoint stmt = case stmt of
         mapM_ (braingenStm (Just exit)) stmt
         jump continue
         label exit
-        comment "loop done"
     B.SExp expr -> do
-        comment $ "sexp: " <> thow expr
         void $ braingenExpr expr
-        comment "sexp done"
     B.ArrayAlloc ty (B.Id name) (_, sz) -> do
         let var = Variable name
         alloca var (braingenType ty)
@@ -200,13 +172,11 @@ braingenStm breakpoint stmt = case stmt of
         malloc addr arrSize
         store (Argument (Just Ptr) addr) var
     B.Break -> do
-        comment "break"
         let bp = case breakpoint of
                 Just bp -> bp
                 Nothing ->
                     error "break outside loop, report as INSERT BUG HERE :)"
         jump bp
-        comment "break done"
 
 braingenExpr :: B.Expr -> BgM Variable
 braingenExpr ogExpression@(ty, e) = case e of
@@ -329,24 +299,17 @@ braingenExpr ogExpression@(ty, e) = case e of
         lazyLogical l r False Braingen.Ir.and false true
     B.StructInit False vals -> do
         var <- getTempVariable
-        comment "stack allocating a struct"
         alloca var (braingenType ty)
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
-            comment "Four"
             getElementPtr
                 ptr
                 (braingenType t)
                 (Argument (Just Ptr) var)
                 (ConstArgument (Just I64) (LitInt i))
-            comment "START"
-            comment (thow $ braingenType t)
-            comment $ thow (lit v)
-            comment "STOP"
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
         temp <- getTempVariable
         load temp (braingenType ty) var
-        comment "stack allocating a struct done"
         return temp
     B.StructInit True vals -> do
         sizeVar <- braingenExpr (mkLitIntE (sum (map (sizeOf . braingenType . fst) vals)))
@@ -355,8 +318,6 @@ braingenExpr ogExpression@(ty, e) = case e of
 
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
-            comment "Five"
-            comment $ thow e
             getElementPtr
                 ptr
                 (braingenType t)
@@ -368,7 +329,6 @@ braingenExpr ogExpression@(ty, e) = case e of
         let ty' = braingenType ty
         e' <- braingenExpr e
         ptr <- getTempVariable
-        comment "Six"
         getElementPtr
             ptr
             ty'
@@ -385,8 +345,6 @@ braingenExpr ogExpression@(ty, e) = case e of
         -- TODO: add bounds checking
 
         resPtr <- getTempVariable
-        comment "Seven"
-        comment (thow $ braingenType ty)
         getElementPtr
             resPtr
             (braingenType ty)
@@ -398,10 +356,8 @@ braingenExpr ogExpression@(ty, e) = case e of
 
         pure res
     B.StructIndex e@(ty, _) i -> do
-        comment $ thow ogExpression
         e <- braingenExpr e
         var <- getTempVariable
-        comment "Eight"
         -- getElementPtr var (braingenType ty) (Argument (Just Ptr) e) (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         extractValue var (braingenType ty) e (fromIntegral i)
         return var
