@@ -86,19 +86,21 @@ wrapStmt = \case
 
 wrapLValue :: LValue -> WrapM LValue
 wrapLValue lv = case lv of
-    LIndex (ty, expr) index -> do
+    LIndex expr index -> do
+        (ty, expr) <- wrapExpr expr
+        index <- wrapExpr index
         return $ LIndex (ty, StructIndex (arrayType, expr) 0) index
-    l -> return l
+    LVar id -> return $ LVar id
+    LDeref e n -> LDeref <$> wrapExpr e <*> return n
+    LStructIndex e n -> LStructIndex <$> wrapExpr e <*> return n
 
 wrapExpr :: Expr -> WrapM Expr
 wrapExpr (ty, e) = (wrapTy ty,) <$> go e
   where
     go :: Expr' -> WrapM Expr'
-    go = \case
-        ArrayIndex expr index -> do
-            expr <- wrapExpr expr
-            index <- wrapExpr index
-            return (ArrayIndex (Pointer Void, StructIndex expr 0) index)
+    go = treeMapM $ \case
+        ArrayIndex expr index ->
+            return $ ArrayIndex (Pointer Void, StructIndex expr 0) index
         e -> return e
 
 wrapTy :: Type -> Type
