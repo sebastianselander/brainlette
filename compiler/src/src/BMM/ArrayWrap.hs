@@ -119,7 +119,7 @@ wrapExpr (ty, e) = (wrapTy ty,) <$> go e
         ArrayIndex expr index -> do
             expr <- wrapExpr expr
             index <- wrapExpr index
-            return (ArrayIndex (arrayType, StructIndex expr 0) index)
+            return (ArrayIndex (Pointer Void, StructIndex expr 0) index)
 
 wrapTy :: Type -> Type
 wrapTy (Array _) = arrayType
