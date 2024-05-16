@@ -74,7 +74,7 @@ wrapStmt = \case
                 ( arrayType
                 , StructInit
                     False
-                    [(Array Void, LitArrNull)]
+                    [(Pointer Void, LitNull), (Int, LitInt 0)]
                 )
             , Ass
                 arrayType
