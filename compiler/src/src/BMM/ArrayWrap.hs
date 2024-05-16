@@ -7,7 +7,7 @@ module BMM.ArrayWrap (burrito) where
 import BMM.Bmm
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.State
-import Utils (pured, thow)
+import Utils (pured, thow, treeMapM)
 
 newtype WrapM a = Wrap {unWrap :: State Int a}
     deriving (Functor, Applicative, Monad, MonadState Int)
@@ -86,39 +86,20 @@ wrapStmt = \case
 
 wrapLValue :: LValue -> WrapM LValue
 wrapLValue lv = case lv of
-    LIndex expr index -> do
-        (ty, expr) <- wrapExpr expr
-        index <- wrapExpr index
+    LIndex (ty, expr) index -> do
         return $ LIndex (ty, StructIndex (arrayType, expr) 0) index
-    LVar id -> return $ LVar id
-    LDeref e n -> LDeref <$> wrapExpr e <*> return n
-    LStructIndex e n -> LStructIndex <$> wrapExpr e <*> return n
+    l -> return l
 
 wrapExpr :: Expr -> WrapM Expr
 wrapExpr (ty, e) = (wrapTy ty,) <$> go e
   where
     go :: Expr' -> WrapM Expr'
     go = \case
-        EVar _ -> return e
-        EGlobalVar _ -> return e
-        ELit _ -> return e
-        EApp name exprs -> EApp name <$> mapM wrapExpr exprs
-        Not e -> Not <$> wrapExpr e
-        Neg e -> Neg <$> wrapExpr e
-        EMul l op r -> EMul <$> wrapExpr l <*> return op <*> wrapExpr r
-        EAdd l op r -> EAdd <$> wrapExpr l <*> return op <*> wrapExpr r
-        ERel l op r -> ERel <$> wrapExpr l <*> return op <*> wrapExpr r
-        EAnd l r -> EAnd <$> wrapExpr l <*> wrapExpr r
-        EOr l r -> EOr <$> wrapExpr l <*> wrapExpr r
-        StructInit _ _ -> return e
-        ArrayInit _ -> error "TODO: Not yet lifted"
-        Cast expr -> Cast <$> wrapExpr expr
-        Deref expr n -> Deref <$> wrapExpr expr <*> return n
-        StructIndex expr n -> StructIndex <$> wrapExpr expr <*> return n
         ArrayIndex expr index -> do
             expr <- wrapExpr expr
             index <- wrapExpr index
             return (ArrayIndex (Pointer Void, StructIndex expr 0) index)
+        e -> return e
 
 wrapTy :: Type -> Type
 wrapTy (Array _) = arrayType
