@@ -9,11 +9,12 @@ runtime :: Text
 runtime =
   [i|
 
-
 target triple = "x86_64-pc-linux-gnu"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 declare i32 @printf(ptr, ...)
 @.empty_string = constant [1 x i8] c"\\00"
+@out_of_bounds$Internal = constant [21 x i8] c"index out of bounds\\0A\\00"
+declare i32 @exit(i32)
 declare i64 @getline(ptr, ptr, ptr)
 declare ptr @fdopen(i32, ptr)
 declare i64 @strlen(ptr)
@@ -24,6 +25,20 @@ declare ptr @malloc(i64)
 
 %Array$Internal = type { ptr, i64 }
 
+define i64 @checkBound$Internal(i64 %index, i64 %upper_bound) {
+    %is_lower = icmp slt i64 %index, %upper_bound
+    br i1 %is_lower, label %ok, label %bad
+ok:
+    %is_larger = icmp sgt i64 %index, 0
+    br i1 %is_larger, label %good, label %bad
+bad:
+    ; WARNING: This should not print to stdout
+    call void @printString(ptr @out_of_bounds$Internal)
+    call i32 @exit(i32 1)
+    unreachable
+good:
+    ret i64 %index
+}
 
 @dnl = internal constant [4 x i8] c"%d\\0A\\00"
 define void @printInt(i32 %x) {
