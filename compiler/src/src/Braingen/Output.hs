@@ -145,7 +145,7 @@ instance OutputIr Stmt where
         Or var ty l r -> [i|#{out var} = or #{out ty} #{out l}, #{out r}|]
         Fneg var ty arg -> [i|#{out var} = fneg #{out ty} #{out arg}|]
         Unreachable -> "unreachable"
-        GetElementPtr var ty arg1 arg2 -> [i|#{out var} = getelementptr #{out ty}, #{out arg1}, i64 0, #{out arg2}|]
+        GetElementPtr var ty arg1 arg2 -> [i|#{out var} = getelementptr #{out ty}, #{out arg1}, #{out arg2}|]
         ExtractValue var ty arg ind -> [i|#{out var} = extractvalue #{out ty} #{out arg}, #{ind}|]
 
 instance OutputIr CastOp where
