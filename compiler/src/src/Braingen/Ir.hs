@@ -392,7 +392,7 @@ braingenExpr ogExpression@(ty, e) = case e of
         load res (braingenType ty) resPtr
 
         pure res
-    B.StructIndex e@(ty,_) i -> do
+    B.StructIndex e@(ty, _) i -> do
         comment $ thow ogExpression
         e <- braingenExpr e
         var <- getTempVariable
@@ -549,7 +549,7 @@ braingenType = \case
     B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
     B.Pointer t -> RawPtr (braingenType t)
-    B.Array _ -> Ptr
+    B.Array _ -> CustomType "Array$Internal"
     B.Fun t ts -> do
         let ret = braingenType t
         let args = map braingenType ts
