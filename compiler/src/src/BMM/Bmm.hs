@@ -75,10 +75,8 @@ instance Pretty Stmt where
             Ret (Just e) -> "return " <> pretty 0 e
             Ret Nothing -> "return-void"
             CondElse e s1 s2 ->
-                let s1' = intercalate "\n" $ map (pretty n) s1
-                    s2' = intercalate "\n" $ map (pretty n) s2
-                    els = "else" :: Text
-                 in [i|if (#{pretty 0 e})\n#{pretty n s1'}\n#{indent n els}\n#{pretty n s2'}|]
+                let els = "else" :: Text
+                 in [i|if (#{pretty 0 e})\n#{pretty n (BStmt s1)}\n#{indent n els}\n#{pretty n (BStmt s2)}|]
             Loop e s ->
                 [i|loop (#{pretty 0 e})
 #{pretty (n + 1) (BStmt s)}|]
