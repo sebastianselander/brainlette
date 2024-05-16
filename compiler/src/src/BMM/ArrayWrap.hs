@@ -111,7 +111,7 @@ wrapExpr (ty, e) = (wrapTy ty,) <$> go e
         ERel l op r -> ERel <$> wrapExpr l <*> return op <*> wrapExpr r
         EAnd l r -> EAnd <$> wrapExpr l <*> wrapExpr r
         EOr l r -> EOr <$> wrapExpr l <*> wrapExpr r
-        StructInit b lits -> return $ StructInit b (map (first wrapTy) lits)
+        StructInit _ _ -> return e
         ArrayInit _ -> error "TODO: Not yet lifted"
         Cast expr -> Cast <$> wrapExpr expr
         Deref expr n -> Deref <$> wrapExpr expr <*> return n

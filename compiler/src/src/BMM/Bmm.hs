@@ -183,7 +183,7 @@ instance Pretty Lit where
         LitBool b -> thow b
         LitString s -> thow s
         LitNull -> "null"
-        LitArrNull -> "null[]"
+        LitArrNull -> "{ [], 0 }"
 
 {- Additive Operator -}
 data AddOp
