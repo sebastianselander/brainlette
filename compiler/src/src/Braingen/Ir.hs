@@ -16,7 +16,7 @@ import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
-import Utils (Pretty (..), concatFor, thow)
+import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
 
 $(gen "Stmt")

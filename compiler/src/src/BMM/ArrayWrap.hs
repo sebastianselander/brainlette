@@ -5,7 +5,6 @@
 module BMM.ArrayWrap (burrito) where
 
 import BMM.Bmm
-import Control.Arrow (Arrow (first))
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.State
 import Utils (pured, thow)
