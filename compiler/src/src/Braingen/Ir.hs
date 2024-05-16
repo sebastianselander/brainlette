@@ -632,3 +632,6 @@ sizeOf = \case
     Array _ _ -> sizeOf Ptr
     CustomType "Array$Internal" -> 16
     CustomType _ -> 8
+
+typeOf :: B.Expr -> B.Type
+typeOf (ty,_) = ty
