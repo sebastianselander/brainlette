@@ -241,7 +241,7 @@ instance OutputIr Lit where
         LitBool True -> "1"
         LitBool False -> "0"
         LitNull -> "null"
-        LitArrNull -> "@.empty_arr"
+        LitArrNull -> "{ ptr null, i64 0}"
 
 instance OutputIr Type where
     out :: Type -> Text

@@ -5,6 +5,7 @@
 module BMM.ArrayWrap (burrito) where
 
 import BMM.Bmm
+import Control.Arrow (Arrow (first))
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.State
 import Utils (pured, thow)
@@ -12,9 +13,12 @@ import Utils (pured, thow)
 newtype WrapM a = Wrap {unWrap :: State Int a}
     deriving (Functor, Applicative, Monad, MonadState Int)
 
+-- NOTE: Array$Internal is defined in the Runtime.hs file
 burrito :: Prog -> Prog
-burrito (Program defs) = flip evalState 0 $ unWrap $ do
-    Program . (arrayStruct :) <$> mapM wrapTopDef defs
+burrito (Program defs) =
+    flip evalState 0 $
+        unWrap $
+            Program <$> mapM wrapTopDef defs
 
 wrapTopDef :: TopDef -> WrapM TopDef
 wrapTopDef e = case e of
@@ -36,11 +40,6 @@ arrayName = Id "Array$Internal"
 
 arrayType :: Type
 arrayType = TVar arrayName
-
-arrayStruct :: TopDef
-arrayStruct = StructDef arrayName [arr, Int]
-  where
-    arr = Array Void
 
 wrapStmt :: Stmt -> WrapM [Stmt]
 wrapStmt = \case
@@ -112,7 +111,7 @@ wrapExpr (ty, e) = (wrapTy ty,) <$> go e
         ERel l op r -> ERel <$> wrapExpr l <*> return op <*> wrapExpr r
         EAnd l r -> EAnd <$> wrapExpr l <*> wrapExpr r
         EOr l r -> EOr <$> wrapExpr l <*> wrapExpr r
-        StructInit _ _ -> return e
+        StructInit b lits -> return $ StructInit b (map (first wrapTy) lits)
         ArrayInit _ -> error "TODO: Not yet lifted"
         Cast expr -> Cast <$> wrapExpr expr
         Deref expr n -> Deref <$> wrapExpr expr <*> return n

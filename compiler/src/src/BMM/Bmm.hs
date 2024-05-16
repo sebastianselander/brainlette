@@ -156,7 +156,7 @@ instance Pretty Expr' where
             StructInit _ lits -> [i|{#{nice lits}}|]
               where
                 nice :: [(Type, Lit)] -> Text
-                nice = intercalate ", " . map (\(_, lit) -> pretty 0 lit)
+                nice = intercalate ", " . map (\(ty, lit) -> pretty 0 lit <> " : " <> pretty 0 ty)
             ArrayInit si -> [i|{#{intercalate ", " (map (pretty n) si)}}|]
             Cast c -> [i|cast (#{pretty 0 c})|]
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
