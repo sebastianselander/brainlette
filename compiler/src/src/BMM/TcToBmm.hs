@@ -280,7 +280,7 @@ itemDeclToBmm t = \case
 
 defaultValueExpr :: Type -> Expr
 defaultValueExpr ty = case ty of
-    Array _ -> (ty, StructInit False [(Array Void, LitNull),(Int, LitInt 0)])
+    Array ty' -> (ty, StructInit False [(Array ty', LitArrNull)])
     ty -> (ty, ELit (defaultValue ty))
 
 
