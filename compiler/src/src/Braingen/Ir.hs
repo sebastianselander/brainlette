@@ -365,7 +365,7 @@ braingenExpr ogExpression@(ty, e) = case e of
         return var1
     B.Deref e i -> do
         let ty' = braingenType ty
-        e <- braingenExpr e
+        e' <- braingenExpr e
         ptr <- getTempVariable
         comment "Six"
         getElementPtr
