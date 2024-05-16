@@ -37,6 +37,7 @@
               zlib
               gnumake
               clang
+              python3
             ];
           };
         };

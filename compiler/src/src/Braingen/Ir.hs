@@ -16,7 +16,7 @@ import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
-import Utils (concatFor, thow, Pretty (..))
+import Utils (Pretty (..), concatFor, thow)
 import Prelude hiding (takeWhile)
 
 $(gen "Stmt")
@@ -118,9 +118,10 @@ braingenStm breakpoint stmt = case stmt of
         e <- braingenExpr e
         ptr <- getTempVariable
         comment "Two"
-        getElementPtrIndirect
+        comment $ thow ty
+        getElementPtr
             ptr
-            innerE'
+            (braingenType innerE)
             (Argument (Just tyE) e)
             (ConstArgument (Just I32) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
@@ -637,4 +638,4 @@ sizeOf = \case
     CustomType _ -> 8
 
 typeOf :: B.Expr -> B.Type
-typeOf (ty,_) = ty
+typeOf (ty, _) = ty
