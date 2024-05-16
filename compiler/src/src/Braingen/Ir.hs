@@ -16,7 +16,7 @@ import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, takeWhile, toTitle)
-import Utils (concatFor, thow)
+import Utils (concatFor, thow, Pretty (..))
 import Prelude hiding (takeWhile)
 
 $(gen "Stmt")
@@ -111,13 +111,16 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
         comment "deref ass"
         let ty' = braingenType ty
+        let innerE' = case innerE of
+                B.Pointer ty -> braingenType ty
+                _ -> error $ "Deref on a non-pointer" <> show innerE
         let tyE = braingenType innerE
         e <- braingenExpr e
         ptr <- getTempVariable
         comment "Two"
-        getElementPtr
+        getElementPtrIndirect
             ptr
-            ty'
+            innerE'
             (Argument (Just tyE) e)
             (ConstArgument (Just I32) (LitInt (fromIntegral i)))
         var <- braingenExpr expr

@@ -119,6 +119,7 @@ data Stmt
     | Fneg Variable Type Argument
     | Or Variable Type Argument Argument
     | GetElementPtr Variable Type Argument Argument
+    | GetElementPtrIndirect Variable Type Argument Argument
     | ExtractValue Variable Type Variable Integer
     | Alloca Variable Type
     | Malloc Variable Variable
