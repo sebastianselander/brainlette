@@ -333,7 +333,6 @@ braingenExpr ogExpression@(ty, e) = case e of
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
             comment "Four"
-            comment (thow $ braingenType ty)
             getElementPtr
                 ptr
                 (braingenType t)
@@ -352,6 +351,7 @@ braingenExpr ogExpression@(ty, e) = case e of
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
             comment "Five"
+            comment $ thow e
             getElementPtr
                 ptr
                 (braingenType t)
@@ -548,7 +548,7 @@ braingenType = \case
     B.Void -> Void
     B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
-    B.Pointer t -> RawPtr (braingenType t)
+    B.Pointer _ -> Ptr
     B.Array _ -> CustomType "Array$Internal"
     B.Fun t ts -> do
         let ret = braingenType t
