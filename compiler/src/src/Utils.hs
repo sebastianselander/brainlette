@@ -6,6 +6,7 @@ module Utils where
 
 import Data.Text (Text, intercalate, pack, replicate)
 import GHC.Stack (HasCallStack)
+import Generics.SYB (Data, Typeable, everywhereM, mkM)
 import Prelude hiding (replicate)
 
 {-# WARNING TODO "TODO" #-}
@@ -17,6 +18,10 @@ pattern TODO <- _
 {-# WARNING todo "todo" #-}
 todo :: (HasCallStack) => a
 todo = error "TODO: Not yet implemented"
+
+-- treeMapM :: (Typeable a, Data a, Monad m) => (forall a. a -> m a) -> a -> m a
+treeMapM :: (Data a, Monad m, Typeable b) => (b -> m b) -> a -> m a
+treeMapM f = everywhereM (mkM f)
 
 -- | map with flipped arguments
 for :: [a] -> (a -> b) -> [b]
@@ -49,5 +54,12 @@ class Pretty a where
   semi :: Int -> a -> Text
   semi n a = pretty n a <> ";"
 
+apN :: Int -> (a -> a) -> a -> a
+apN 0 _ x = x
+apN !n f !x = apN (n - 1) f (f x)
+
 instance Pretty Text where
   pretty _ t = t
+
+pured :: (Functor f, Applicative t) => f a -> f (t a)
+pured thing = pure <$> thing

@@ -12,6 +12,7 @@ import Frontend.BranchReturns (branchCheck)
 import Frontend.Parser.BrainletteParser
 import Frontend.Renamer (rename)
 import Frontend.Tc.Tc (tc)
+import Lifting.Lifter (lift)
 import Runtime (runtime)
 import System.Directory (doesFileExist)
 import System.Environment
@@ -47,9 +48,9 @@ main = do
         Left err -> errorExit err
         Right res -> return res
 
-    ePutStrLn "\n--- Check output ---"
+    ePutStrLn "\n--- Branch check output ---"
 
-    ePrint res
+    ePutStrLn (pretty 0 res)
 
     res <- case tc res of
         Left err -> errorExit err
@@ -58,10 +59,17 @@ main = do
     ePutStrLn "\n--- Typecheck output ---"
     ePrint res
 
+    ePutStrLn "\n--- Lifter output ---"
+
+    res <- return (lift res)
+    ePrint res
+
     ePutStrLn "\n--- BMM output ---"
 
     res <- return $ bmm res
     ePutStrLn (pretty 0 res)
+    ePrint res
+    writeFile "output.bmm" (pretty 0 res)
 
     res <- return $ braingen res
 

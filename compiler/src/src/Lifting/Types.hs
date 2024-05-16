@@ -1,4 +1,4 @@
-module Frontend.Tc.Types where
+module Lifting.Types where
 
 import Data.String (IsString)
 import Data.Text (Text)
@@ -21,6 +21,9 @@ data LValue = LVar Id | LDeref Expr Id | LIndex Expr Expr | LStructIndex Expr Id
 
 data Stmt
     = BStmt [Stmt]
+    -- | The expression always represents the size of the array
+    | ArrayNew Type Id (NonEmpty Expr)
+    | StructNew Type Id Id
     | Decl Type [Item]
     | Ass Type LValue Expr
     | Incr Type Id
@@ -54,21 +57,20 @@ type Expr = (Type, Expr')
 
 data Expr'
     = EVar Id
-    | ArrayAlloc (NonEmpty Expr)
-    | ArrayLit [Expr]
-    | StructAlloc
     | ELit Lit
     | EApp Id [Expr]
     | Neg Expr
     | Not Expr
     | Deref Expr Id
-    | StructIndex Expr Id
     | EMul Expr MulOp Expr
     | EAdd Expr AddOp Expr
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
-    | EIndex Expr Expr
+    | ArrayIndex Expr Expr
+    | StructAlloc 
+    | StructIndex Expr Id
+    | ArrayLit [Expr]
     deriving (Eq, Ord, Show, Read)
 
 data Lit

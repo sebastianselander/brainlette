@@ -7,7 +7,10 @@ import Data.List (nub)
 import Data.Text (Text, length, pack, stripEnd, take)
 import Frontend.Parser.ParserTypes
 import Text.Parsec
-    ( alphaNum,
+    ( ParsecT,
+      Stream,
+      alphaNum,
+      chainl1,
       char,
       getInput,
       getPosition,
@@ -26,6 +29,7 @@ import Text.Parsec
       (<|>),
     )
 import Text.Parsec qualified as P (lower, upper)
+import Text.Parsec.Expr (Operator (..))
 import Text.Parsec.Language (GenLanguageDef)
 import Text.Parsec.Prim (skipMany)
 import Text.Parsec.Token (GenLanguageDef (..), GenTokenParser, makeTokenParser)
@@ -55,6 +59,10 @@ brainletteDef =
             , ";"
             , ","
             , "="
+            , "[]"
+            , "."
+            , "->"
+            , ":"
             ]
         , reservedNames =
             [ "while"
@@ -215,3 +223,9 @@ whiteSpace' languageDef
             <?> "end of comment"
       where
         startEnd = nub (commentEnd languageDef ++ commentStart languageDef)
+
+prefix :: (Stream s m t) => ParsecT s u m (a -> a) -> Operator s u m a
+prefix p = Prefix . chainl1 p $ return (.)
+
+postfix :: (Stream s m t) => ParsecT s u m (a -> a) -> Operator s u m a
+postfix p = Postfix . chainl1 p $ return (.)

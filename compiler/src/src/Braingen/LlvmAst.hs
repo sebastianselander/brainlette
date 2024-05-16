@@ -35,6 +35,7 @@ data DebugInfo
 data Argument
     = Argument (Maybe Type) Variable
     | ConstArgument (Maybe Type) Lit
+    | ConstArgumentAuto Lit
     deriving (Show)
 
 newtype Ir = Ir [TopDef]
@@ -118,7 +119,10 @@ data Stmt
     | Fneg Variable Type Argument
     | Or Variable Type Argument Argument
     | GetElementPtr Variable Type Argument Argument
+    | GetElementPtrIndirect Variable Type Argument Argument
+    | ExtractValue Variable Type Variable Integer
     | Alloca Variable Type
+    | Malloc Variable Variable
     | Store Argument Variable
     | Load Variable Type Variable
     | Ret Argument
@@ -136,4 +140,5 @@ data Lit
     | LitDouble Double
     | LitBool Bool
     | LitNull
+    | LitArrNull
     deriving (Show)

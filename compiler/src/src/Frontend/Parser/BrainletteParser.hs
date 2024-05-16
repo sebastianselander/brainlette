@@ -1,20 +1,21 @@
-module Frontend.Parser.BrainletteParser (
-    arg,
-    expr,
-    program,
-    stmt,
-    topdef,
-    typ,
-    HasInfo(..)
-) where
+module Frontend.Parser.BrainletteParser
+    ( arg,
+      expr,
+      program,
+      stmt,
+      topdef,
+      typ,
+      HasInfo (..),
+    )
+where
 
 import Frontend.Parser.ArgumentParser (arg)
 import Frontend.Parser.ExprParser (expr)
+import Frontend.Parser.ParserTypes
 import Frontend.Parser.ProgramParser (program)
 import Frontend.Parser.StmtParser (stmt)
 import Frontend.Parser.TopDefParser (topdef)
 import Frontend.Parser.TypeParser (typ)
-import Frontend.Parser.ParserTypes
 
 class HasInfo a where
     hasInfo :: a -> SynInfo
@@ -56,7 +57,9 @@ instance HasInfo Expr where
     hasInfo (ERel a _ _ _) = a
     hasInfo (EAnd a _ _) = a
     hasInfo (EOr a _ _) = a
-    hasInfo (ENew a _) = a
+    hasInfo (ENew a _ _) = a
+    hasInfo (EIndex a _ _) = a
+    hasInfo (EStructIndex a _ _) = a
 
 instance HasInfo Type where
     hasInfo (TVar a _) = a
@@ -67,6 +70,7 @@ instance HasInfo Type where
     hasInfo (Void a) = a
     hasInfo (Boolean a) = a
     hasInfo (Pointer a _) = a
+    hasInfo (Array a _) = a
 
 instance HasInfo Stmt where
     hasInfo (Empty a) = a
@@ -82,6 +86,7 @@ instance HasInfo Stmt where
     hasInfo (While a _ _) = a
     hasInfo (SExp a _) = a
     hasInfo (Break a) = a
+    hasInfo (ForEach a _ _ _) = a
 
 instance HasInfo Item where
     hasInfo (NoInit a _) = a

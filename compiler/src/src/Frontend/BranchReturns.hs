@@ -86,6 +86,7 @@ breaks = \case
     Break info -> do
         b <- ask
         unless b $ throwError (BreakNotInLoop info)
+    ForEach _ _ _ stmt -> local (const True) $ breaks stmt
 
 retDefs :: TopDef -> Br ()
 retDefs (StructDef {}) = return ()
@@ -93,10 +94,9 @@ retDefs (TypeDef {}) = return ()
 retDefs self@(FnDef _ ty _ _ stmts) =
     case ty of
         Void _ -> void $ returns stmts
-        _ -> do
-            returns stmts >>= \case
-                True -> return ()
-                False -> missingFn self
+        _ -> returns stmts >>= \case
+            True -> return ()
+            False -> missingFn self
   where
     returns :: [Stmt] -> Br Bool
     returns [] = return False
@@ -127,6 +127,7 @@ returnsStmt = \case
         if never expr
             then unreachable stmt $> False
             else (always expr &&) <$> returnsStmt stmt
+    ForEach {} -> return False
     SExp _ _ -> return False
     Break _ -> return False
 
@@ -149,7 +150,7 @@ interpret = \case
     ELitFalse _ -> return $ IsBool False
     ELitNull _ _ -> Nothing
     EString _ str -> return $ IsString str
-    ENew _ _ -> Nothing
+    ENew {} -> Nothing
     EDeref {} -> Nothing
     EApp {} -> Nothing
     Neg _ e -> case interpret e of
@@ -215,6 +216,8 @@ interpret = \case
             (IsDouble n, IsInt m) ->
                 Just $ IsBool $ relOp op n (fromInteger m)
             _ -> Nothing
+    EStructIndex {} -> Nothing
+    EIndex {} -> Nothing
 
 relOp :: RelOp -> ((Ord a) => a -> a -> Bool)
 relOp (LTH _) = (<)

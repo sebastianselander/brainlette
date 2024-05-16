@@ -16,6 +16,7 @@ common warnings
 library brainlette-lib
   import:           warnings
   exposed-modules:
+    BMM.ArrayWrap
     BMM.Bmm
     BMM.StringToTop
     BMM.TcToBmm
@@ -37,6 +38,8 @@ library brainlette-lib
     Frontend.Renamer
     Frontend.Tc.Tc
     Frontend.Tc.Types
+    Lifting.Types
+    Lifting.Lifter
     Interpreter.Interpreter
     Utils
 
@@ -51,6 +54,8 @@ library brainlette-lib
     , string-interpolate
     , template-haskell
     , text
+    , syb
+
 
   hs-source-dirs:   src
   default-language: GHC2021

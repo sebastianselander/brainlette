@@ -116,9 +116,7 @@ instance OutputIr Stmt where
                 , ")"
                 ]
         Ret arg ->
-            "ret " <> case arg of
-                Argument t i -> out t <> " " <> out i
-                ConstArgument t i -> out t <> " " <> out i
+            "ret " <> out arg
         RetVoid -> "ret void"
         Comment t -> "; " <> t
         Arith var ar t a1 a2 ->
@@ -135,6 +133,7 @@ instance OutputIr Stmt where
                 ]
         Label text -> text <> ":"
         Alloca v t -> concat [out v <> " = alloca ", out t]
+        Malloc v s -> concat [out v <> " = call ptr @malloc(i64 ", out s, ")"]
         Store val var -> concat ["store ", out val, ", ptr ", out var]
         Load var t ptr -> concat [out var, " = load ", out t, ", ptr ", out ptr]
         Br cond l1 l2 -> concat ["br i1 ", out cond, ", label %", l1, ", label %", l2]
@@ -147,6 +146,8 @@ instance OutputIr Stmt where
         Fneg var ty arg -> [i|#{out var} = fneg #{out ty} #{out arg}|]
         Unreachable -> "unreachable"
         GetElementPtr var ty arg1 arg2 -> [i|#{out var} = getelementptr #{out ty}, #{out arg1}, #{out arg2}|]
+        GetElementPtrIndirect var ty arg1 arg2 -> [i|#{out var} = getelementptr #{out ty}, #{out arg1}, i64 0, #{out arg2}|]
+        ExtractValue var ty arg ind -> [i|#{out var} = extractvalue #{out ty} #{out arg}, #{ind}|]
 
 instance OutputIr CastOp where
     out :: CastOp -> Text
@@ -214,6 +215,14 @@ instance OutputIr Argument where
     out :: Argument -> Text
     out (ConstArgument t i) = out t <> " " <> out i
     out (Argument t i) = out t <> " " <> out i
+    out (ConstArgumentAuto l) =
+        let ty = case l of
+                LitInt _ -> I64
+                LitDouble _ -> F64
+                LitBool _ -> I1
+                LitNull -> Ptr
+                LitArrNull -> Ptr
+         in out (ConstArgument (pure ty) l)
 
 instance OutputIr Variable where
     out :: Variable -> Text
@@ -232,6 +241,7 @@ instance OutputIr Lit where
         LitBool True -> "1"
         LitBool False -> "0"
         LitNull -> "null"
+        LitArrNull -> "{ ptr null, i64 0}"
 
 instance OutputIr Type where
     out :: Type -> Text

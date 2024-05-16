@@ -1,5 +1,5 @@
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -9,11 +9,12 @@ module Frontend.Tc.Tc where
 import Control.Arrow ((>>>))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except
-import Control.Monad.Extra (mapMaybeM, allM, unlessM)
+import Control.Monad.Extra (allM, mapMaybeM, unlessM)
 import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
 import Data.Either.Extra
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
@@ -25,6 +26,8 @@ import Frontend.Error
 import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
+import Utils (apN)
+import Debug.Trace (traceShowM)
 
 -- BUG: Custom types must exist as structs!!
 
@@ -75,7 +78,11 @@ infDef = \case
             Tc.TypeDef
                 (Tc.Pointer $ Tc.TVar $ convert name1)
                 (convert name2)
-    Par.StructDef _ name args ->
+    Par.StructDef _ name args -> do
+        let checkVoid (Par.Argument info ty _) = case ty of
+                Par.Void _ -> throwError (VoidField info)
+                _ -> return ()
+        mapM_ checkVoid args
         return $ Tc.StructDef (convert name) (convert args)
     def@(Par.FnDef _ rt name args block) -> do
         let rt' = convert rt
@@ -139,6 +146,26 @@ tcStmt retTy = go
                             ty <- unify info tyl tyr
                             return . return $ Tc.Ass ty (Tc.LDeref e id) (ty, rhs')
                         _ -> error "TYPECHECK BUG: Dereference"
+                Par.EIndex _ l r -> do
+                    l' <- infExpr l
+                    case typeOf l' of
+                        Tc.Array ty -> do
+                            r'@(tyr, _) <- infExpr r
+                            unless (isInt tyr) (throwError $ ExpectedType info Tc.Int tyr)
+                            (tyr, rhs') <- infExpr rhs
+                            ty <- unify info ty tyr
+                            return . return $ Tc.Ass ty (Tc.LIndex l' r') (ty, rhs')
+                        ty -> throwError $ ExpectedArray info ty
+                Par.EStructIndex _ l field -> do
+                    l@(tyl, _) <- infExpr l
+                    fields <- getStruct info tyl
+                    let field' = convert field
+                    case Map.lookup field' fields of
+                        Just ty -> do
+                            (tyr, rhs) <- infExpr rhs
+                            ty <- unify info ty tyr
+                            return . return $ Tc.Ass ty (Tc.LStructIndex l field') (ty, rhs)
+                        Nothing -> throwError $ UnboundField info field
                 _ -> throwError $ NotLValue info lhs
         Par.Incr info var -> do
             typ <- getVar var
@@ -173,6 +200,13 @@ tcStmt retTy = go
             errNotBoolean (hasInfo cond) (typeOf cond')
             stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
             return (Just (Tc.While cond' stmt'))
+        Par.ForEach _ (Par.Argument _ ty name) expr stmt -> do
+            let ty' = convert ty
+            let name' = convert name
+            expr' <- tcExpr (Tc.Array ty') expr
+            insertVar name' ty'
+            stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
+            return . Just $ Tc.ForEach (Tc.Argument ty' name') expr' stmt'
         Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
         Par.SExp info expr -> throwError (NotStatement info expr)
         Par.Break _ -> return $ Just Tc.Break
@@ -190,6 +224,13 @@ typeExist = \case
     Tc.Boolean -> return True
     Tc.Void -> return True
     Tc.Pointer ty -> typeExist ty
+    Tc.Array ty -> typeExist ty
+
+tcExpr :: Tc.Type -> Par.Expr -> TcM Tc.Expr
+tcExpr ty e = do
+    e' <- infExpr e
+    void (unify (hasInfo e) ty (typeOf e'))
+    return e'
 
 infExpr :: Par.Expr -> TcM Tc.Expr
 infExpr e = pushExpr e $ case e of
@@ -197,30 +238,46 @@ infExpr e = pushExpr e $ case e of
     Par.ELitDouble _ n -> return (Tc.Double, Tc.ELit (Tc.LitDouble n))
     Par.ELitTrue _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool True))
     Par.ELitFalse _ -> return (Tc.Boolean, Tc.ELit (Tc.LitBool False))
-    Par.ELitNull info ty -> (,Tc.ELit Tc.LitNull) <$> maybe (throwError $ TypeUninferrable info e) (return . convert) ty
+    Par.ELitNull info ty ->
+        (,Tc.ELit Tc.LitNull)
+            <$> maybe (throwError $ TypeUninferrable info e) (return . convert) ty
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
-    Par.ENew info id -> do
-        let id' = convert id
-        let ty = Tc.TVar id'
-        void $ getStruct info ty
-        return (Tc.Pointer ty, Tc.ENew id')
-    Par.EDeref info l r -> do
+    Par.ENew info ty sizes -> do
+        let tyC = convert ty
+        tyC' <- concreteType tyC
+        case ty of
+            Par.TVar {} -> do
+                case tyC' of
+                    Tc.Pointer ty -> void $ getStruct info ty
+                    ty -> void $ getStruct info ty
+            Par.Array {} -> return ()
+            _
+                | null sizes -> throwError $ NotNewable info tyC
+                | otherwise -> return ()
+        case sizes of
+            [] -> do
+                asks (Map.lookup tyC . typedefGraph) >>= \case
+                    Nothing -> return (Tc.Pointer tyC, Tc.StructAlloc)
+                    Just ty -> return (ty, Tc.StructAlloc)
+            (sz : szs) -> do
+                sz <- tcExpr Tc.Int sz
+                szs <- mapM (tcExpr Tc.Int) szs
+                let ty' = apN (length sizes) Tc.Array tyC
+                return (ty', Tc.ArrayAlloc (sz :| szs))
+    Par.EDeref info l field -> do
         l' <- infExpr l
         ty <-
             concreteType (typeOf l') >>= \case
                 Tc.Pointer ty -> return ty
                 ty -> throwError $ NotPointer info ty
         fields <- getStruct info ty
-        case r of
-            (Par.EVar _ id) -> do
-                let id' = convert id
-                ty <-
-                    maybe
-                        (throwError $ UnboundField info id)
-                        return
-                        (Map.lookup id' fields)
-                return (ty, Tc.Deref l' id')
-            e -> throwError (ExpectedIdentifier info e)
+        let id' = convert field
+        ty <-
+            maybe
+                (throwError $ UnboundField info field)
+                return
+                (Map.lookup id' fields)
+        return (ty, Tc.Deref l' id')
     Par.EVar _ i -> do
         ty <- getVar i
         return (ty, Tc.EVar (convert i))
@@ -267,12 +324,14 @@ infExpr e = pushExpr e $ case e of
             (Tc.Int, Tc.Int) -> return Tc.Int
             (Tc.Double, Tc.Double) -> return Tc.Double
             (Tc.Boolean, Tc.Boolean) -> return Tc.Boolean
+            (Tc.String, Tc.String) -> throwError (ErrText info "String comparison not yet supported")
             (l, r) -> do
                 ty1 <- concreteType l
                 ty2 <- concreteType r
-                if | ty1 == ty2 && isPointer ty1 -> return ty1
-                   | ty1 == ty2 && not (isPointer ty1) -> throwError (NotRelational info l)
-                   | otherwise -> throwError (TypeMismatch info ty1 [ty2])
+                if
+                    | ty1 == ty2 && isPointer ty1 -> return ty1
+                    | ty1 == ty2 && not (isPointer ty1) -> throwError (NotRelational info l)
+                    | otherwise -> throwError (TypeMismatch info ty1 [ty2])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
     Par.EApp p ident exprs -> do
         ty <- getVar ident
@@ -288,10 +347,36 @@ infExpr e = pushExpr e $ case e of
                 mapM_ (uncurry3 unify) infoTys
                 return (rt, Tc.EApp (convert ident) exprs')
             _else -> throwError (ExpectedFn p ty)
+    Par.EIndex info l r -> do
+        l' <- infExpr l
+        case typeOf l' of
+            Tc.Array ty -> do
+                r'@(tyr, _) <- infExpr r
+                unless (isInt tyr) (throwError $ ExpectedType info Tc.Int tyr)
+                return (ty, Tc.EIndex l' r')
+            ty -> throwError $ ExpectedArray info ty
+    Par.EStructIndex info l field -> do
+        expr <- infExpr l
+        case typeOf expr of
+            Tc.Array _ -> do
+                -- NOTE: For now hard coded for arrays
+                if
+                    | (Par.Id _ "length") <- field -> return (Tc.Int, Tc.StructIndex expr (Tc.Id "length"))
+                    | otherwise -> throwError $ UnboundField info field
+            ty -> do
+                fieldTy <- Map.lookup (convert field) <$> getStruct info ty
+                ty' <- case fieldTy of
+                    Nothing -> throwError $ UnboundField info field
+                    Just ty -> return ty
+                return (ty', Tc.StructIndex expr (convert field))
 
 isPointer :: Tc.Type -> Bool
 isPointer (Tc.Pointer _) = True
 isPointer _ = False
+
+isArray :: Tc.Type -> Bool
+isArray (Tc.Array _) = True
+isArray _ = False
 
 {-| Extract the necessary information from all top level definitions before
 continuing
@@ -347,13 +432,13 @@ addDefs (Par.Program _ defs) =
             )
 
 lookupFunc :: Par.Id -> TcM (Maybe Tc.Type)
-lookupFunc i = do
+lookupFunc i =
     gets (Map.lookup (convert i) . functions) >>= \case
         Nothing -> return Nothing
         Just rt -> return (return rt)
 
 lookupVar :: Par.Id -> TcM (Maybe Tc.Type)
-lookupVar i = do
+lookupVar i =
     gets (Map.lookup (convert i) . variables) >>= \case
         Nothing -> return Nothing
         Just rt -> return (return rt)
@@ -362,7 +447,7 @@ getStruct :: Par.SynInfo -> Tc.Type -> TcM (Map Tc.Id Tc.Type)
 getStruct info ty@(Tc.TVar ty') = do
     mby <- asks (Map.lookup ty . structs)
     maybe (throwError (UnboundStruct info ty')) return mby
-getStruct info ty = throwError (NotFieldType info ty)
+getStruct info ty = throwError (NotStructType info ty)
 
 getVar :: Par.Id -> TcM Tc.Type
 getVar i@(Par.Id _ _i) = do

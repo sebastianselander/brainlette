@@ -2,5 +2,6 @@ jlc
 .direnv
 dist-newstyle/
 output.ll
+output.bmm
 output
 output-linked.ll

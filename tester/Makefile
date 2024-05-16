@@ -1,11 +1,3 @@
-test:
-	cd ../compiler && tar -czvf jlc.tar.gz Makefile doc/ src/ lib/ && mv jlc.tar.gz ../tester
-	python testing.py jlc.tar.gz
-
-llvm:
-	cd ../compiler && tar -czvf jlc.tar.gz Makefile doc/ src/ lib/ && mv jlc.tar.gz ../tester
-	python testing.py jlc.tar.gz --llvm
-
 all:
-	cd ../compiler && tar -czvf jlc.tar.gz Makefile doc/ src/ lib/ && mv jlc.tar.gz ../tester
-	python testing.py jlc.tar.gz --llvm -x pointers
+	cd ../compiler && sed -i "s/cpp-options: -DDEBUG/-- cpp-options: -DDEBUG/" src/brainlette.cabal && tar -czvf jlc.tar.gz Makefile doc/ src/ lib/ && mv jlc.tar.gz ../tester && sed -i "s/-- cpp-options: -DDEBUG/cpp-options: -DDEBUG/" src/brainlette.cabal
+	python testing.py jlc.tar.gz --llvm -x pointers arrays1 arrays2

@@ -7,7 +7,7 @@ module Frontend.Renamer (rename) where
 import Control.Monad (unless, when)
 import Control.Monad.Except
 import Control.Monad.State
-import Data.List.NonEmpty
+import Data.List.NonEmpty hiding (nubBy, reverse)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -23,7 +23,7 @@ data Env = Env
     { variables :: NonEmpty (Map Id Id)
     , varCounter :: Int
     , functions :: Set Id
-    , structs :: Set Id
+    , structs :: Map Id [Id]
     , typeDefs :: Map Id Id
     }
 
@@ -33,7 +33,7 @@ newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
 initEnv :: Env
 initEnv =
     Env
-        (singleton mempty)
+        (singleton (Map.singleton (Id NoInfo "length") (Id NoInfo "length")))
         0
         ( Set.fromList
             [ Id NoInfo "printInt"
@@ -61,13 +61,13 @@ rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
             funcs <- gets functions
             when (Set.member name funcs) $ throwError $ DuplicateTopDef info tp
             modify $ \s -> s {functions = Set.insert name s.functions}
-        tp@(StructDef info name _) -> do
+        tp@(StructDef info name args) -> do
             strcts <- gets structs
             -- NOTE: Overlapping names for typedefs and structs ok
             -- defs <- gets typeDefs
             -- when (Map.member name defs) $ throwError $ DuplicateTopDef info tp
-            when (Set.member name strcts) $ throwError $ DuplicateTopDef info tp
-            modify $ \s -> s {structs = Set.insert name s.structs}
+            when (Map.member name strcts) $ throwError $ DuplicateTopDef info tp
+            modify $ \s -> s {structs = Map.insert name (fmap (\(Argument _ _ name) -> name) args) s.structs}
         tp@(TypeDef info name1 name2) -> do
             -- NOTE: Overlapping names for typedefs and structs ok
             -- strcts <- gets structs
@@ -88,14 +88,37 @@ rnDef = \case
     -- Somewhat ugly to go over typedefs twice, but they can be declared in an
     -- arbitrary order
     topdef@(TypeDef info name1 _) -> do
-        gets (Set.member name1 . structs) >>= \case
+        gets (Map.member name1 . structs) >>= \case
             False -> throwError $ UnboundStruct info (convert name1)
             True -> return topdef
     -- Same here
-    StructDef info name args -> StructDef info name <$> mapM rnArg args
+    StructDef info name args -> do
+        -- Reverse for the redefined field be the one shown in the error
+        unique info (reverse args) 
+        return (StructDef info name args)
+
+unique :: SynInfo -> [Arg] -> RnM ()
+unique _ [] = return ()
+unique info (x:xs) 
+  | any (isArg x) xs = throwError $ DuplicateArgument info x
+  | otherwise = unique info xs
+  where
+    isArg :: Arg -> Arg -> Bool
+    isArg (Argument _ _ name1) (Argument _ _ name2) = name1 `is` name2
 
 rnType :: Type -> RnM Type
 rnType = return
+
+-- TODO: make differenet scopes for fields and variables
+rnField :: SynInfo -> Id -> RnM Id
+rnField _ (Id info' "length") = return (Id info' "length")
+rnField info name = do
+    fields <- gets (concat . Map.elems . structs)
+    unless (any (is name) fields) (throwError (UnboundField info name))
+    return name
+
+is :: Id -> Id -> Bool
+is (Id _ a) (Id _ b) = a == b
 
 rnId :: SynInfo -> Id -> RnM Id
 rnId info id = do
@@ -143,6 +166,13 @@ rnStmt = \case
             <*> newBlock (rnStmt stmt1)
             <*> newBlock (rnStmt stmt2)
     While info expr stmt -> While info <$> rnExpr expr <*> newBlock (rnStmt stmt)
+    ForEach info arg expr stmt -> do
+        expr <- rnExpr expr
+        (arg, stmt) <- newBlock $ do
+            arg <- rnArg arg
+            stmt <- rnStmt stmt
+            return (arg,stmt)
+        return (ForEach info arg expr stmt)
     Break info -> return (Break info)
     SExp info expr -> SExp info <$> rnExpr expr
 
@@ -183,7 +213,7 @@ rnExpr = \case
     ELitFalse info -> return (ELitFalse info)
     ELitNull info ty -> return (ELitNull info ty)
     EString info text -> return (EString info text)
-    EDeref info l r -> EDeref info <$> rnExpr l <*> rnExpr r
+    EDeref info l r -> EDeref info <$> rnExpr l <*> rnField info r
     EApp info id exprs -> EApp info <$> rnId info id <*> mapM rnExpr exprs
     Neg info expr -> Neg info <$> rnExpr expr
     Not info expr -> Not info <$> rnExpr expr
@@ -192,10 +222,20 @@ rnExpr = \case
     ERel info l op r -> ERel info <$> rnExpr l <*> return op <*> rnExpr r
     EAnd info l r -> EAnd info <$> rnExpr l <*> rnExpr r
     EOr info l r -> EOr info <$> rnExpr l <*> rnExpr r
-    ENew info id -> do
-        b <- gets (Set.member id . structs)
-        unless b (throwError $ UnboundStruct info (convert id))
-        return $ ENew info id
+    ENew info ty size -> do
+        case ty of
+            TVar _ id -> do
+                isTypeDef <- gets (Map.member id . typeDefs)
+                isStruct <- gets (Map.member id . structs)
+                unless (isTypeDef || isStruct) (throwError $ UnboundStruct info (convert id))
+            _ -> return ()
+        size <- mapM rnExpr size
+        return $ ENew info ty size
+    EIndex info e1 e2 -> EIndex info <$> rnExpr e1 <*> rnExpr e2
+    EStructIndex info e1 field ->
+        EStructIndex info
+            <$> rnExpr e1
+            <*> rnField info field
 
 newBlock :: (MonadState Env m) => m a -> m a
 newBlock ma = do

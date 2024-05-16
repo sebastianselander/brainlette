@@ -1,28 +1,6 @@
-struct Node {
-  tree left;
-  int val;
-  tree right;
-};
-
-typedef struct Node *tree;
-
-tree insertTree(int x, tree t) {
-  if (t == (tree)null) {
-    tree n1;
-    n1 = new Node;
-    n1->left = (tree)null;
-    n1->val = x;
-    n1->right = (tree)null;
-    return n1;
-  }
-  t->left = insertTree(x, t->left);
-  return t;
-}
-
 int main() {
-  tree s = new Node;
-  insertTree(1, s);
-  insertTree(1, s);
-  printString("Exiting...");
-  return 0;
+    int[] arr = new int[0];
+    arr[123] = 321;
+    printInt(arr[123]);
+    return 0;
 }

@@ -76,25 +76,58 @@ braingenStmts =
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of
-    B.BStmt block -> mapM_ (braingenStm breakpoint) block
+    B.BStmt block -> do
+        mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> do
-        output $ Alloca (Variable i) (braingenType t)
+        alloca (Variable i) (braingenType t)
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
-        result <- braingenExpr expr
-        output $ Store (Argument (pure $ braingenType t) result) (Variable a)
+        argument <- case expr of
+            (_, B.ELit l) -> return (ConstArgumentAuto (lit l))
+            _ -> do
+                result <- braingenExpr expr
+                return (Argument (pure $ braingenType t) result)
+        store argument (Variable a)
+    B.Ass ty (B.LIndex arr index) expr -> do
+        let ty' = braingenType ty
+        arr <- braingenExpr arr
+        index <- braingenExpr index
+        ptr <- getTempVariable
+        getElementPtr
+            ptr
+            ty'
+            (Argument (Just Ptr) arr)
+            (Argument (Just I64) index)
+        var <- braingenExpr expr
+        store (Argument (Just ty') var) ptr
     B.Ass ty (B.LDeref e@(innerE, _) i) expr -> do
         let ty' = braingenType ty
         let tyE = braingenType innerE
         e <- braingenExpr e
         ptr <- getTempVariable
-        output $
-            GetElementPtr
-                ptr
-                ty'
-                (Argument (Just tyE) e)
-                (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+        getElementPtr
+            ptr
+            (braingenType innerE)
+            (Argument (Just tyE) e)
+            (ConstArgument (Just I32) (LitInt (fromIntegral i)))
         var <- braingenExpr expr
-        output $ Store (Argument (Just ty') var) ptr
+        store (Argument (Just ty') var) ptr
+    B.Ass ty1 (B.LStructIndex e@(_, _) i) expr -> do
+        let ty1' = braingenType ty1
+        e <- case e of
+            (_, B.EVar (B.Id v)) -> return (Variable v)
+            _ -> braingenExpr e
+        -- e <- braingenExpr e
+        ptr <- getTempVariable
+        getElementPtr
+            ptr
+            ty1'
+            (Argument (Just Ptr) e)
+            (ConstArgument (Just I64) (LitInt $ fromIntegral i))
+        var <- braingenExpr expr
+        store (Argument (Just ty1') var) ptr
+    B.Ret (Just (ty, B.ELit l)) -> do
+        ty <- return (braingenType ty)
+        ret (ConstArgument (Just ty) (lit l))
     B.Ret (Just expr@(t, _)) -> do
         result <- braingenExpr expr
         ret (Argument (pure $ braingenType t) result)
@@ -129,7 +162,15 @@ braingenStm breakpoint stmt = case stmt of
         mapM_ (braingenStm (Just exit)) stmt
         jump continue
         label exit
-    B.SExp expr -> void $ braingenExpr expr
+    B.SExp expr -> do
+        void $ braingenExpr expr
+    B.ArrayAlloc ty (B.Id name) (_, sz) -> do
+        let var = Variable name
+        alloca var (braingenType ty)
+        arrSize <- braingenExpr sz
+        addr <- getTempVariable
+        malloc addr arrSize
+        store (Argument (Just Ptr) addr) var
     B.Break -> do
         let bp = case breakpoint of
                 Just bp -> bp
@@ -138,7 +179,7 @@ braingenStm breakpoint stmt = case stmt of
         jump bp
 
 braingenExpr :: B.Expr -> BgM Variable
-braingenExpr (ty, e) = case e of
+braingenExpr ogExpression@(ty, e) = case e of
     B.EGlobalVar (B.Id ident) -> do
         return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
@@ -256,39 +297,73 @@ braingenExpr (ty, e) = case e of
         true <- getLabel "true"
         false <- getLabel "false"
         lazyLogical l r False Braingen.Ir.and false true
-    B.ENew vals -> do
-        let size = foldr ((+) . sizeOf . braingenType . fst) 0 vals
+    B.StructInit False vals -> do
+        var <- getTempVariable
+        alloca var (braingenType ty)
+        forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
+            ptr <- getTempVariable
+            getElementPtr
+                ptr
+                (braingenType t)
+                (Argument (Just Ptr) var)
+                (ConstArgument (Just I64) (LitInt i))
+            store (ConstArgument (Just $ braingenType t) (lit v)) ptr
+        temp <- getTempVariable
+        load temp (braingenType ty) var
+        return temp
+    B.StructInit True vals -> do
+        sizeVar <- braingenExpr (mkLitIntE (sum (map (sizeOf . braingenType . fst) vals)))
         var1 <- getTempVariable
-        output $ Call var1 Nothing Nothing Ptr "malloc" [ConstArgument (Just I64) (LitInt size)]
+        malloc var1 sizeVar
 
         forM_ (zip [0 ..] vals) \(i, (t, v)) -> do
             ptr <- getTempVariable
-            output $
-                GetElementPtr
-                    ptr
-                    (braingenType t)
-                    (Argument (Just . braingenType $ ty) var1)
-                    (ConstArgument (Just I64) (LitInt i))
-            output $
-                Store (ConstArgument (Just $ braingenType t) (lit v)) ptr
-
+            getElementPtr
+                ptr
+                (braingenType t)
+                (Argument (Just . braingenType $ ty) var1)
+                (ConstArgument (Just I32) (LitInt i))
+            store (ConstArgument (Just $ braingenType t) (lit v)) ptr
         return var1
     B.Deref e i -> do
         let ty' = braingenType ty
-        e <- braingenExpr e
+        e' <- braingenExpr e
         ptr <- getTempVariable
-        output $
-            GetElementPtr
-                ptr
-                ty'
-                (Argument (Just Ptr) e)
-                (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+        getElementPtr
+            ptr
+            ty'
+            (Argument (Just (braingenType $ typeOf e)) e')
+            (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         var <- getTempVariable
-        output $ Load var ty' ptr
+        load var ty' ptr
         return var
-    _ -> do
-        output . Comment $ "EXPR-TODO: " <> thow e
-        pure (Variable "TODO")
+    B.ArrayInit _ -> error "TODO: {EAllocInit} Does not exist yet"
+    B.ArrayIndex base index -> do
+        baseVar <- braingenExpr base
+        indexVar <- braingenExpr index
+
+        -- TODO: add bounds checking
+
+        resPtr <- getTempVariable
+        getElementPtr
+            resPtr
+            (braingenType ty)
+            (Argument (Just Ptr) baseVar)
+            (Argument (Just I64) indexVar)
+
+        res <- getTempVariable
+        load res (braingenType ty) resPtr
+
+        pure res
+    B.StructIndex e@(ty, _) i -> do
+        e <- braingenExpr e
+        var <- getTempVariable
+        -- getElementPtr var (braingenType ty) (Argument (Just Ptr) e) (ConstArgument (Just I64) (LitInt (fromIntegral i)))
+        extractValue var (braingenType ty) e (fromIntegral i)
+        return var
+
+mkLitIntE :: Integer -> B.Expr
+mkLitIntE n = (B.Int, B.ELit $ B.LitInt n)
 
 lazyLogical ::
     B.Expr ->
@@ -374,11 +449,12 @@ braingenLit = \case
     B.LitNull -> do
         let ty = Ptr
         intermediate <- getTempVariable
-        output $ Alloca intermediate ty
-        output $ Store (ConstArgument (pure ty) LitNull) intermediate
+        alloca intermediate ty
+        store (ConstArgument (pure ty) LitNull) intermediate
         var <- getTempVariable
-        output $ Load var ty intermediate
+        load var ty intermediate
         return var
+    B.LitArrNull -> error "TODO: `braingenLit` LitArrNul"
 
 lit :: B.Lit -> Lit
 lit = \case
@@ -387,6 +463,7 @@ lit = \case
     B.LitBool b -> LitBool b
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
     B.LitNull -> LitNull
+    B.LitArrNull -> LitArrNull
 
 -- | Push a statement onto the state
 output :: Stmt -> BgM ()
@@ -432,7 +509,8 @@ braingenType = \case
     B.Void -> Void
     B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
-    B.Pointer t -> RawPtr (braingenType t)
+    B.Pointer _ -> Ptr
+    B.Array _ -> CustomType "Array$Internal"
     B.Fun t ts -> do
         let ret = braingenType t
         let args = map braingenType ts
@@ -471,7 +549,7 @@ braingenMulOp = \case
         B.Times -> FMul
         B.Div -> FDiv
         B.Mod -> FRem
-    _ -> error "error: report bug as a typeerror"
+    ty -> error $ "error: report bug as a typeerror" <> show ty
 
 -- | Gets all constants
 getConsts :: [B.TopDef] -> Set Text
@@ -494,16 +572,23 @@ getCastOp a b = case (a, b) of
 consName :: (Show a) => a -> Text
 consName = takeWhile (/= ' ') . thow
 
+arrayType :: Type
+arrayType = CustomType "Array$Internal"
+
 sizeOf :: Type -> Integer
 sizeOf = \case
-    I32 -> 8
+    I32 -> 4
     I64 -> 8
-    I1 -> 8
-    I8 -> 8
+    I1 -> 1
+    I8 -> 1
     F64 -> 8
     Ptr -> 8
     RawPtr _ -> sizeOf Ptr
     Void -> 0
     FunPtr _ _ -> 8
     Array _ _ -> sizeOf Ptr
+    CustomType "Array$Internal" -> 16
     CustomType _ -> 8
+
+typeOf :: B.Expr -> B.Type
+typeOf (ty, _) = ty

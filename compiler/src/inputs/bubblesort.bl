@@ -1,0 +1,44 @@
+void bubblesort(int[] arr, int n) {
+    int i = 0;
+    int j = 0;
+    while (i < n - 1) {
+        boolean swapped = false;
+        while (j < n - i - 1) {
+            int a = arr[j + 1];
+            int b = arr[j];
+            if (a < b) {
+                arr[j + 1] = b;
+                arr[j] = a;
+                swapped = true;
+            }
+
+            j++;
+        }
+        j = 0;
+
+        if (swapped == false) break;
+        i++;
+    }
+}
+
+int main() {
+    int[] z = new int[10];
+    z[0] = 1;
+    z[1] = 3;
+    z[2] = 7;
+    z[3] = 5;
+    z[4] = 3;
+    z[5] = 4;
+    z[6] = 1;
+    z[7] = 10;
+    z[8] = 23;
+    z[9] = 4;
+    bubblesort(z, 10);
+
+    int i = 0;
+    while (i < 10) {
+        printInt(z[i]);
+        i++;
+    }
+    return 0;
+}
