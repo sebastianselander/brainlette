@@ -4,12 +4,14 @@
 
 module BMM.Bmm where
 
+import Data.Dynamic (Typeable)
 import Data.String.Interpolate (i)
 import Data.Text (Text, intercalate)
+import Generics.SYB (Data)
 import Utils (Pretty (..), thow)
 import Prelude hiding (concat, concatMap, takeWhile)
 
-newtype Prog = Program [TopDef] deriving (Show)
+newtype Prog = Program [TopDef] deriving (Show, Data, Typeable)
 
 instance Pretty Prog where
     pretty :: Int -> Prog -> Text
@@ -19,7 +21,7 @@ data TopDef
     = FnDef Type Id [Arg] [Stmt]
     | StructDef Id [Type]
     | StringGlobal Text Text
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty TopDef where
     pretty :: Int -> TopDef -> Text
@@ -32,7 +34,7 @@ instance Pretty TopDef where
              in [i|\ESC[91mstruct\ESC[0m #{pretty 0 id} = {#{ts'}}|]
         StringGlobal id var -> [i|\ESC[91mstrglo\ESC[0m #{pretty 0 (Id id)} = #{thow var}|]
 
-data Arg = Argument Type Id deriving (Show)
+data Arg = Argument Type Id deriving (Show, Data, Typeable)
 
 instance Pretty Arg where
     pretty :: Int -> Arg -> Text
@@ -43,7 +45,7 @@ data LValue
     | LDeref Expr Int
     | LIndex Expr Expr
     | LStructIndex Expr Int
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty LValue where
     pretty :: Int -> LValue -> Text
@@ -63,7 +65,7 @@ data Stmt
     | ArrayAlloc Type Id (Expr, Expr) -- (len, size)
     | SExp Expr
     | Break
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty Stmt where
     pretty :: Int -> Stmt -> Text
@@ -94,7 +96,7 @@ data Type
     | Fun Type [Type]
     | Pointer Type
     | Array Type
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty Type where
     pretty :: Int -> Type -> Text
@@ -136,7 +138,7 @@ data Expr'
     | Deref Expr Int
     | StructIndex Expr Int
     | ArrayIndex Expr Expr
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty Expr' where
     pretty :: Int -> Expr' -> Text
@@ -173,7 +175,7 @@ data Lit
     | LitString Text
     | LitNull
     | LitArrNull
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty Lit where
     pretty :: Int -> Lit -> Text
@@ -189,7 +191,7 @@ instance Pretty Lit where
 data AddOp
     = Plus
     | Minus
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty AddOp where
     pretty :: Int -> AddOp -> Text
@@ -202,7 +204,7 @@ data MulOp
     = Times
     | Div
     | Mod
-    deriving (Show)
+    deriving (Show, Data, Typeable)
 
 instance Pretty MulOp where
     pretty :: Int -> MulOp -> Text
@@ -219,7 +221,7 @@ data RelOp
     | GE
     | EQU
     | NE
-    deriving (Show, Eq)
+    deriving (Show, Eq, Data, Typeable)
 
 instance Pretty RelOp where
     pretty :: Int -> RelOp -> Text
@@ -233,7 +235,7 @@ instance Pretty RelOp where
 
 -- Identifier
 newtype Id = Id Text
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Data, Typeable)
 
 instance Pretty Id where
     pretty _ (Id id) = indent 0 ("\ESC[93m" <> id <> "\ESC[0m")
