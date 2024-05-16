@@ -96,14 +96,14 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass ty (B.LIndex arr index) expr -> do
         comment "index ass"
         let ty' = braingenType ty
-        arr <- braingenExpr arr
+        arr' <- braingenExpr arr
         index <- braingenExpr index
         ptr <- getTempVariable
         comment "One"
         getElementPtr
             ptr
             ty'
-            (Argument (Just Ptr) arr)
+            (Argument (Just Ptr) arr')
             (Argument (Just I64) index)
         var <- braingenExpr expr
         store (Argument (Just ty') var) ptr
@@ -126,16 +126,15 @@ braingenStm breakpoint stmt = case stmt of
     B.Ass ty1 (B.LStructIndex e@(_, _) i) expr -> do
         comment "structindex ass"
         let ty1' = braingenType ty1
-        e <- case e of
+        e' <- case e of
             (_, B.EVar (B.Id v)) -> return (Variable v)
             _ -> braingenExpr e
-        -- e <- braingenExpr e
         ptr <- getTempVariable
         comment "Three"
         getElementPtr
             ptr
             ty1'
-            (Argument (Just Ptr) e)
+            (Argument (Just Ptr) e')
             (ConstArgument (Just I64) (LitInt $ fromIntegral i))
         comment $ "HERE IT IS: " <> thow expr
         comment $ "EXPRESSION: " <> thow expr
@@ -338,6 +337,10 @@ braingenExpr ogExpression@(ty, e) = case e of
                 (braingenType t)
                 (Argument (Just Ptr) var)
                 (ConstArgument (Just I64) (LitInt i))
+            comment "START"
+            comment (thow $ braingenType t)
+            comment $ thow (lit v)
+            comment "STOP"
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
         temp <- getTempVariable
         load temp (braingenType ty) var
@@ -354,20 +357,20 @@ braingenExpr ogExpression@(ty, e) = case e of
             comment $ thow e
             getElementPtr
                 ptr
-                (braingenType t)
+                (braingenType ty)
                 (Argument (Just . braingenType $ ty) var1)
                 (ConstArgument (Just I64) (LitInt i))
             store (ConstArgument (Just $ braingenType t) (lit v)) ptr
         return var1
     B.Deref e i -> do
         let ty' = braingenType ty
-        e <- braingenExpr e
+        e' <- braingenExpr e
         ptr <- getTempVariable
         comment "Six"
         getElementPtr
             ptr
             ty'
-            (Argument (Just Ptr) e)
+            (Argument (Just (braingenType $ typeOf e)) e')
             (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         var <- getTempVariable
         load var ty' ptr
@@ -548,7 +551,8 @@ braingenType = \case
     B.Void -> Void
     B.String -> Ptr
     B.TVar (B.Id x) -> CustomType x
-    B.Pointer _ -> Ptr
+    B.Pointer B.Void -> Ptr
+    B.Pointer ty -> RawPtr (braingenType ty)
     B.Array _ -> CustomType "Array$Internal"
     B.Fun t ts -> do
         let ret = braingenType t
@@ -618,8 +622,8 @@ sizeOf :: Type -> Integer
 sizeOf = \case
     I32 -> 4
     I64 -> 8
-    I1 -> 1
-    I8 -> 1
+    I1 -> 8
+    I8 -> 8
     F64 -> 8
     Ptr -> 8
     RawPtr _ -> sizeOf Ptr
@@ -628,3 +632,6 @@ sizeOf = \case
     Array _ _ -> sizeOf Ptr
     CustomType "Array$Internal" -> 16
     CustomType _ -> 8
+
+typeOf :: B.Expr -> B.Type
+typeOf (ty, _) = ty
