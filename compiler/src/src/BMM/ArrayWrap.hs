@@ -89,7 +89,7 @@ wrapLValue lv = case lv of
     LIndex expr index -> do
         (ty, expr) <- wrapExpr expr
         index <- wrapExpr index
-        return $ LIndex (ty, StructIndex (arrayType, expr) 0) index
+        return $ LIndex (ty, StructIndex (arrayType, expr) 0) (Int, EApp (Id "checkBound$Internal") [index, (Int, StructIndex (arrayType, expr) 1)])
     LVar id -> return $ LVar id
     LDeref e n -> LDeref <$> wrapExpr e <*> return n
     LStructIndex e n -> LStructIndex <$> wrapExpr e <*> return n
@@ -100,7 +100,7 @@ wrapExpr (ty, e) = (wrapTy ty,) <$> go e
     go :: Expr' -> WrapM Expr'
     go = treeMapM $ \case
         ArrayIndex expr index ->
-            return $ ArrayIndex (Pointer Void, StructIndex expr 0) index
+            return $ ArrayIndex (Pointer Void, StructIndex expr 0) (Int, EApp (Id "checkBound$Internal") [index, (Int, StructIndex expr 1)])
         e -> return e
 
 wrapTy :: Type -> Type

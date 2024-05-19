@@ -29,7 +29,7 @@ define i64 @checkBound$Internal(i64 %index, i64 %upper_bound) {
     %is_lower = icmp slt i64 %index, %upper_bound
     br i1 %is_lower, label %ok, label %bad
 ok:
-    %is_larger = icmp sgt i64 %index, 0
+    %is_larger = icmp sge i64 %index, 0
     br i1 %is_larger, label %good, label %bad
 bad:
     ; WARNING: This should not print to stdout
