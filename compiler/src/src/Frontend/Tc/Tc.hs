@@ -27,7 +27,6 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
-import Debug.Trace (traceShowM)
 
 -- BUG: Custom types must exist as structs!!
 
