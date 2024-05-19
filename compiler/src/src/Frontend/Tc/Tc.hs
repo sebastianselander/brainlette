@@ -9,7 +9,7 @@ module Frontend.Tc.Tc where
 import Control.Arrow ((>>>))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except
-import Control.Monad.Extra (allM, mapMaybeM, unlessM)
+import Control.Monad.Extra (allM, mapMaybeM)
 import Control.Monad.Identity (runIdentity)
 import Control.Monad.Reader (MonadReader (..), ReaderT (runReaderT), asks)
 import Control.Monad.State (MonadState, StateT, evalStateT, gets, modify)
@@ -27,8 +27,6 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
-
--- BUG: Custom types must exist as structs!!
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
@@ -83,8 +81,8 @@ infDef = \case
                 _ -> return ()
         mapM_ checkVoid args
         return $ Tc.StructDef (convert name) (convert args)
-    def@(Par.FnDef _ rt name args block) -> do
-        let rt' = convert rt
+    def@(Par.FnDef info rt name args block) -> do
+        rt' <- typeExist info rt
         let name' = convert name
         let fnType = Tc.Fun rt' (map typeOf args)
         insertFunc name' fnType
@@ -101,9 +99,8 @@ tcStmt retTy = go
         Par.Empty _ -> return (fail "Removing empty blocks")
         Par.BStmt _ stmts -> Just . Tc.BStmt <$> mapMaybeM go stmts
         Par.Decl info typ items -> do
-            let typ' = convert typ
+            typ' <- typeExist info typ
             when (isVoid typ') (throwError $ VoidDeclare info s)
-            unlessM (typeExist typ') (throwError $ UnboundType info typ')
             Just . Tc.Decl typ' <$> mapM (tcItem info typ') items
           where
             tcItem :: Par.SynInfo -> Tc.Type -> Par.Item -> TcM Tc.Item
@@ -199,8 +196,8 @@ tcStmt retTy = go
             errNotBoolean (hasInfo cond) (typeOf cond')
             stmt' <- fromMaybe (Tc.BStmt []) <$> go stmt
             return (Just (Tc.While cond' stmt'))
-        Par.ForEach _ (Par.Argument _ ty name) expr stmt -> do
-            let ty' = convert ty
+        Par.ForEach _ (Par.Argument info ty name) expr stmt -> do
+            ty' <- typeExist info ty
             let name' = convert name
             expr' <- tcExpr (Tc.Array ty') expr
             insertVar name' ty'
@@ -210,20 +207,27 @@ tcStmt retTy = go
         Par.SExp info expr -> throwError (NotStatement info expr)
         Par.Break _ -> return $ Just Tc.Break
 
-typeExist :: Tc.Type -> TcM Bool
-typeExist = \case
-    ty@Tc.TVar {} -> do
-        isStruct <- asks (Map.member ty . structs)
-        isTypeDef <- asks (Map.member ty . typedefGraph)
-        return $ isStruct || isTypeDef
-    Tc.Fun rt argTys -> (&&) <$> typeExist rt <*> allM typeExist argTys
-    Tc.String -> return True
-    Tc.Int -> return True
-    Tc.Double -> return True
-    Tc.Boolean -> return True
-    Tc.Void -> return True
-    Tc.Pointer ty -> typeExist ty
-    Tc.Array ty -> typeExist ty
+typeExist :: Par.SynInfo -> Par.Type -> TcM Tc.Type
+typeExist info ty = do
+    let ty' = convert ty
+    doesExist <- go ty'
+    unless doesExist (throwError (UnboundType info ty'))
+    return ty'
+  where
+    go :: Tc.Type -> TcM Bool
+    go = \case
+        ty@Tc.TVar {} -> do
+            isStruct <- asks (Map.member ty . structs)
+            isTypeDef <- asks (Map.member ty . typedefGraph)
+            return $ isStruct || isTypeDef
+        Tc.Fun rt argTys -> (&&) <$> go rt <*> allM go argTys
+        Tc.String -> return True
+        Tc.Int -> return True
+        Tc.Double -> return True
+        Tc.Boolean -> return True
+        Tc.Void -> return True
+        Tc.Pointer ty -> go ty
+        Tc.Array ty -> go ty
 
 tcExpr :: Tc.Type -> Par.Expr -> TcM Tc.Expr
 tcExpr ty e = do
@@ -242,7 +246,7 @@ infExpr e = pushExpr e $ case e of
             <$> maybe (throwError $ TypeUninferrable info e) (return . convert) ty
     Par.EString _ str -> return (Tc.String, Tc.ELit (Tc.LitString str))
     Par.ENew info ty sizes -> do
-        let tyC = convert ty
+        tyC <- typeExist info ty
         tyC' <- concreteType tyC
         case ty of
             Par.TVar {} -> do
@@ -472,7 +476,9 @@ doesVariableExist name = gets (Map.member name . variables)
 insertArg :: Par.Id -> Par.Arg -> TcM ()
 insertArg ident (Par.Argument info (Par.Void _) _) =
     throwError $ VoidParameter info ident
-insertArg _ (Par.Argument _ ty name) = insertVar (convert name) (convert ty)
+insertArg _ (Par.Argument info ty name) = do
+    ty <- typeExist info ty
+    insertVar (convert name) ty
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()
 insertVar name typ =
@@ -550,6 +556,7 @@ traverseTypedefs ty graph = go mempty ty
 getSubtypes :: Tc.Type -> TcM [Tc.Type]
 getSubtypes expected =
     asks (Map.findWithDefault [expected] expected . subtypes)
+
 
 class TypeOf a where
     typeOf :: a -> Tc.Type
