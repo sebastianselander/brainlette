@@ -10,7 +10,7 @@ build-type:      Simple
 extra-doc-files: CHANGELOG.md
 
 common warnings
-  ghc-options: -Wall -Wextra -Wno-name-shadowing -O0
+  ghc-options: -Wall -Wextra -Wno-name-shadowing
   cpp-options: -DDEBUG
 
 library brainlette-lib
@@ -38,24 +38,24 @@ library brainlette-lib
     Frontend.Renamer
     Frontend.Tc.Tc
     Frontend.Tc.Types
-    Lifting.Types
-    Lifting.Lifter
     Interpreter.Interpreter
+    Lifting.Lifter
+    Lifting.Types
     Utils
 
   build-depends:
-    , array
-    , base
-    , containers
-    , dlist
-    , extra
-    , mtl
-    , parsec
-    , string-interpolate
-    , template-haskell
-    , text
-    , syb
-
+    , array               >=0.5.6  && <0.6
+    , base                >=4.18.2 && <4.19
+    , containers          >=0.6.7  && <0.7
+    , directory           >=1.3.8  && <1.4
+    , dlist               >=1.0    && <1.1
+    , extra               >=1.7.16 && <1.8
+    , mtl                 >=2.3.1  && <2.4
+    , parsec              >=3.1.16 && <3.2
+    , string-interpolate  >=0.3.3  && <0.4
+    , syb                 >=0.7.2  && <0.8
+    , template-haskell    >=2.20.0 && <2.21
+    , text                >=2.0.2  && <2.1
 
   hs-source-dirs:   src
   default-language: GHC2021
@@ -65,12 +65,11 @@ executable brainlette
   main-is:            Main.hs
   other-modules:      Runtime
   build-depends:
-    , base
-    , brainlette-lib
-    , directory
-    , string-interpolate
-    , template-haskell
-    , text
+    , base                >=4.18.2 && <4.19
+    , directory           >=1.3.8  && <1.4
+    , string-interpolate  >=0.3.3  && <0.4
+    , template-haskell    >=2.20.0 && <2.21
+    , text                >=2.0.2  && <2.1
 
   hs-source-dirs:     app
   default-language:   GHC2021
@@ -81,12 +80,12 @@ test-suite tc
   hs-source-dirs:   tc-test
   main-is:          Main.hs
   build-depends:
-    , base
+    , base            >=4.18.2 && <4.19
     , brainlette-lib
     , hspec
-    , mtl
+    , mtl             >=2.3.1  && <2.4
     , QuickCheck
-    , text
+    , text            >=2.0.2  && <2.1
 
   default-language: GHC2021
 
