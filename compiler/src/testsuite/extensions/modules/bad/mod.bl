@@ -1,0 +1,3 @@
+int int_function(int n ) {
+    return n;
+}

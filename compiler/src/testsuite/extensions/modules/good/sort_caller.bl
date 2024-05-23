@@ -1,0 +1,16 @@
+use sort;
+
+int main() {
+    int[] arr = new int[3];
+    arr[2] = 0;
+    arr[1] = 1;
+    arr[0] = 2;
+
+
+    sort::bubblesort(arr);
+    for (int i : arr) {
+        printInt(i);
+    }
+
+    return 0;
+}

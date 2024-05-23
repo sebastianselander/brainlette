@@ -1,0 +1,5 @@
+use mod;
+
+int main() {
+    return mod::int_function(0.0);
+}

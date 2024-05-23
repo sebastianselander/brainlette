@@ -14,7 +14,7 @@ import Text.Parsec.Expr (Operator (Postfix), buildExpressionParser)
 import Utils (flat3)
 
 primType :: Text -> Parser Type
-primType t = (\(i, _) -> TVar i (Id i t)) <$> info (reserved (unpack t))
+primType t = (\(i, _) -> TVar i (IdD i t)) <$> info (reserved (unpack t))
 
 int :: Parser Type
 int = Int . fst <$> info (reserved (unpack "int"))
@@ -46,7 +46,7 @@ postfixTypes = buildExpressionParser table atom
     post p = Postfix . chainl1 p $ return (>>>)
 
 custom :: Parser Type
-custom = uncurry TVar <$> info (uncurry Id <$> info (upper <|> lower))
+custom = uncurry TVar <$> info (uncurry IdD <$> info (upper <|> lower))
 
 atomicType :: Parser Type
 atomicType =

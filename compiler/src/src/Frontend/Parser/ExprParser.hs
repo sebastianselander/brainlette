@@ -10,6 +10,7 @@ import Frontend.Parser.Language
       identifier,
       info,
       integer,
+      namespacedIdentifier,
       parens,
       prefix,
       reserved,
@@ -27,7 +28,10 @@ import Text.Parsec.Expr
 import Prelude hiding (id, length, null, take)
 
 id :: Parser Id
-id = uncurry Id <$> info identifier
+id = uncurry IdD <$> info identifier
+
+nsId :: Parser Id
+nsId = (\(i, (ns, id)) -> Id i ns id) <$> info namespacedIdentifier
 
 var :: Parser Expr
 var = uncurry EVar <$> info id
@@ -58,7 +62,7 @@ new = do
 app :: Parser Expr
 app = do
     (info, (name, args)) <- info $ do
-        name <- id
+        name <- nsId
         args <- parens (commaSep expr)
         return (name, args)
     return (EApp info name args)

@@ -4,7 +4,7 @@
 
 module Frontend.Renamer (rename) where
 
-import Control.Monad (unless, when)
+import Control.Monad (unless, void, when)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.List.NonEmpty hiding (nubBy, reverse)
@@ -33,15 +33,15 @@ newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
 initEnv :: Env
 initEnv =
     Env
-        (singleton (Map.singleton (Id NoInfo "length") (Id NoInfo "length")))
+        (singleton (Map.singleton (IdD NoInfo "length") (IdD NoInfo "length")))
         0
         ( Set.fromList
-            [ Id NoInfo "printInt"
-            , Id NoInfo "printString"
-            , Id NoInfo "printDouble"
-            , Id NoInfo "readInt"
-            , Id NoInfo "readDouble"
-            , Id NoInfo "readString"
+            [ IdD NoInfo "printInt"
+            , IdD NoInfo "printString"
+            , IdD NoInfo "printDouble"
+            , IdD NoInfo "readInt"
+            , IdD NoInfo "readDouble"
+            , IdD NoInfo "readString"
             ]
         )
         mempty
@@ -75,6 +75,7 @@ rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
             defs <- gets typeDefs
             when (Map.member name2 defs) $ throwError $ DuplicateTopDef info tp
             modify $ \s -> s {typeDefs = Map.insert name2 name1 s.typeDefs}
+        (Use _ _) -> pure ()
 
 rnDef :: TopDef -> RnM TopDef
 rnDef = \case
@@ -94,14 +95,15 @@ rnDef = \case
     -- Same here
     StructDef info name args -> do
         -- Reverse for the redefined field be the one shown in the error
-        unique info (reverse args) 
+        unique info (reverse args)
         return (StructDef info name args)
+    e@Use {} -> pure e
 
 unique :: SynInfo -> [Arg] -> RnM ()
 unique _ [] = return ()
-unique info (x:xs) 
-  | any (isArg x) xs = throwError $ DuplicateArgument info x
-  | otherwise = unique info xs
+unique info (x : xs)
+    | any (isArg x) xs = throwError $ DuplicateArgument info x
+    | otherwise = unique info xs
   where
     isArg :: Arg -> Arg -> Bool
     isArg (Argument _ _ name1) (Argument _ _ name2) = name1 `is` name2
@@ -111,14 +113,14 @@ rnType = return
 
 -- TODO: make differenet scopes for fields and variables
 rnField :: SynInfo -> Id -> RnM Id
-rnField _ (Id info' "length") = return (Id info' "length")
+rnField _ (IdD info' "length") = return (IdD info' "length")
 rnField info name = do
     fields <- gets (concat . Map.elems . structs)
     unless (any (is name) fields) (throwError (UnboundField info name))
     return name
 
 is :: Id -> Id -> Bool
-is (Id _ a) (Id _ b) = a == b
+is (Id _ na a) (Id _ nb b) = na == nb && a == b
 
 rnId :: SynInfo -> Id -> RnM Id
 rnId info id = do
@@ -171,7 +173,7 @@ rnStmt = \case
         (arg, stmt) <- newBlock $ do
             arg <- rnArg arg
             stmt <- rnStmt stmt
-            return (arg,stmt)
+            return (arg, stmt)
         return (ForEach info arg expr stmt)
     Break info -> return (Break info)
     SExp info expr -> SExp info <$> rnExpr expr
@@ -202,7 +204,7 @@ insertVar old new = do
     modify (\s -> s {variables = Map.insert old new h :| rest})
 
 newId :: Id -> Int -> Id
-newId (Id info i) n = Id info (i <> "$" <> thow n)
+newId (Id info ns i) n = Id info ns (i <> "$" <> thow n)
 
 rnExpr :: Expr -> RnM Expr
 rnExpr = \case

@@ -1,0 +1,33 @@
+use module_test; 
+
+void test(int d) {
+    printInt(d);
+    if (d > 10) {
+        return;
+    }
+    module_test::test(d+1);
+}
+
+void bubblesort(int[] arr) {
+    int i = 0;
+    int j = 0;
+    while (i < arr.length - 1) {
+        boolean swapped = false;
+        while (j < arr.length - i - 1) {
+            int a = arr[j + 1];
+            int b = arr[j];
+            if (a < b) {
+                arr[j + 1] = b;
+                arr[j] = a;
+                swapped = true;
+            }
+
+            j++;
+        }
+        j = 0;
+
+        if (swapped == false) break;
+        i++;
+    }
+}
+
