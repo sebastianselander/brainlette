@@ -21,7 +21,7 @@ class HasInfo a where
     hasInfo :: a -> SynInfo
 
 instance HasInfo Id where
-    hasInfo (Id a _) = a
+    hasInfo (Id a _ _) = a
 
 instance HasInfo RelOp where
     hasInfo (LTH a) = a

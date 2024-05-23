@@ -364,7 +364,7 @@ infExpr e = pushExpr e $ case e of
             Tc.Array _ -> do
                 -- NOTE: For now hard coded for arrays
                 if
-                    | (Par.Id _ "length") <- field -> return (Tc.Int, Tc.StructIndex expr (Tc.Id "length"))
+                    | (Par.IdD _ "length") <- field -> return (Tc.Int, Tc.StructIndex expr (Tc.Id "length"))
                     | otherwise -> throwError $ UnboundField info field
             ty -> do
                 fieldTy <- Map.lookup (convert field) <$> getStruct info ty
@@ -453,7 +453,7 @@ getStruct info ty@(Tc.TVar ty') = do
 getStruct info ty = throwError (NotStructType info ty)
 
 getVar :: Par.Id -> TcM Tc.Type
-getVar i@(Par.Id _ _i) = do
+getVar i@(Par.Id _ _ _i) = do
     mbTy <- gets (Map.lookup (convert i) . variables)
     case mbTy of
         Nothing ->
@@ -556,7 +556,6 @@ traverseTypedefs ty graph = go mempty ty
 getSubtypes :: Tc.Type -> TcM [Tc.Type]
 getSubtypes expected =
     asks (Map.findWithDefault [expected] expected . subtypes)
-
 
 class TypeOf a where
     typeOf :: a -> Tc.Type

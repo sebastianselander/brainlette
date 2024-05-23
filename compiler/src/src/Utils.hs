@@ -6,7 +6,7 @@ module Utils where
 
 import Data.Text (Text, intercalate, pack, replicate)
 import GHC.Stack (HasCallStack)
-import Generics.SYB (Data, Typeable, everywhereM, mkM)
+import Generics.SYB (Data, Typeable, everywhere, everywhereM, mkM, mkT)
 import Prelude hiding (replicate)
 
 {-# WARNING TODO "TODO" #-}
@@ -19,9 +19,11 @@ pattern TODO <- _
 todo :: (HasCallStack) => a
 todo = error "TODO: Not yet implemented"
 
--- treeMapM :: (Typeable a, Data a, Monad m) => (forall a. a -> m a) -> a -> m a
 treeMapM :: (Data a, Monad m, Typeable b) => (b -> m b) -> a -> m a
 treeMapM f = everywhereM (mkM f)
+
+treeMap :: (Data a, Typeable b) => (b -> b) -> a -> a
+treeMap f = everywhere (mkT f)
 
 -- | map with flipped arguments
 for :: [a] -> (a -> b) -> [b]

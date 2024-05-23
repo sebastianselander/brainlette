@@ -1,0 +1,10 @@
+use mutual_recursion_a;
+
+int recurse(int n) {
+    printString("mutual_recursion_b");
+    printInt(n);
+    if (n > 10) {
+        return n;
+    }
+    return mutual_recursion_a::recurse(n + 1);
+} 

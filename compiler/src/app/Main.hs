@@ -9,9 +9,11 @@ import Control.Monad (unless)
 import Data.Text (Text, unlines)
 import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
 import Frontend.BranchReturns (branchCheck)
+import Frontend.Error (report)
 import Frontend.Parser.BrainletteParser
 import Frontend.Renamer (rename)
 import Frontend.Tc.Tc (tc)
+import Frontend.Uniter (importFiles)
 import Lifting.Lifter (lift)
 import Runtime (runtime)
 import System.Directory (doesFileExist)
@@ -35,6 +37,12 @@ main = do
     ePutStrLn "--- Parse output ---"
     res <- case program file text of
         Left err -> errorExit (thow err)
+        Right res -> return res
+
+    -- ePutStrLn "--- Files to import ---"
+    res <- importFiles res
+    res <- case res of
+        Left err -> errorExit (report err)
         Right res -> return res
     ePutStrLn (pretty 0 res)
 

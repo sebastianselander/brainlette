@@ -5,6 +5,7 @@ import Data.Char (isSpace)
 import Data.Functor.Identity (Identity)
 import Data.List (nub)
 import Data.Text (Text, length, pack, stripEnd, take)
+import Debug.Trace (traceShowId)
 import Frontend.Parser.ParserTypes
 import Text.Parsec
     ( ParsecT,
@@ -12,6 +13,7 @@ import Text.Parsec
       alphaNum,
       chainl1,
       char,
+      choice,
       getInput,
       getPosition,
       letter,
@@ -29,6 +31,7 @@ import Text.Parsec
       (<|>),
     )
 import Text.Parsec qualified as P (lower, upper)
+import Text.Parsec.Combinator (optionMaybe)
 import Text.Parsec.Expr (Operator (..))
 import Text.Parsec.Language (GenLanguageDef)
 import Text.Parsec.Prim (skipMany)
@@ -63,6 +66,7 @@ brainletteDef =
             , "."
             , "->"
             , ":"
+            , "::"
             ]
         , reservedNames =
             [ "while"
@@ -100,6 +104,18 @@ bl = makeTokenParser brainletteDef
 
 identifier :: Parser Text
 identifier = pack <$> lexeme (P.identifier bl)
+
+namespacedIdentifier :: Parser (Maybe Text, Text)
+namespacedIdentifier = do
+    choice -- i cringed up boss
+        [ try $ do
+            ns <- identifier <* reservedOp "::"
+            id <- identifier
+            pure (Just ns, id)
+        , do
+            id <- identifier
+            pure (Nothing, id)
+        ]
 
 identifier_ :: Parser Text
 identifier_ = pack <$> P.identifier bl
@@ -212,7 +228,7 @@ whiteSpace' languageDef
         <|> do multiLineComment; inCommentMulti
         <|> do skipMany1 (noneOf startEnd); inCommentMulti
         <|> do _ <- oneOf startEnd; inCommentMulti
-            <?> "end of comment"
+        <?> "end of comment"
       where
         startEnd = nub (commentEnd languageDef ++ commentStart languageDef)
 
@@ -220,7 +236,7 @@ whiteSpace' languageDef
         do _ <- try (string (commentEnd languageDef)); return ()
         <|> do skipMany1 (noneOf startEnd); inCommentSingle
         <|> do _ <- oneOf startEnd; inCommentSingle
-            <?> "end of comment"
+        <?> "end of comment"
       where
         startEnd = nub (commentEnd languageDef ++ commentStart languageDef)
 

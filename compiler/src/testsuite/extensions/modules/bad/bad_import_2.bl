@@ -1,0 +1,6 @@
+use mod;
+
+int main() {
+    mod::idontexist();
+    return 0;
+}

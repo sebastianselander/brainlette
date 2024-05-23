@@ -8,6 +8,7 @@ module Frontend.Error where
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate
 import Data.Text (Text, cons, pack, takeWhile, unlines)
+import Data.Text qualified
 import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes (SynInfo (..))
 import Frontend.Parser.ParserTypes qualified as Par
@@ -197,6 +198,12 @@ data FEError
       VoidField
         -- | The source code information of the error
         SynInfo
+    | -- | Using a namespaced id without importing that namespace
+      MissingImport
+        -- | The source code information of the error
+        SynInfo
+        -- | The missing namespace
+        Text
     deriving (Show)
 
 parens :: Text -> Text
@@ -250,11 +257,19 @@ instance Report RelOp where
         EQU -> "=="
         NE -> "!="
 
+fixName :: (Char -> Char) -> Text -> Text
+fixName = Data.Text.map
+
+dolToCol :: Char -> Char
+dolToCol = \case
+    '$' -> ':'
+    a -> a
+
 instance Report FEError where
     report = \case
         ErrText info txt -> pretty $ combine info txt
         UnboundVariable info (Id name) ->
-            pretty $ combine info [i|Unbound variable '#{name}'|]
+            pretty $ combine info [i|Unbound variable '#{fixName dolToCol name}'|]
         TypeMismatch info given expected ->
             let one = case expected of
                     (x :| []) -> "'" <> report x <> "'"
@@ -319,6 +334,7 @@ instance Report FEError where
         ExpectedArray info ty -> pretty $ combine info [i|expected an array type, but got '#{report ty}'|]
         NotNewable info ty -> pretty $ combine info [i|can not construct a new with type #{report ty}|]
         VoidField info -> pretty $ combine info [i|struct field can not be of type void|]
+        MissingImport info ns -> pretty $ combine info [i|missing an import for namespace '#{report ns}'|]
 
 oneLine :: SynInfo -> SynInfo
 oneLine info = info {sourceCode = takeWhile (/= '\n') info.sourceCode}
@@ -343,13 +359,15 @@ errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
 errMissingRet _ = error "Front end ERROR: Should not happen"
 
 instance Report Par.Id where
-    report (Par.Id _ name) = name
+    report (Par.Id _ Nothing name) = name
+    report (Par.Id _ (Just n) name) = n <> "::" <> name
 
 instance Report Par.TopDef where
     report = \case
         Par.FnDef _ _ name _ _ -> report name
         Par.StructDef _ name _ -> report name
         Par.TypeDef _ _ name -> report name
+        Par.Use _ name -> report name
 
 instance Report Par.Stmt where
     report stmt =
@@ -402,7 +420,8 @@ instance Convert Par.Type Type where
         Par.Array _ ty -> Array (convert ty)
 
 instance Convert Par.Id Id where
-    convert (Par.Id _ s) = Id s
+    convert (Par.Id _ Nothing s) = Id s
+    convert (Par.Id _ (Just ns) s) = Id (ns <> "$$" <> s)
 
 instance Convert Par.MulOp MulOp where
     convert = \case

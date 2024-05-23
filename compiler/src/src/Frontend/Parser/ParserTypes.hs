@@ -1,15 +1,16 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Frontend.Parser.ParserTypes where
 
 import Data.Text (Text, concat, cons, intercalate, pack, replicate, unlines, unwords)
 import GHC.Generics
+import Generics.SYB (Data, Typeable)
 import Text.Parsec (Parsec)
-import Utils (Pretty (..), thow)
+import Utils (Pretty (..))
 import Prelude hiding (concat, replicate, unlines, unwords)
-import GHC.Read (paren)
 
 type Parser a = Parsec Text () a
 
@@ -21,7 +22,7 @@ data SynInfo
         , sourceCode :: !Text
         }
     | NoInfo
-    deriving (Show, Generic)
+    deriving (Show, Generic, Data, Typeable)
 
 instance Eq SynInfo where
     _ == _ = True
@@ -52,19 +53,20 @@ type Type = Type' SynInfo
 type Id = Id' SynInfo
 
 data Prog' a = Program a [TopDef' a]
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data TopDef' a
     = FnDef a (Type' a) (Id' a) [Arg' a] [Stmt' a]
     | StructDef a (Id' a) [Arg' a]
     | TypeDef a (Id' a) (Id' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    | Use a (Id' a)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data Arg' a = Argument a (Type' a) (Id' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data Item' a = NoInit a (Id' a) | Init a (Id' a) (Expr' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data Stmt' a
     = Empty a
@@ -81,7 +83,7 @@ data Stmt' a
     | ForEach a (Arg' a) (Expr' a) (Stmt' a)
     | Break a
     | SExp a (Expr' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data Type' a
     = TVar a (Id' a)
@@ -93,7 +95,7 @@ data Type' a
     | Boolean a
     | Pointer a (Type' a)
     | Array a (Type' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data Expr' a
     = EVar a (Id' a)
@@ -115,18 +117,18 @@ data Expr' a
     | ERel a (Expr' a) (RelOp' a) (Expr' a)
     | EAnd a (Expr' a) (Expr' a)
     | EOr a (Expr' a) (Expr' a)
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data AddOp' a
     = Plus a
     | Minus a
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data MulOp' a
     = Times a
     | Div a
     | Mod a
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data RelOp' a
     = LTH a
@@ -135,22 +137,28 @@ data RelOp' a
     | GE a
     | EQU a
     | NE a
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
-data Id' a = Id a Text
-    deriving (Show, Eq, Ord, Functor, Traversable, Foldable)
+data Id' a = Id a (Maybe Text) Text
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
+
+pattern IdD :: a -> Text -> Id' a
+pattern IdD info text <- Id info Nothing text
+    where
+        IdD info text = Id info Nothing text
 
 instance Pretty RelOp where
     pretty _ = \case
-        LTH _ -> "<"
         LE _ -> "<="
+        LTH _ -> "<"
         GTH _ -> ">"
         GE _ -> ">="
         EQU _ -> "=="
         NE _ -> "!="
 
 instance Pretty Id where
-    pretty _ (Id _ a) = a
+    pretty _ (Id _ (Just n) a) = n <> "::" <> a
+    pretty _ (Id _ Nothing a) = a
 
 instance Pretty MulOp where
     pretty _ (Times _) = "*"
@@ -179,9 +187,11 @@ instance Pretty Expr where
         ERel _ l op r -> parenthesis n $ unwords [pretty n l, pretty n op, pretty n r]
         EAnd _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
         EOr _ l r -> parenthesis n $ unwords [pretty n l, pretty n r]
-        ENew _ name sizes -> pretty n $ unwords ["new", pretty n name] <> case map (\e -> "[" <> pretty n e <> "]") sizes of
-            [] -> ""
-            xs -> concat xs
+        ENew _ name sizes ->
+            pretty n $
+                unwords ["new", pretty n name] <> case map (\e -> "[" <> pretty n e <> "]") sizes of
+                    [] -> ""
+                    xs -> concat xs
         EIndex _ e1 e2 -> pretty n $ unwords [pretty n e1, "[" <> pretty n e2 <> "]"]
         EStructIndex _ expr field -> pretty n $ concat [pretty n expr, ".", pretty n field]
 
@@ -239,6 +249,8 @@ instance Pretty TopDef where
             ]
     pretty n (TypeDef _ t1 t2) =
         concat ["typedef struct ", pretty n t1, " *", pretty n t2, ";"]
+    pretty _ (Use _ i) =
+        "use " <> pretty 0 i <> ";"
 
 instance Pretty Prog where
     pretty n (Program _ xs) = go xs

@@ -1,0 +1,6 @@
+use idontexist;
+
+int main() {
+    idontexist::yaobi();
+    return 0;
+}
