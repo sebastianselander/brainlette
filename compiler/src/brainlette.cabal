@@ -40,7 +40,6 @@ library brainlette-lib
     Frontend.Tc.Tc
     Frontend.Tc.Types
     Frontend.Uniter
-    Interpreter.Interpreter
     Lifting.Lifter
     Lifting.Types
     Utils
