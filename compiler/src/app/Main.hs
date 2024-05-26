@@ -6,7 +6,8 @@ module Main where
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import Control.Monad (unless)
-import Data.Text (Text, unlines)
+import Data.Functor (void)
+import Data.Text (Text, unlines, unpack)
 import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
 import Frontend.BranchReturns (branchCheck)
 import Frontend.Error (report)
@@ -20,8 +21,10 @@ import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
 import System.IO (stderr)
+import System.Process (createProcess, proc)
 import Utils (Pretty (..), thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
+import System.FilePath (takeBaseName)
 
 main :: IO ()
 main = do
@@ -76,7 +79,7 @@ main = do
 
     (res, funs) <- return $ bmm res
     ePutStrLn (pretty 0 res)
-    writeFile "output.bmm" (pretty 0 res)
+    -- writeFile "output.bmm" (pretty 0 res)
 
     res <- return $ braingen res lifteds funs
 
@@ -85,6 +88,15 @@ main = do
     ePutStrLn res'
 
     writeFile "output.ll" res'
+    void $
+        createProcess $
+            proc
+                "clang"
+                [ "-O3"
+                , "output.ll"
+                , "-o"
+                , takeBaseName file
+                ]
     putStrLn res'
     ok
 
