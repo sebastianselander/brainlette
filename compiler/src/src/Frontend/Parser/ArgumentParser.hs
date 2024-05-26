@@ -4,7 +4,6 @@ import Frontend.Parser.ParserTypes
 import Frontend.Parser.Language
 import Prelude hiding (id)
 import Frontend.Parser.TypeParser (typ)
-import Frontend.Parser.ExprParser
 
 arg :: Parser Arg
 arg = do

@@ -4,16 +4,33 @@
 
 module Utils where
 
+import Data.Generics (mkQ, everywhere)
+import Data.Maybe (maybeToList)
 import Data.Text (Text, intercalate, pack, replicate)
 import GHC.Stack (HasCallStack)
-import Generics.SYB (Data, Typeable, everywhere, everywhereM, mkM, mkT)
+import Generics.SYB
+    ( Data,
+      Typeable,
+      everything,
+      everywhereM,
+      mkM,
+      mkT,
+      Data,
+      Typeable,
+      everywhereM,
+      mkM,
+      Data,
+      Typeable,
+      everywhereM,
+      mkM,
+      mkT )
 import Prelude hiding (replicate)
 
 {-# WARNING TODO "TODO" #-}
 pattern TODO :: a
 pattern TODO <- _
-  where
-    TODO = error "TODO: Not yet implemented"
+    where
+        TODO = error "TODO: Not yet implemented"
 
 {-# WARNING todo "todo" #-}
 todo :: (HasCallStack) => a
@@ -41,27 +58,43 @@ flat3 :: (a, (b, c)) -> (a, b, c)
 flat3 (a, (b, c)) = (a, b, c)
 
 class Pretty a where
-  {-# MINIMAL pretty #-}
-  pretty :: Int -> a -> Text
+    {-# MINIMAL pretty #-}
+    pretty :: Int -> a -> Text
 
-  parenthesis :: Int -> a -> Text
-  parenthesis n a = "(" <> pretty n a <> ")"
+    parenthesis :: Int -> a -> Text
+    parenthesis n a = "(" <> pretty n a <> ")"
 
-  indent :: Int -> a -> Text
-  indent n a = replicate (n * 4) " " <> pretty n a
+    indent :: Int -> a -> Text
+    indent n a = replicate (n * 4) " " <> pretty n a
 
-  commaSeparated :: Int -> [a] -> Text
-  commaSeparated n = intercalate ", " . map (pretty n)
+    commaSeparated :: Int -> [a] -> Text
+    commaSeparated n = intercalate ", " . map (pretty n)
 
-  semi :: Int -> a -> Text
-  semi n a = pretty n a <> ";"
+    semi :: Int -> a -> Text
+    semi n a = pretty n a <> ";"
 
 apN :: Int -> (a -> a) -> a -> a
 apN 0 _ x = x
 apN !n f !x = apN (n - 1) f (f x)
 
 instance Pretty Text where
-  pretty _ t = t
+    pretty _ t = t
 
 pured :: (Functor f, Applicative t) => f a -> f (t a)
 pured thing = pure <$> thing
+
+listify' :: (Data a, Typeable b) => (b -> Maybe c) -> a -> [c]
+listify' f = everything (++) ([] `mkQ` (maybeToList . f))
+
+compilerPrims :: [Text]
+compilerPrims =
+    [ "printInt"
+    , "printString"
+    , "printDouble"
+    , "readInt"
+    , "readDouble"
+    , "readString"
+    ]
+
+
+type Toplevel = Bool

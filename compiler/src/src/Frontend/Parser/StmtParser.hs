@@ -1,10 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Frontend.Parser.StmtParser where
 
 import Frontend.Parser.ExprParser
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.TypeParser
-import Text.Parsec (try)
+import Text.Parsec (try, (<|>), optionMaybe)
 import Text.Parsec.Combinator (choice)
 import Text.ParserCombinators.Parsec (many)
 import Prelude hiding (break, id, init)
@@ -31,19 +33,18 @@ item = choice [try init, noInit]
 stmt :: Parser Stmt
 stmt =
     choice
-        [ try while
-        , try foreach
-        , try condElse
-        , try cond
-        , try blk
+        [ SFn NoInfo <$> try function
+        , while
+        , foreach
+        , ifOptionalElse
+        , blk
+        , ret <* semicolon
+        , break <* semicolon
         , try decl <* semicolon
-        , try ret <* semicolon
-        , try vret <* semicolon
         , try ass <* semicolon
         , try incr <* semicolon
         , try decr <* semicolon
-        , try sexp <* semicolon
-        , try break <* semicolon
+        , sexp <* semicolon
         , empty
         ]
 
@@ -79,7 +80,12 @@ decr :: Parser Stmt
 decr = uncurry Decr <$> info (id <* reservedOp "--")
 
 ret :: Parser Stmt
-ret = uncurry Ret <$> info (reserved "return" *> expr)
+ret = do
+    (info,f) <- info $ do
+        (reserved "return" *> optionMaybe expr) >>= \case
+            Nothing -> return VRet
+            Just e -> return $ flip Ret e
+    return $ f info
 
 vret :: Parser Stmt
 vret = VRet . fst <$> info (reserved "return")
@@ -93,16 +99,17 @@ cond = do
         return (e, s)
     return (Cond i e s)
 
-condElse :: Parser Stmt
-condElse = do
-    (i, (e, s1, s2)) <- info $ do
+ifOptionalElse :: Parser Stmt
+ifOptionalElse = do
+    (i, f) <- info $ do
         reserved "if"
         e <- parens expr
         s1 <- stmt
-        reserved "else"
-        s2 <- stmt
-        return (e, s1, s2)
-    return (CondElse i e s1 s2)
+        res <- optionMaybe $ reserved "else" *> stmt
+        case res of
+            Nothing -> return $ \info -> Cond info e s1
+            Just s2 -> return $ \info -> CondElse info e s1 s2
+    return $ f i
 
 while :: Parser Stmt
 while = do
@@ -123,3 +130,16 @@ foreach = do
 
 sexp :: Parser Stmt
 sexp = uncurry SExp <$> info expr
+
+pMain :: Parser Id
+pMain = flip IdD "main" . fst <$> info (reserved "main")
+
+function :: Parser Function
+function = do
+    (i, (ty, ident, args, stmts)) <- info $ do
+        ty <- typ
+        ident <- pMain <|> id
+        args <- parens (commaSep arg)
+        stmts <- braces (many stmt)
+        return (ty, ident, args, stmts)
+    return (Fn i ty ident args stmts)

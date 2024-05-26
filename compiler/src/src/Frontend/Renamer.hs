@@ -13,6 +13,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
+import Data.Tuple.Extra (uncurry3)
 import Frontend.Error (FEError (..), Report (report), convert)
 import Frontend.Parser.ParserTypes
 import Utils
@@ -22,9 +23,9 @@ import Prelude hiding (head)
 data Env = Env
     { variables :: NonEmpty (Map Id Id)
     , varCounter :: Int
-    , functions :: Set Id
     , structs :: Map Id [Id]
     , typeDefs :: Map Id Id
+    , toplevelFuns :: Set Text
     }
 
 newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
@@ -33,34 +34,34 @@ newtype RnM a = Rn {runRm :: StateT Env (Except FEError) a}
 initEnv :: Env
 initEnv =
     Env
-        (singleton (Map.singleton (IdD NoInfo "length") (IdD NoInfo "length")))
-        0
-        ( Set.fromList
-            [ IdD NoInfo "printInt"
-            , IdD NoInfo "printString"
-            , IdD NoInfo "printDouble"
-            , IdD NoInfo "readInt"
-            , IdD NoInfo "readDouble"
-            , IdD NoInfo "readString"
-            ]
+        ( return $
+            Map.fromList $
+                fmap
+                    (\x -> (IdD NoInfo x, IdD NoInfo x))
+                    compilerPrims
         )
+        0
         mempty
         mempty
+        (Set.fromList compilerPrims)
 
-rename :: Prog -> Either Text Prog
-rename p = case runExcept $ flip evalStateT initEnv $ runRm $ rnProg p of
+rename :: Prog -> Either Text (Prog, Set Text)
+rename p = case runExcept $ flip runStateT initEnv $ runRm $ rnProg p of
     Left err -> Left $ report err
-    Right res -> return res
+    Right (res, Env { toplevelFuns = toplevelFuns}) -> return (res, toplevelFuns)
 
 rnProg :: Prog -> RnM Prog
 rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
   where
     addDef :: TopDef -> RnM ()
     addDef = \case
-        tp@(FnDef info _ name _ _) -> do
-            funcs <- gets functions
-            when (Set.member name funcs) $ throwError $ DuplicateTopDef info tp
-            modify $ \s -> s {functions = Set.insert name s.functions}
+        tp@(FnDef _ (Fn info _ name@(Id _ _ nm) _ _)) -> do
+            modify $ \s -> s {toplevelFuns = Set.insert nm s.toplevelFuns}
+            funcs <- gets (head . variables)
+            n <- counter
+            let name' = newId name n
+            when (Map.member name funcs) $ throwError $ DuplicateTopDef info tp
+            insertVar name name'
         tp@(StructDef info name args) -> do
             strcts <- gets structs
             -- NOTE: Overlapping names for typedefs and structs ok
@@ -77,15 +78,29 @@ rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
             modify $ \s -> s {typeDefs = Map.insert name2 name1 s.typeDefs}
         (Use _ _) -> pure ()
 
+rnFunc :: Function -> RnM Function
+rnFunc (Fn info ty name args stmts) = do
+    n <- counter
+    let name' = newId name n
+    insertVar name name'
+    ty <- rnType ty
+    (args, stmts) <- newBlock $ do
+        args <- mapM rnArg args
+        stmts <- mapM rnStmt stmts
+        return (args, stmts)
+    return (Fn info ty name' args stmts)
+
 rnDef :: TopDef -> RnM TopDef
 rnDef = \case
-    FnDef info ty name args stmts -> do
+    FnDef _ (Fn info ty name args stmts) -> do
+        name <- rnId info name
         ty <- rnType ty
         (args, stmts) <- newBlock $ do
             args <- mapM rnArg args
             stmts <- mapM rnStmt stmts
             return (args, stmts)
-        return (FnDef info ty name args stmts)
+        return (FnDef info (Fn info ty name args stmts))
+
     -- Somewhat ugly to go over typedefs twice, but they can be declared in an
     -- arbitrary order
     topdef@(TypeDef info name1 _) -> do
@@ -113,7 +128,7 @@ rnType = return
 
 -- TODO: make differenet scopes for fields and variables
 rnField :: SynInfo -> Id -> RnM Id
-rnField _ (IdD info' "length") = return (IdD info' "length")
+rnField _ (Id info' _ "length") = return (IdD info' "length")
 rnField info name = do
     fields <- gets (concat . Map.elems . structs)
     unless (any (is name) fields) (throwError (UnboundField info name))
@@ -124,13 +139,10 @@ is (Id _ na a) (Id _ nb b) = na == nb && a == b
 
 rnId :: SynInfo -> Id -> RnM Id
 rnId info id = do
-    gets (Set.member id . functions) >>= \case
-        True -> return id
-        False -> do
-            (x :| xs) <- gets variables
-            case findVar id (x : xs) of
-                Nothing -> throwError $ UnboundVariable info (convert id)
-                Just id -> return id
+    (vs :| vss) <- gets variables
+    case findVar id (vs : vss) of
+        Nothing -> throwError $ UnboundVariable info (convert id)
+        Just id -> return id
   where
     findVar :: Id -> [Map Id Id] -> Maybe Id
     findVar _ [] = Nothing
@@ -177,6 +189,8 @@ rnStmt = \case
         return (ForEach info arg expr stmt)
     Break info -> return (Break info)
     SExp info expr -> SExp info <$> rnExpr expr
+    -- TODO: I'm not sure if shadowing functions is allowed or possible
+    SFn info func -> SFn info <$> rnFunc func
 
 rnItem :: Item -> RnM Item
 rnItem = \case
@@ -204,6 +218,7 @@ insertVar old new = do
     modify (\s -> s {variables = Map.insert old new h :| rest})
 
 newId :: Id -> Int -> Id
+newId (Id info _ "main") _ = IdD info "main"
 newId (Id info ns i) n = Id info ns (i <> "$" <> thow n)
 
 rnExpr :: Expr -> RnM Expr
@@ -216,7 +231,7 @@ rnExpr = \case
     ELitNull info ty -> return (ELitNull info ty)
     EString info text -> return (EString info text)
     EDeref info l r -> EDeref info <$> rnExpr l <*> rnField info r
-    EApp info id exprs -> EApp info <$> rnId info id <*> mapM rnExpr exprs
+    EApp info l exprs -> EApp info <$> rnExpr l <*> mapM rnExpr exprs
     Neg info expr -> Neg info <$> rnExpr expr
     Not info expr -> Not info <$> rnExpr expr
     EMul info l op r -> EMul info <$> rnExpr l <*> return op <*> rnExpr r
@@ -238,6 +253,14 @@ rnExpr = \case
         EStructIndex info
             <$> rnExpr e1
             <*> rnField info field
+    ELam info args ty expr ->
+        uncurry3 (ELam info)
+            <$> newBlock
+                ( (,,)
+                    <$> mapM rnArg args
+                    <*> rnType ty
+                    <*> rnExpr expr
+                )
 
 newBlock :: (MonadState Env m) => m a -> m a
 newBlock ma = do

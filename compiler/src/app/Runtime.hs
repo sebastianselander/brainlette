@@ -13,7 +13,7 @@ target triple = "x86_64-pc-linux-gnu"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 declare i32 @printf(ptr, ...)
 @.empty_string = constant [1 x i8] c"\\00"
-@out_of_bounds$Internal = constant [21 x i8] c"index out of bounds\\0A\\00"
+@out_of_bounds$Internal = constant [23 x i8] c"index out of bounds: \\0A\\00"
 declare i32 @exit(i32)
 declare i64 @getline(ptr, ptr, ptr)
 declare ptr @fdopen(i32, ptr)
@@ -34,33 +34,39 @@ ok:
 bad:
     ; WARNING: This should not print to stdout
     call void @printString(ptr @out_of_bounds$Internal)
+    call void @printInt(i64 %index)
     call i32 @exit(i32 1)
     unreachable
 good:
     ret i64 %index
 }
 
+@printInt = constant {ptr, ptr} {ptr @printInt$og, ptr null}
 @dnl = internal constant [4 x i8] c"%d\\0A\\00"
-define void @printInt(i32 %x) {
+define void @printInt$og(ptr %unused ,i32 %x) {
 entry: %t0 = getelementptr [4 x i8], [4 x i8]* @dnl, i32 0, i32 0
 	call i32 (i8*, ...) @printf(i8* %t0, i32 %x)
 	ret void
 }
 
+@printDouble = constant {ptr, ptr} { ptr @printDouble$og, ptr null}
 @fnl = internal constant [6 x i8] c"%.1f\\0A\\00"
-define void @printDouble(double %x) {
+define void @printDouble$og(ptr %unused, double %x) {
 entry: %t0 = getelementptr [6 x i8], [6 x i8]* @fnl, i32 0, i32 0
 	call i32 (i8*, ...) @printf(i8* %t0, double %x)
 	ret void
 }
 
-define void @printString(i8* %s) {
+@printString = constant {ptr, ptr} { ptr @printString$og, ptr null}
+
+define void @printString$og(ptr %unused, i8* %s) {
 entry:  call i32 @puts(i8* %s)
 	ret void
 }
 
+@readInt = constant {ptr, ptr} { ptr @readInt$og, ptr null}
 @d = internal constant [3 x i8] c"%d\\00"
-define i32 @readInt() {
+define i32 @readInt$og(ptr %unused) {
 entry:	%res = alloca i32
         %t1 = getelementptr [3 x i8], [3 x i8]* @d, i32 0, i32 0
 	call i32 (i8*, ...) @scanf(i8* %t1, i32* %res)
@@ -68,16 +74,18 @@ entry:	%res = alloca i32
 	ret i32 %t2
 }
 
+@readDouble = constant {ptr, ptr} { ptr @readDouble$og, ptr null}
 @lf = internal constant [4 x i8] c"%lf\\00"
-define double @readDouble() {
+define double @readDouble$og(ptr %unused) {
 entry:	%res = alloca double
         %t1 = getelementptr [4 x i8], [4 x i8]* @lf, i32 0, i32 0
 	call i32 (i8*, ...) @scanf(i8* %t1, double* %res)
 	%t2 = load double, double* %res
 	ret double %t2
 }
+@readString = constant {ptr, ptr} { ptr @readString$og, ptr null}
 
-define ptr @readString () {
+define ptr @readString$og (ptr %unused) {
   %stdin = call ptr @fdopen(i32 0, ptr @fdopen_mode)
   %string_pointer = alloca ptr
   store ptr null, ptr %string_pointer

@@ -87,6 +87,7 @@ brainletteDef =
             , "null"
             , "new"
             , "typedef"
+            , "fn"
             ]
         , opStart = oneOf ""
         , opLetter = oneOf ""
@@ -139,6 +140,9 @@ integer = lexeme (P.integer bl)
 
 float :: Parser Double
 float = lexeme (P.float bl)
+
+naturalOrFloat :: Parser (Either Integer Double)
+naturalOrFloat = lexeme (P.naturalOrFloat bl)
 
 stringLiteral :: Parser Text
 stringLiteral = pack <$> lexeme (P.stringLiteral bl)
@@ -245,3 +249,6 @@ prefix p = Prefix . chainl1 p $ return (.)
 
 postfix :: (Stream s m t) => ParsecT s u m (a -> a) -> Operator s u m a
 postfix p = Postfix . chainl1 p $ return (.)
+
+id :: Parser Id
+id = uncurry IdD <$> info identifier

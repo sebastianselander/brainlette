@@ -1,0 +1,10 @@
+//program
+void main() {
+    int free = 69;
+    int sum(int x) {
+        if (x == 0) return free;
+        else return x + sum(x - 1);
+    }
+    fn(int) -> int f = sum;
+    printInt(f(10));
+}

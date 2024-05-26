@@ -1,0 +1,11 @@
+//program
+
+fn(int) -> int some() {
+    int a = 123;
+    int inc(int x) {
+        return x + a;
+    }
+    //fn(int) -> int inc = \(int x) -> int: x + a;
+    inc(123);
+    return inc;
+}

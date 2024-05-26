@@ -69,7 +69,7 @@ getFns :: [TopDef] -> Map Id (Type, [Arg], [Stmt])
 getFns xs = go mempty xs
   where
     go acc [] = acc
-    go acc (FnDef ty name args stmts : xs) =
+    go acc (FnDef _ ty name args stmts : xs) =
         go (Map.insert name (ty, args, stmts) acc) xs
     go _ _ = undefined
 

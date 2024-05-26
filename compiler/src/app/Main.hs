@@ -47,7 +47,7 @@ main = do
     ePutStrLn (pretty 0 res)
 
     ePutStrLn "--- Renamer output ---"
-    res <- case rename res of
+    (res, _) <- case rename res of
         Left err -> errorExit err
         Right res -> return res
 
@@ -65,21 +65,20 @@ main = do
         Right res -> return res
 
     ePutStrLn "\n--- Typecheck output ---"
-    ePrint res
+    ePutStrLn (pretty 0 res)
 
     ePutStrLn "\n--- Lifter output ---"
 
-    res <- return (lift res)
-    ePrint res
+    (res, lifteds) <- return (lift res)
+    ePutStrLn (pretty 0 res)
 
     ePutStrLn "\n--- BMM output ---"
 
-    res <- return $ bmm res
+    (res, funs) <- return $ bmm res
     ePutStrLn (pretty 0 res)
-    ePrint res
     writeFile "output.bmm" (pretty 0 res)
 
-    res <- return $ braingen res
+    res <- return $ braingen res lifteds funs
 
     ePutStrLn "\n--- LLVM IR output ---"
     let res' = unlines [runtime, res]

@@ -21,7 +21,7 @@ import System.Directory (doesFileExist)
 import System.Exit (exitFailure)
 import System.FilePath
 import System.IO (stderr)
-import Utils (thow, treeMap)
+import Utils (compilerPrims, thow, treeMap)
 
 type Uniter = StateT (Set String) (ExceptT FEError IO)
 
@@ -91,15 +91,7 @@ fixTree :: Text -> P.Prog -> P.Prog
 fixTree mod = treeMap (fixTopDef mod)
 
 ignoreList :: Set Text
-ignoreList =
-    Set.fromList
-        [ "printInt"
-        , "printString"
-        , "printDouble"
-        , "readInt"
-        , "readDouble"
-        , "readString"
-        ]
+ignoreList = Set.fromList compilerPrims
 
 fixId :: Text -> P.Id -> P.Id
 fixId mod o@(P.Id i Nothing n) =
@@ -108,19 +100,25 @@ fixId mod o@(P.Id i Nothing n) =
         else o
 fixId _ i = i
 
+fixType :: Text -> P.Type -> P.Type
+fixType mod = treeMap (fixId mod)
+
 fixTopDef :: Text -> P.TopDef -> P.TopDef
 fixTopDef mod = \case
-    P.FnDef i rt n@(P.Id _ Nothing "main") args stmts -> P.FnDef i rt n (treeMap (fixId mod) args) (map (fixStmts mod) stmts)
-    P.FnDef i rt n args stmts -> P.FnDef i rt (fixId mod n) (treeMap (fixId mod) args) (map (fixStmts mod) stmts)
+    P.FnDef i fn -> P.FnDef i (fixFn mod fn)
     P.StructDef i n args -> P.StructDef i (fixId mod n) (treeMap (fixId mod) args)
     P.TypeDef i n t -> P.TypeDef i (fixId mod n) (fixId mod t)
     u@P.Use {} -> u
+
+fixFn :: Text -> P.Function -> P.Function
+fixFn mod (P.Fn i rt n@(P.Id _ Nothing "main") args stmts) = P.Fn i (fixType mod rt) n (treeMap (fixId mod) args) (map (fixStmts mod) stmts)
+fixFn mod (P.Fn i rt n args stmts) = P.Fn i (fixType mod rt) (fixId mod n) (treeMap (fixId mod) args) (map (fixStmts mod) stmts)
 
 fixStmts :: Text -> P.Stmt -> P.Stmt
 fixStmts mod = \case
     P.Empty i -> P.Empty i
     P.BStmt i bs -> P.BStmt i (map (fixStmts mod) bs)
-    P.Decl i t n -> P.Decl i t (map (treeMap (fixId mod)) n)
+    P.Decl i t n -> P.Decl i (fixType mod t) (map (treeMap (fixId mod)) n)
     P.Ass i e1 e2 -> P.Ass i (fixExpr mod e1) (fixExpr mod e2)
     P.Incr i id -> P.Incr i (fixId mod id)
     P.Decr i id -> P.Decr i (fixId mod id)
@@ -132,6 +130,7 @@ fixStmts mod = \case
     P.ForEach i a e s -> P.ForEach i (treeMap (fixId mod) a) (fixExpr mod e) (fixStmts mod s)
     P.Break i -> P.Break i
     P.SExp i e -> P.SExp i (fixExpr mod e)
+    P.SFn i fn -> P.SFn i (fixFn mod fn)
 
 fixExpr :: Text -> P.Expr -> P.Expr
 fixExpr mod = \case
@@ -140,13 +139,13 @@ fixExpr mod = \case
     P.ELitDouble i d -> P.ELitDouble i d -- redundant
     P.ELitTrue i -> P.ELitTrue i -- redundant
     P.ELitFalse i -> P.ELitFalse i -- redundant
-    P.ELitNull i t -> P.ELitNull i t -- redundant
+    P.ELitNull i t -> P.ELitNull i (fixType mod <$> t) -- redundant
     P.EString i s -> P.EString i s -- redundant
-    P.ENew i t s -> P.ENew i t (map (fixExpr mod) s)
-    P.EDeref i e id -> P.EDeref i (fixExpr mod e) id
-    P.EStructIndex i e ind -> P.EStructIndex i (fixExpr mod e) ind
+    P.ENew i t s -> P.ENew i (fixType mod t) (map (fixExpr mod) s)
+    P.EDeref i e id -> P.EDeref i (fixExpr mod e) (fixId mod id)
+    P.EStructIndex i e ind -> P.EStructIndex i (fixExpr mod e) (fixId mod ind)
     P.EIndex i b ind -> P.EIndex i (fixExpr mod b) (fixExpr mod ind)
-    P.EApp i b vars -> P.EApp i (fixId mod b) (map (fixExpr mod) vars)
+    P.EApp i b vars -> P.EApp i (fixExpr mod b) (map (fixExpr mod) vars)
     P.Neg i v -> P.Neg i (fixExpr mod v)
     P.Not i v -> P.Not i (fixExpr mod v)
     P.EMul i lh op rh -> P.EMul i (fixExpr mod lh) op (fixExpr mod rh)
@@ -154,3 +153,4 @@ fixExpr mod = \case
     P.ERel i lh op rh -> P.ERel i (fixExpr mod lh) op (fixExpr mod rh)
     P.EAnd i lh rh -> P.EAnd i (fixExpr mod lh) (fixExpr mod rh)
     P.EOr i lh rh -> P.EOr i (fixExpr mod lh) (fixExpr mod rh)
+    P.ELam i args ty e -> P.ELam i (treeMap (fixId mod) args) (fixType mod ty) (fixExpr mod e)

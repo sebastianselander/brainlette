@@ -9,7 +9,7 @@ import BMM.Bmm
 import BMM.StringToTop (moveStringsToTop)
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Reader (MonadReader, Reader, asks, runReader)
-import Control.Monad.State (MonadState, State, StateT, evalStateT, execState, get, put)
+import Control.Monad.State (MonadState, State, StateT, execState, get, put, runStateT)
 import Data.List hiding (reverse)
 import Data.List.Extra (snoc)
 import Data.List.NonEmpty (reverse)
@@ -30,26 +30,25 @@ data TypeInfo = TI
     }
     deriving (Show)
 
-newtype Bmm a = Bmm {runBmm :: StateT Int (Reader TypeInfo) a}
-    deriving (Functor, Applicative, Monad, MonadReader TypeInfo, MonadState Int)
+newtype Bmm a = Bmm {runBmm :: StateT (Int, Set Id) (Reader TypeInfo) a}
+    deriving (Functor, Applicative, Monad, MonadReader TypeInfo, MonadState (Int, Set Id))
 
 freshVar :: Bmm Id
 freshVar = do
-    n <- get
-    put (n + 1)
+    (n, ids) <- get
+    put (n + 1, ids)
     return (Id $ pack "bmm_fresh$$_" <> thow n)
 
-bmm :: Tc.Prog -> Prog
+bmm :: Tc.Prog -> (Prog, Set Id)
 bmm (Tc.Program defs) =
-    burrito
-        . moveStringsToTop
-        . Program
-        . flip
-            runReader
-            (execState (mapM_ extractTypedefs defs) (TI mempty mempty))
-        . flip evalStateT 0
-        . runBmm
-        $ bmmDef defs
+    let (defs', (_, ids)) =
+            flip
+                runReader
+                (execState (mapM_ extractTypedefs defs) (TI mempty mempty))
+                $ flip runStateT (0, mempty)
+                $ runBmm
+                $ bmmDef defs
+     in (burrito $ moveStringsToTop (Program defs'), ids)
   where
     extractTypedefs :: Tc.TopDef -> State TypeInfo ()
     extractTypedefs = \case
@@ -68,15 +67,15 @@ bmm (Tc.Program defs) =
 bmmDef :: [Tc.TopDef] -> Bmm [TopDef]
 bmmDef [] = return mempty
 bmmDef (x : xs) = case x of
-    Tc.FnDef t id args stmts -> do
-        def <-
-            FnDef
-                <$> bmmType t
-                <*> bmmId id
-                <*> mapM bmmArg args
-                <*> bmmStmts stmts
+    Tc.FnDef isTop t id args stmts -> do
+        ty <- bmmType t
+        name <- bmmId id
+        args <- mapM bmmArg args
+        stmts <- bmmStmts stmts
         xs' <- bmmDef xs
-        return (def : xs')
+        (n, ids) <- get
+        put (n, Set.insert name ids)
+        return (FnDef isTop ty name args stmts : xs')
     Tc.TypeDef {} -> bmmDef xs
     Tc.StructDef name fields -> do
         x <-
@@ -107,6 +106,7 @@ bmmType = go Change
             Tc.Fun t ts -> Fun <$> go Change t <*> mapM (go Change) ts
             Tc.Pointer ty' -> Pointer <$> go Keep ty'
             Tc.Array ty -> Array <$> go Change ty
+            Tc.Closure ty -> Closure <$> go Change ty
     go Keep ty = case ty of
         Tc.String -> return String
         Tc.Int -> return Int
@@ -117,12 +117,19 @@ bmmType = go Change
         Tc.Fun t ts -> Fun <$> go Keep t <*> mapM (go Keep) ts
         Tc.Pointer ty' -> Pointer <$> go Keep ty'
         Tc.Array ty -> Array <$> go Change ty
+        Tc.Closure ty -> Closure <$> go Keep ty
 
 bmmArg :: Tc.Arg -> Bmm Arg
 bmmArg (Tc.Argument t id) = Argument <$> bmmType t <*> bmmId id
 
 bmmStmts :: [Tc.Stmt] -> Bmm [Stmt]
 bmmStmts s = flip concatMapM s $ \case
+    Tc.LoadSelf (ty1, fn) (ty2, name) -> do
+        ty1 <- bmmType ty1
+        fn <- bmmId fn
+        ty2 <- bmmType ty2
+        name <- bmmId name
+        return [LoadSelf (ty1, fn) (ty2, name)]
     Tc.BStmt stmts -> bmmStmts stmts
     Tc.Decl t items -> concatMapM (itemDeclToBmm t) items
     Tc.Ass ty id expr ->
@@ -175,7 +182,10 @@ bmmStmts s = flip concatMapM s $ \case
         let ty' = innerMostTypeOf ty
         name <- bmmId name
         snd <$> arrayAllocs (reverse exprs) ty' name Nothing []
-    Tc.StructNew {} -> undefined
+    Tc.ExtractFree ty ind id -> do
+        ty <- bmmType ty
+        id <- bmmId id
+        return [ExtractFree ty ind id]
 
 arrayAllocs :: NonEmpty Tc.Expr -> Tc.Type -> Id -> Maybe Id -> [Stmt] -> Bmm (Id, [Stmt])
 arrayAllocs (expr :| []) ty name1 name2 stmts = arrayAlloc ty (Just name1) name2 expr stmts
@@ -283,7 +293,6 @@ defaultValueExpr ty = case ty of
     Array ty' -> (ty, StructInit False [(Array ty', LitArrNull)])
     ty -> (ty, ELit (defaultValue ty))
 
-
 defaultValue :: Type -> Lit
 defaultValue ty = case ty of
     TVar _ -> LitNull
@@ -295,6 +304,7 @@ defaultValue ty = case ty of
     Void -> LitNull
     Pointer _ -> LitNull
     Array _ -> LitArrNull
+    Closure _ -> LitFuncNull
 
 bmmExpr :: Tc.Expr -> Bmm Expr
 bmmExpr (ty', e) = bmmType ty' >>= go e
@@ -302,8 +312,9 @@ bmmExpr (ty', e) = bmmType ty' >>= go e
     go :: Tc.Expr' -> Type -> Bmm Expr
     go e ty = case e of
         Tc.EVar i -> (ty,) . EVar <$> bmmId i
+        Tc.ELiftedVar i -> (ty,) . EVar <$> bmmId i
         Tc.ELit l -> return (ty, ELit (bmmLit l))
-        Tc.EApp i e -> (ty,) <$> (EApp <$> bmmId i <*> mapM bmmExpr e)
+        Tc.EApp i e -> (ty,) <$> (EApp <$> bmmExpr i <*> mapM bmmExpr e)
         Tc.Not e -> (ty,) . Not <$> bmmExpr e
         Tc.EMul e1 op e2 ->
             (ty,)
@@ -356,6 +367,7 @@ bmmExpr (ty', e) = bmmType ty' >>= go e
                             $ elemIndex field fields
                 expr' <- bmmExpr expr
                 return (ty, StructIndex expr' fieldIdx)
+        Tc.ClosureLit fun exprs -> (ty,) <$> (ClosureLit <$> bmmExpr fun <*> mapM bmmExpr exprs)
 
 sizeOf :: (Num a) => Type -> a
 sizeOf = \case
@@ -368,6 +380,7 @@ sizeOf = \case
     Fun _ _ -> 8
     Pointer _ -> 8
     Array ty -> sizeOf (Pointer ty) + 8
+    Closure tys -> sizeOf (Pointer tys) * 2
 
 bmmLit :: Tc.Lit -> Lit
 bmmLit = \case

@@ -1,31 +1,31 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Frontend.Parser.ExprParser where
+module Frontend.Parser.ExprParser (expr) where
 
 import Control.Arrow ((>>>))
+import Frontend.Parser.ArgumentParser (arg)
 import Frontend.Parser.Language
     ( brackets,
       commaSep,
-      float,
-      identifier,
       info,
-      integer,
+      identifier,
       namespacedIdentifier,
       parens,
       prefix,
       reserved,
       reservedOp,
-      stringLiteral,
+      stringLiteral, naturalOrFloat
     )
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.TypeParser (atomicType, typ)
-import Text.Parsec (choice, many, many1, optionMaybe, try, (<?>), (<|>))
+import Text.Parsec (choice, many, many1, optionMaybe, (<?>), (<|>), option, try)
 import Text.Parsec.Expr
     ( Assoc (AssocLeft, AssocNone),
-      Operator (Infix, Postfix),
+      Operator (Infix, Postfix, Prefix),
       buildExpressionParser,
     )
 import Prelude hiding (id, length, null, take)
+import Prelude qualified (id)
 
 id :: Parser Id
 id = uncurry IdD <$> info identifier
@@ -34,13 +34,15 @@ nsId :: Parser Id
 nsId = (\(i, (ns, id)) -> Id i ns id) <$> info namespacedIdentifier
 
 var :: Parser Expr
-var = uncurry EVar <$> info id
+var = uncurry EVar <$> info (try nsId <|> id)
 
-int :: Parser Expr
-int = uncurry ELitInt <$> info integer
-
-double :: Parser Expr
-double = uncurry ELitDouble <$> info float
+intOrDouble :: Parser Expr
+intOrDouble = do
+    (f,g) <- option (Prelude.id, Prelude.id) ((negate, negate) <$ reservedOp "-")
+    (info, e) <- info naturalOrFloat
+    case e of
+        Right double -> return . ELitDouble info $ f double
+        Left int -> return . ELitInt info $ g int
 
 true :: Parser Expr
 true = ELitTrue . fst <$> info (reserved "true")
@@ -49,7 +51,7 @@ false :: Parser Expr
 false = ELitFalse . fst <$> info (reserved "false")
 
 null :: Parser Expr
-null = uncurry ELitNull <$> info (optionMaybe (parens typ) <* reserved "null")
+null = uncurry ELitNull <$> info (optionMaybe (try $ parens typ) <* reserved "null")
 
 new :: Parser Expr
 new = do
@@ -59,13 +61,10 @@ new = do
         return (ident, sizes)
     return $ ENew i ident sizes
 
-app :: Parser Expr
+app :: Parser (Expr -> Expr)
 app = do
-    (info, (name, args)) <- info $ do
-        name <- nsId
-        args <- parens (commaSep expr)
-        return (name, args)
-    return (EApp info name args)
+    (info, args) <- info (parens (commaSep expr))
+    return $ \l -> EApp info l args
 
 string :: Parser Expr
 string = uncurry EString <$> info stringLiteral
@@ -73,16 +72,14 @@ string = uncurry EString <$> info stringLiteral
 atom :: Parser Expr
 atom =
     choice
-        [ try null
-        , try double
-        , try int
-        , try false
-        , try true
-        , try string
-        , try app
-        , try new
-        , try var
-        , parens expr
+        [ null <?> "null"
+        , intOrDouble <?> "number"
+        , false <?> "false"
+        , true <?> "true"
+        , string <?> "string"
+        , new <?> "new"
+        , parens expr <?> "expression"
+        , var <?> "variable"
         ]
 
 index :: Parser (Expr -> Expr)
@@ -100,12 +97,23 @@ deref = do
     (info, field) <- reservedOp "->" *> info id <?> "struct field"
     return $ \l -> EDeref info l field
 
+lambda :: Parser (Expr -> Expr)
+lambda = do
+    (info, (args, ty)) <- info $ do
+        _ <- reservedOp "\\"
+        args <- parens (commaSep arg)
+        _ <- reservedOp "->"
+        returnType <- typ
+        _ <- reservedOp ":"
+        return (args, returnType)
+    return $ \l -> ELam info args ty l
+
 expr :: Parser Expr
 expr = uncurry putInfo <$> info (buildExpressionParser table atom)
   where
     table =
         [
-            [ Postfix $ foldr1 (>>>) <$> many1 (index <|> deref <|> field)
+            [ Postfix $ foldr1 (>>>) <$> many1 (index <|> deref <|> field <|> app)
             ]
         ,
             [ prefix (Neg . fst <$> info (reservedOp "-"))
@@ -134,6 +142,7 @@ expr = uncurry putInfo <$> info (buildExpressionParser table atom)
         ,
             [ Infix (EOr . fst <$> info (reservedOp "||")) AssocLeft
             ]
+        , [ Prefix $ foldr1 (>>>) <$> many1 lambda]
         ]
       where
         add op i l = EAdd NoInfo l (op i)
@@ -161,3 +170,4 @@ putInfo i = \case
     ENew _ a b -> ENew i a b
     EIndex _ a b -> EIndex i a b
     EStructIndex _ a b -> EStructIndex i a b
+    ELam _ a b c -> ELam i a b c
