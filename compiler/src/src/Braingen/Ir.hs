@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Braingen.Ir where
+module Braingen.Ir (braingen) where
 
 import BMM.Bmm qualified as B
 import Braingen.LlvmAst
@@ -15,7 +15,7 @@ import Control.Monad.State (State, get, gets, modify, put, runState)
 import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Text (Text, takeWhile, toTitle)
+import Data.Text (Text, toTitle)
 import Utils (concatFor, thow)
 import Prelude hiding (takeWhile)
 
@@ -28,9 +28,6 @@ data Env = Env
     , functions :: Set B.Id
     , lifteds :: Set B.Id
     }
-    deriving (Show)
-
-data BraingenError
     deriving (Show)
 
 type BgM = State Env
@@ -708,29 +705,12 @@ braingenMulOp = \case
         B.Mod -> FRem
     ty -> error $ "error: report bug as a typeerror" <> show ty
 
--- | Gets all constants
-getConsts :: [B.TopDef] -> Set Text
-getConsts td =
-    Set.fromList $
-        concatFor
-            td
-            ( \case
-                B.StringGlobal n _ -> [n]
-                _ -> []
-            )
-
 -- | Get cast op
 getCastOp :: Type -> Type -> CastOp
 getCastOp a b = case (a, b) of
     (F64, I64) -> FPtoSI
     (I64, F64) -> SItoFP
     _ -> Bitcast
-
-consName :: (Show a) => a -> Text
-consName = takeWhile (/= ' ') . thow
-
-arrayType :: Type
-arrayType = CustomType "Array$Internal"
 
 sizeOf :: Type -> Integer
 sizeOf = \case

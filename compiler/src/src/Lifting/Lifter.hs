@@ -2,14 +2,12 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lifting.Lifter where
+module Lifting.Lifter (lift) where
 
 import Control.Arrow
 import Control.Monad.Extra (concatMapM, mapAndUnzipM)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, asks, local, runReader, runReaderT)
 import Control.Monad.State (MonadState (get, put), State, gets, modify, runState)
-import Data.Data (Data)
-import Data.List (nub)
 import Data.List.Extra (snoc)
 import Data.List.NonEmpty (toList, unzip)
 import Data.Map (Map)
@@ -114,7 +112,7 @@ liftFn (Tc.Fn returnType name args stmts) = do
                         )
                         <> topNames
                     )
-                $ freeVars' stmts
+                $ freeVars stmts
     frees <- mapM liftArg frees
     stmts <- liftStmts stmts
     functionVariable <- freshVar
@@ -303,11 +301,6 @@ liftExpr (ty, expr) = do
             (stmts, name) <- liftFn (Tc.Fn retTy (Tc.Id lambdaName) args [Tc.Ret expr])
             return (ELiftedVar name, stmts)
 
-argToVar :: Arg -> Expr
-argToVar (Argument ty name) = (ty, EVar name)
-
-nameOf :: Arg -> Id
-nameOf (Argument _ name) = name
 
 nameOf' :: Tc.Arg -> Tc.Id
 nameOf' (Tc.Argument _ name) = name
@@ -315,92 +308,78 @@ nameOf' (Tc.Argument _ name) = name
 typeOf :: Arg -> Type
 typeOf (Argument ty _) = ty
 
-freeVars :: (Show a, MonadReader (Set Id) m, Data a) => [Id] -> a -> m [Arg]
-freeVars names thing = do
-    topNames <- ask
-    let isFreeE (ty, EVar name)
-            | name `Set.notMember` (Set.fromList names <> topNames) =
-                Just (Argument ty name)
-            | otherwise = Nothing
-        isFreeE _ = Nothing
-        isFreeS (Incr ty name) = Just (Argument ty name)
-        isFreeS (Decr ty name) = Just (Argument ty name)
-        isFreeS (Ass ty (LVar name) _) = Just (Argument ty name)
-        isFreeS _ = Nothing
-    return $ nub $ listify' isFreeE thing <> listify' isFreeS thing
-
 class Free a where
-    freeVars' :: (MonadReader (Set Tc.Id) m) => a -> m (Set Tc.Arg)
+    freeVars :: (MonadReader (Set Tc.Id) m) => a -> m (Set Tc.Arg)
 
 instance Free Tc.Expr where
-    freeVars' e = freeVars' [e]
+    freeVars e = freeVars [e]
 
 instance Free [Tc.Expr] where
-    freeVars' [] = return mempty
-    freeVars' ((ty, e) : xs) = case e of
+    freeVars [] = return mempty
+    freeVars ((ty, e) : xs) = case e of
         Tc.EVar name ->
             asks (Set.member name) >>= \case
-                False -> Set.insert (Tc.Argument ty name) <$> freeVars' xs
-                True -> freeVars' xs
+                False -> Set.insert (Tc.Argument ty name) <$> freeVars xs
+                True -> freeVars xs
         -- Lifted variables are always in scope
-        Tc.ELit _ -> freeVars' xs
+        Tc.ELit _ -> freeVars xs
         Tc.EApp e es -> do
-            names1 <- freeVars' e
-            names2 <- freeVars' es
-            ((names1 <> names2) <>) <$> freeVars' xs
+            names1 <- freeVars e
+            names2 <- freeVars es
+            ((names1 <> names2) <>) <$> freeVars xs
         Tc.Neg e -> do
-            names1 <- freeVars' e
-            (names1 <>) <$> freeVars' xs
+            names1 <- freeVars e
+            (names1 <>) <$> freeVars xs
         Tc.Not e -> do
-            names1 <- freeVars' e
-            (names1 <>) <$> freeVars' xs
+            names1 <- freeVars e
+            (names1 <>) <$> freeVars xs
         Tc.Deref e _ -> do
-            names1 <- freeVars' e
-            (names1 <>) <$> freeVars' xs
+            names1 <- freeVars e
+            (names1 <>) <$> freeVars xs
         Tc.EMul e1 _ e2 -> do
-            names1 <- freeVars' e1
-            names2 <- freeVars' e2
-            ((names1 <> names2) <>) <$> freeVars' xs
+            names1 <- freeVars e1
+            names2 <- freeVars e2
+            ((names1 <> names2) <>) <$> freeVars xs
         Tc.EAdd e1 _ e2 -> do
-            names1 <- freeVars' e1
-            names2 <- freeVars' e2
-            ((names1 <> names2) <>) <$> freeVars' xs
+            names1 <- freeVars e1
+            names2 <- freeVars e2
+            ((names1 <> names2) <>) <$> freeVars xs
         Tc.ERel e1 _ e2 -> do
-            names1 <- freeVars' e1
-            names2 <- freeVars' e2
-            ((names1 <> names2) <>) <$> freeVars' xs
+            names1 <- freeVars e1
+            names2 <- freeVars e2
+            ((names1 <> names2) <>) <$> freeVars xs
         Tc.EAnd e1 e2 -> do
-            names1 <- freeVars' e1
-            names2 <- freeVars' e2
-            ((names1 <> names2) <>) <$> freeVars' xs
+            names1 <- freeVars e1
+            names2 <- freeVars e2
+            ((names1 <> names2) <>) <$> freeVars xs
         Tc.EOr e1 e2 -> do
-            names1 <- freeVars' e1
-            names2 <- freeVars' e2
-            ((names1 <> names2) <>) <$> freeVars' xs
-        Tc.StructAlloc -> freeVars' xs
+            names1 <- freeVars e1
+            names2 <- freeVars e2
+            ((names1 <> names2) <>) <$> freeVars xs
+        Tc.StructAlloc -> freeVars xs
         Tc.StructIndex e _ -> do
-            names1 <- freeVars' e
-            (names1 <>) <$> freeVars' xs
+            names1 <- freeVars e
+            (names1 <>) <$> freeVars xs
         Tc.ArrayLit es -> do
-            names1 <- freeVars' es
-            (names1 <>) <$> freeVars' xs
-        Tc.ArrayAlloc es -> freeVars' $ toList es
-        Tc.EIndex l r -> (<>) <$> freeVars' l <*> freeVars' r
+            names1 <- freeVars es
+            (names1 <>) <$> freeVars xs
+        Tc.ArrayAlloc es -> freeVars $ toList es
+        Tc.EIndex l r -> (<>) <$> freeVars l <*> freeVars r
         Tc.ELam args _ e -> do
             let names = fmap nameOf' args
-            local (Set.fromList names <>) $ freeVars' e
+            local (Set.fromList names <>) $ freeVars e
 
 instance Free Tc.Stmt where
-    freeVars' s = freeVars' [s]
+    freeVars s = freeVars [s]
 
 instance Free [Tc.Stmt] where
-    freeVars' [] = return mempty
-    freeVars' (s : ss) = case s of
+    freeVars [] = return mempty
+    freeVars (s : ss) = case s of
         Tc.BStmt stmts -> do
-            names <- freeVars' stmts
-            names2 <- freeVars' ss
+            names <- freeVars stmts
+            names2 <- freeVars ss
             return $ names <> names2
-        Tc.Decl _ name -> local (Set.fromList (fmap itemNames name) <>) (freeVars' ss)
+        Tc.Decl _ name -> local (Set.fromList (fmap itemNames name) <>) (freeVars ss)
         Tc.Ass ty lv expr -> do
             names1 <- case lv of
                 Tc.LVar name ->
@@ -408,50 +387,50 @@ instance Free [Tc.Stmt] where
                         True -> return mempty
                         False -> return (Set.singleton (Tc.Argument ty name))
                 Tc.LIndex l r -> do
-                    names1 <- freeVars' l
-                    names2 <- freeVars' r
+                    names1 <- freeVars l
+                    names2 <- freeVars r
                     return $ names1 <> names2
-                Tc.LStructIndex l _ -> freeVars' l
-                Tc.LDeref l _ -> freeVars' l
-            names2 <- freeVars' expr
-            ((names1 <> names2) <>) <$> freeVars' ss
+                Tc.LStructIndex l _ -> freeVars l
+                Tc.LDeref l _ -> freeVars l
+            names2 <- freeVars expr
+            ((names1 <> names2) <>) <$> freeVars ss
         Tc.Incr ty name ->
             asks (Set.member name) >>= \case
-                True -> freeVars' ss
-                False -> Set.insert (Tc.Argument ty name) <$> freeVars' ss
+                True -> freeVars ss
+                False -> Set.insert (Tc.Argument ty name) <$> freeVars ss
         Tc.Decr ty name ->
             asks (Set.member name) >>= \case
-                True -> freeVars' ss
-                False -> Set.insert (Tc.Argument ty name) <$> freeVars' ss
+                True -> freeVars ss
+                False -> Set.insert (Tc.Argument ty name) <$> freeVars ss
         Tc.Ret expr -> do
-            names1 <- freeVars' expr
-            (names1 <>) <$> freeVars' ss
-        Tc.VRet -> freeVars' ss
+            names1 <- freeVars expr
+            (names1 <>) <$> freeVars ss
+        Tc.VRet -> freeVars ss
         Tc.Cond e s -> do
-            names1 <- freeVars' e
-            names2 <- freeVars' s
-            ((names1 <> names2) <>) <$> freeVars' ss
+            names1 <- freeVars e
+            names2 <- freeVars s
+            ((names1 <> names2) <>) <$> freeVars ss
         Tc.CondElse e s1 s2 -> do
-            names1 <- freeVars' e
-            names2 <- freeVars' s1
-            names3 <- freeVars' s2
-            ((names1 <> names2 <> names3) <>) <$> freeVars' ss
+            names1 <- freeVars e
+            names2 <- freeVars s1
+            names3 <- freeVars s2
+            ((names1 <> names2 <> names3) <>) <$> freeVars ss
         Tc.While e s -> do
-            names1 <- freeVars' e
-            names2 <- freeVars' s
-            ((names1 <> names2) <>) <$> freeVars' ss
+            names1 <- freeVars e
+            names2 <- freeVars s
+            ((names1 <> names2) <>) <$> freeVars ss
         Tc.ForEach (Tc.Argument _ name) e s -> local (Set.insert name) $ do
-            names1 <- freeVars' e
-            names2 <- freeVars' s
-            ((names1 <> names2) <>) <$> freeVars' ss
+            names1 <- freeVars e
+            names2 <- freeVars s
+            ((names1 <> names2) <>) <$> freeVars ss
         Tc.SExp e -> do
-            names <- freeVars' e
-            (names <>) <$> freeVars' ss
-        Tc.Break -> freeVars' ss
+            names <- freeVars e
+            (names <>) <$> freeVars ss
+        Tc.Break -> freeVars ss
         Tc.SFn (Tc.Fn _ name args stmts) -> do
             let names = Set.fromList $ name : fmap nameOf' args
-            names1 <- local (names <>) $ freeVars' stmts
-            names2 <- freeVars' ss
+            names1 <- local (names <>) $ freeVars stmts
+            names2 <- freeVars ss
             return $ names1 <> names2
 
 itemNames :: Tc.Item -> Tc.Id

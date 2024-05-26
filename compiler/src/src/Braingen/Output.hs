@@ -3,7 +3,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Braingen.Output where
+module Braingen.Output (out) where
 
 import Braingen.LlvmAst
 import Data.String.Interpolate

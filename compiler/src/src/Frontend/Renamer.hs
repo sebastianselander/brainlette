@@ -4,7 +4,7 @@
 
 module Frontend.Renamer (rename) where
 
-import Control.Monad (unless, void, when)
+import Control.Monad (unless, when)
 import Control.Monad.Except
 import Control.Monad.State
 import Data.List.NonEmpty hiding (nubBy, reverse)

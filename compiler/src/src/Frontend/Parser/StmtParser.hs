@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-module Frontend.Parser.StmtParser where
+module Frontend.Parser.StmtParser (stmt, function) where
 
 import Frontend.Parser.ExprParser
 import Frontend.Parser.Language
@@ -86,18 +86,6 @@ ret = do
             Nothing -> return VRet
             Just e -> return $ flip Ret e
     return $ f info
-
-vret :: Parser Stmt
-vret = VRet . fst <$> info (reserved "return")
-
-cond :: Parser Stmt
-cond = do
-    (i, (e, s)) <- info $ do
-        reserved "if"
-        e <- parens expr
-        s <- stmt
-        return (e, s)
-    return (Cond i e s)
 
 ifOptionalElse :: Parser Stmt
 ifOptionalElse = do

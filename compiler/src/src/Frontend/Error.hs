@@ -239,6 +239,7 @@ instance Report Type where
         Fun rt argTys -> "fn" <> parens (report argTys) <> " -> " <> report rt
         Pointer ty -> report ty <> "*"
         Array ty -> report ty <> "[]"
+        Closure ty -> "Closure (" <> report ty <> ")"
 
 instance Report Text where
     report = id

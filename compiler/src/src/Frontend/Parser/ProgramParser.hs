@@ -1,4 +1,4 @@
-module Frontend.Parser.ProgramParser where
+module Frontend.Parser.ProgramParser (program) where
 
 import Control.Applicative ((<|>))
 import Data.Text (Text)

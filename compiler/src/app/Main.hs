@@ -1,13 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module Main (main) where
 
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import Control.Monad (unless)
 import Data.Functor (void)
-import Data.Text (Text, unlines, unpack)
+import Data.Text (Text, unlines)
 import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
 import Frontend.BranchReturns (branchCheck)
 import Frontend.Error (report)
@@ -123,6 +123,3 @@ ok = pure ()
 #else
 ok = hPutStrLn stderr "OK"
 #endif
-
-ePrint :: (Show a) => a -> IO ()
-ePrint = ePutStrLn . thow

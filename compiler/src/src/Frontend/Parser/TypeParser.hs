@@ -1,16 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Frontend.Parser.TypeParser where
+module Frontend.Parser.TypeParser (typ, atomicType) where
 
 import Control.Arrow ((>>>))
-import Data.Text (Text, unpack)
+import Data.Text (unpack)
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
 import Text.Parsec hiding (lower, string, upper)
 import Text.Parsec.Expr (Operator (Postfix), buildExpressionParser)
-
-primType :: Text -> Parser Type
-primType t = (\(i, _) -> TVar i (IdD i t)) <$> info (reserved (unpack t))
 
 int :: Parser Type
 int = Int . fst <$> info (reserved (unpack "int"))

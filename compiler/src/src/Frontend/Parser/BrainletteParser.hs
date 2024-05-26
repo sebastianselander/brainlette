@@ -60,6 +60,7 @@ instance HasInfo Expr where
     hasInfo (ENew a _ _) = a
     hasInfo (EIndex a _ _) = a
     hasInfo (EStructIndex a _ _) = a
+    hasInfo (ELam a _ _ _) = a
 
 instance HasInfo Type where
     hasInfo (TVar a _) = a
@@ -100,6 +101,7 @@ instance HasInfo TopDef where
     hasInfo (FnDef _ func) = hasInfo func
     hasInfo (StructDef a _ _) = a
     hasInfo (TypeDef a _ _) = a
+    hasInfo (Use a _) = a
 
 instance HasInfo Prog where
     hasInfo (Program a _) = a

@@ -5,7 +5,6 @@ import Data.Char (isSpace)
 import Data.Functor.Identity (Identity)
 import Data.List (nub)
 import Data.Text (Text, length, pack, stripEnd, take)
-import Debug.Trace (traceShowId)
 import Frontend.Parser.ParserTypes
 import Text.Parsec
     ( ParsecT,
@@ -31,7 +30,6 @@ import Text.Parsec
       (<|>),
     )
 import Text.Parsec qualified as P (lower, upper)
-import Text.Parsec.Combinator (optionMaybe)
 import Text.Parsec.Expr (Operator (..))
 import Text.Parsec.Language (GenLanguageDef)
 import Text.Parsec.Prim (skipMany)

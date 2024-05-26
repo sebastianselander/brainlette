@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Frontend.Tc.Tc where
+module Frontend.Tc.Tc (tc) where
 
 import Control.Arrow ((>>>))
 import Control.Monad (unless, void, when)
@@ -390,10 +390,6 @@ isPointer :: Tc.Type -> Bool
 isPointer (Tc.Pointer _) = True
 isPointer _ = False
 
-isArray :: Tc.Type -> Bool
-isArray (Tc.Array _) = True
-isArray _ = False
-
 {-| Extract the necessary information from all top level definitions before
 continuing
 -}
@@ -447,12 +443,6 @@ addDefs (Par.Program _ defs) =
             , ctx
             )
         Par.Use _ _ -> error "Typechecker: use should not exist"
-
-lookupFunc :: Par.Id -> TcM (Maybe Tc.Type)
-lookupFunc i =
-    gets (Map.lookup (convert i) . functions) >>= \case
-        Nothing -> return Nothing
-        Just rt -> return (return rt)
 
 lookupVar :: Par.Id -> TcM (Maybe Tc.Type)
 lookupVar i =
@@ -567,11 +557,6 @@ traverseTypedefs ty graph = go mempty ty
         | otherwise = case Map.lookup ty graph of
             Nothing -> return ty
             Just ty' -> go (Set.insert ty visited) ty'
-
--- | Relation for if expected is a subtype of given
-getSubtypes :: Tc.Type -> TcM [Tc.Type]
-getSubtypes expected =
-    asks (Map.findWithDefault [expected] expected . subtypes)
 
 class TypeOf a where
     typeOf :: a -> Tc.Type

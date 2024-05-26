@@ -2,7 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Braingen.TH where
+module Braingen.TH (gen) where
 
 import Control.Monad.Extra (concatMapM)
 import Data.Char (toLower)
@@ -38,14 +38,6 @@ genCon con@(NormalC nm _) = do
         ]
 genCon _ = error "Not a normal constructor"
 
-mkFun :: String -> Q [Dec]
-mkFun nm = [d|$name = output $ $(mkCon nm)|]
-  where
-    name = varP $ mkName (small nm)
-
-mkCon :: String -> Q Exp
-mkCon str = conE (mkName str)
-
 small :: String -> String
 small [] = []
 small (x : xs) = toLower x : xs
@@ -54,9 +46,6 @@ getName :: Con -> String
 getName (NormalC nm _) = case nm of
     Name occNm _ -> coerce occNm
 getName _ = undefined
-
-debug :: (Show a) => a -> b
-debug = error . show
 
 bgmLast :: Type -> Type
 bgmLast = \case

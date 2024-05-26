@@ -1,4 +1,4 @@
-module Frontend.Parser.ArgumentParser where
+module Frontend.Parser.ArgumentParser (arg) where
 
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.Language

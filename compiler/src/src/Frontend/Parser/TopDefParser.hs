@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Frontend.Parser.TopDefParser where
+module Frontend.Parser.TopDefParser (topdef) where
 
 import Frontend.Parser.ArgumentParser (arg)
 import Frontend.Parser.Language
@@ -20,9 +20,6 @@ import Text.Parsec
       (<?>),
     )
 import Prelude hiding (id)
-
-pMain :: Parser Id
-pMain = flip IdD "main" . fst <$> info (reserved "main")
 
 structDecl :: Parser Id
 structDecl =

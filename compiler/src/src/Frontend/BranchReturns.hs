@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Frontend.BranchReturns where
+module Frontend.BranchReturns (branchCheck) where
 
 import Control.Monad.Except (Except, MonadError, runExcept, throwError)
 import Control.Monad.Extra (anyM, unless)
@@ -44,9 +44,6 @@ branchCheck p = case runExcept $
             concat (intersperse "\n\n" $ map (report . UnreachableStatement . hasInfo) stmts)
                 <> unlines (map (\def -> report $ MissingReturn (hasInfo def) def) funs)
 
-quote :: Text -> Text
-quote s = "'" <> s <> "'"
-
 unreachable :: Stmt -> Br ()
 unreachable (Empty _) = return ()
 unreachable (BStmt _ []) = return ()
@@ -66,6 +63,7 @@ breakDefs :: TopDef -> Br ()
 breakDefs (FnDef _ fn) = breakFn fn
 breakDefs (StructDef {}) = return ()
 breakDefs (TypeDef {}) = return ()
+breakDefs (Use {}) = return ()
 
 breakFn :: Function -> Br ()
 breakFn (Fn _ _ _ _ stmts) = mapM_ breaks stmts
@@ -111,6 +109,7 @@ retDefs :: TopDef -> Br ()
 retDefs (StructDef {}) = return ()
 retDefs (TypeDef {}) = return ()
 retDefs (FnDef _ fn) = retFn fn
+retDefs (Use {}) = return ()
 
 returnsStmt :: Stmt -> Br Bool
 returnsStmt = \case
