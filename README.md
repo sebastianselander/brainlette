@@ -1,7 +1,4 @@
-# Brainlette
-A language for the brainletts.
-
-![icon](icon.png)
+# Javalette
 
 
 
