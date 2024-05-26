@@ -8,7 +8,7 @@ import Data.Dynamic (Typeable)
 import Data.String.Interpolate (i)
 import Data.Text (Text, intercalate)
 import Generics.SYB (Data)
-import Utils (Pretty (..), thow)
+import Utils (Pretty (..), Toplevel, thow)
 import Prelude hiding (concat, concatMap, takeWhile)
 
 newtype Prog = Program [TopDef] deriving (Show, Data, Typeable)
@@ -18,7 +18,7 @@ instance Pretty Prog where
     pretty _ (Program tds) = intercalate "\n" $ map (pretty 0) tds
 
 data TopDef
-    = FnDef Type Id [Arg] [Stmt]
+    = FnDef Toplevel Type Id [Arg] [Stmt]
     | StructDef Id [Type]
     | StringGlobal Text Text
     deriving (Show, Data, Typeable)
@@ -26,7 +26,7 @@ data TopDef
 instance Pretty TopDef where
     pretty :: Int -> TopDef -> Text
     pretty _ = \case
-        FnDef t id args st ->
+        FnDef _ t id args st ->
             let st' = intercalate "\n" $ map (semi 1) st
              in [i|\ESC[91mfunction\ESC[0m #{pretty 1 id} (#{commaSeparated 0 args}) -> #{pretty 0 t} {\n#{st'}\n}|]
         StructDef id ts ->
@@ -65,6 +65,8 @@ data Stmt
     | ArrayAlloc Type Id (Expr, Expr) -- (len, size)
     | SExp Expr
     | Break
+    | ExtractFree Type Int Id
+    | LoadSelf (Type, Id) (Type, Id)
     deriving (Show, Data, Typeable)
 
 instance Pretty Stmt where
@@ -85,6 +87,8 @@ instance Pretty Stmt where
             ArrayAlloc ty name (_, si) -> [i|#{pretty n ty} #{pretty n name} = {alloc[#{pretty 0 si}]|]
             SExp e -> pretty 0 e
             Break -> "break"
+            ExtractFree ty index id -> [i|@#{pretty n ty} #{pretty n id} = #{pretty 0 (Id "$captures$")}[#{index}]|]
+            LoadSelf (_, fn) (_, name) -> [i|load-self {#{pretty n fn}} to {#{pretty n name}}|]
 
 data Type
     = TVar Id
@@ -96,6 +100,7 @@ data Type
     | Fun Type [Type]
     | Pointer Type
     | Array Type
+    | Closure Type
     deriving (Show, Data, Typeable)
 
 instance Pretty Type where
@@ -110,6 +115,7 @@ instance Pretty Type where
         Fun rt ts -> [i|(#{commaSeparated 0 ts}) -> #{pretty 0 rt}|]
         Pointer t -> pretty 0 t <> "*"
         Array t -> pretty 0 t <> "[]"
+        Closure ty -> "Closure<" <> pretty 0 ty <> ">"
 
 type Expr = (Type, Expr')
 
@@ -123,7 +129,7 @@ data Expr'
     = EVar Id -- implemented
     | EGlobalVar Id
     | ELit Lit -- implemented
-    | EApp Id [Expr] -- implemented
+    | EApp Expr [Expr] -- implemented
     | Not Expr
     | Neg Expr
     | EMul Expr MulOp Expr -- implemented
@@ -138,6 +144,7 @@ data Expr'
     | Deref Expr Int
     | StructIndex Expr Int
     | ArrayIndex Expr Expr
+    | ClosureLit Expr [Expr]
     deriving (Show, Data, Typeable)
 
 instance Pretty Expr' where
@@ -164,6 +171,9 @@ instance Pretty Expr' where
             Deref e id -> [i|#{pretty 0 e}->#{id}|]
             StructIndex e id -> [i|#{pretty 0 e}.#{id}|]
             ArrayIndex b id -> [i|#{pretty 0 b}[#{pretty 0 id}]|]
+            ClosureLit fun exprs ->
+                let exprs' = intercalate ", " (map (pretty 0) exprs)
+                 in [i|{#{pretty 0 fun} [#{exprs'}]}|]
 
 bracket :: Text -> Text
 bracket t = "[" <> t <> "]"
@@ -175,6 +185,7 @@ data Lit
     | LitString Text
     | LitNull
     | LitArrNull
+    | LitFuncNull
     deriving (Show, Data, Typeable)
 
 instance Pretty Lit where
@@ -186,6 +197,7 @@ instance Pretty Lit where
         LitString s -> thow s
         LitNull -> "null"
         LitArrNull -> "{ [], 0 }"
+        LitFuncNull -> "{ null, null }"
 
 {- Additive Operator -}
 data AddOp

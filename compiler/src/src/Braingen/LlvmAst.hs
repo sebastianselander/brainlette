@@ -1,6 +1,8 @@
 module Braingen.LlvmAst where
 
+import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
+import Utils (Toplevel)
 
 data CallingConvention
     = NoAttribute
@@ -21,6 +23,7 @@ data Type
     | FunPtr Type [Type]
     | Array Int Type
     | CustomType Text
+    | Closure Type
     deriving (Show)
 
 data DebugInfo
@@ -35,7 +38,6 @@ data DebugInfo
 data Argument
     = Argument (Maybe Type) Variable
     | ConstArgument (Maybe Type) Lit
-    | ConstArgumentAuto Lit
     deriving (Show)
 
 newtype Ir = Ir [TopDef]
@@ -43,7 +45,7 @@ newtype Ir = Ir [TopDef]
 
 data TopDef
     = Declare Type Text [Type] (Maybe CallingConvention)
-    | Define Type Text [Argument] (Maybe CallingConvention) [Stmt]
+    | Define Toplevel Type Text [Argument] (Maybe CallingConvention) [Stmt]
     | Constant Text Type Lit
     | ConstantString Text Text
     | Type Text [Type]
@@ -110,8 +112,8 @@ data Variable = Variable Text | ConstVariable Text
 type Label = Text
 
 data Stmt
-    = Call Variable (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
-    | VoidCall (Maybe TailMarker) (Maybe CallingConvention) Type Text [Argument]
+    = Call Variable (Maybe TailMarker) (Maybe CallingConvention) Type Variable [Argument]
+    | VoidCall (Maybe TailMarker) (Maybe CallingConvention) Type Variable [Argument]
     | Arith Variable Arithmetic Type Argument Argument
     | ICmp Variable ICond Type Argument Argument
     | FCmp Variable FCond Type Argument Argument
@@ -141,4 +143,6 @@ data Lit
     | LitBool Bool
     | LitNull
     | LitArrNull
+    | LitAnonStruct [Argument]
+    | LitFuncNull
     deriving (Show)

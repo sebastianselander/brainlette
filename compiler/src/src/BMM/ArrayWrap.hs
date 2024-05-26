@@ -21,8 +21,8 @@ burrito (Program defs) =
 
 wrapTopDef :: TopDef -> WrapM TopDef
 wrapTopDef e = case e of
-    FnDef rt name args stmts ->
-        FnDef (wrapTy rt) name
+    FnDef isTop rt name args stmts ->
+        FnDef isTop (wrapTy rt) name
             <$> mapM wrapArg args
             <*> concatMapM wrapStmt stmts
     StructDef name tys -> return $ StructDef name (map wrapTy tys)
@@ -42,6 +42,7 @@ arrayType = TVar arrayName
 
 wrapStmt :: Stmt -> WrapM [Stmt]
 wrapStmt = \case
+    LoadSelf fn name -> return . return $ LoadSelf fn name
     BStmt stmts -> return . BStmt <$> concatMapM wrapStmt stmts
     Decl ty id -> return . return $ Decl (wrapTy ty) id
     Ass ty lv expr -> do
@@ -83,13 +84,14 @@ wrapStmt = \case
             ]
     SExp expr -> return . SExp <$> wrapExpr expr
     Break -> return (return Break)
+    s@ExtractFree {} -> return (return s)
 
 wrapLValue :: LValue -> WrapM LValue
 wrapLValue lv = case lv of
     LIndex expr index -> do
         (ty, expr) <- wrapExpr expr
         index <- wrapExpr index
-        return $ LIndex (ty, StructIndex (arrayType, expr) 0) (Int, EApp (Id "checkBound$Internal") [index, (Int, StructIndex (arrayType, expr) 1)])
+        return $ LIndex (ty, StructIndex (arrayType, expr) 0) index
     LVar id -> return $ LVar id
     LDeref e n -> LDeref <$> wrapExpr e <*> return n
     LStructIndex e n -> LStructIndex <$> wrapExpr e <*> return n
@@ -100,7 +102,7 @@ wrapExpr (ty, e) = (wrapTy ty,) <$> go e
     go :: Expr' -> WrapM Expr'
     go = treeMapM $ \case
         ArrayIndex expr index ->
-            return $ ArrayIndex (Pointer Void, StructIndex expr 0) (Int, EApp (Id "checkBound$Internal") [index, (Int, StructIndex expr 1)])
+            return $ ArrayIndex (Pointer Void, StructIndex expr 0) index
         e -> return e
 
 wrapTy :: Type -> Type

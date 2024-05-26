@@ -1,0 +1,21 @@
+// int apply(fn(int) -> int f, int i) {
+//     return f(i);
+// }
+
+int main() {
+    // fn(int) -> int a = \(int a) -> int : a + 1;
+    int z = 231;
+    fn(int) -> int f = \(int a) -> int : z + a;
+    fn(int) -> int g = f;
+    fn(int) -> void pront = printInt;
+    pront(g(3));
+    // int x = 241;
+    // fn(int) -> int c = \(int a) -> int : z + a + x;
+    //int res = apply(a, 1234);
+    // int res2 = apply(b, 1234);
+    // int res3 = apply(c, 1234);
+    // printInt(res);
+    //printInt(res2);
+    // printInt(res3);
+    return 0;
+}

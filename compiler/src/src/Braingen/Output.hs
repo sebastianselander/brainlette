@@ -53,7 +53,22 @@ instance OutputIr TopDef where
             , "(" <> out args <> ")"
             , out cconv
             ]
-    out (Define t i args cconv stmts) =
+    out (Define True t "main" args cconv stmts) = out $ Define False t "main" args cconv stmts
+    out (Define True t name args cconv stmts) =
+        let extra = [i|@#{name} = constant { ptr, ptr} { ptr #{newName}, ptr null }|]
+            newName = "@" <> name <> "$og"
+        in extra <> "\n" <>
+        unwords
+            [ "define"
+            , out t
+            , newName
+            , "(" <> out args <> ")"
+            , out cconv
+            , "{"
+            , out stmts
+            , "\n}"
+            ]
+    out (Define False t i args cconv stmts) =
         unwords
             [ "define"
             , out t
@@ -91,8 +106,8 @@ instance OutputIr Stmt where
                 , "call "
                 , cconv'
                 , t'
-                , " @"
-                , i
+                , " "
+                , out i
                 , "("
                 , args'
                 , ")"
@@ -109,8 +124,8 @@ instance OutputIr Stmt where
                 , "call "
                 , cconv'
                 , t'
-                , " @"
-                , i
+                , " "
+                , out i
                 , "("
                 , args'
                 , ")"
@@ -215,14 +230,6 @@ instance OutputIr Argument where
     out :: Argument -> Text
     out (ConstArgument t i) = out t <> " " <> out i
     out (Argument t i) = out t <> " " <> out i
-    out (ConstArgumentAuto l) =
-        let ty = case l of
-                LitInt _ -> I64
-                LitDouble _ -> F64
-                LitBool _ -> I1
-                LitNull -> Ptr
-                LitArrNull -> Ptr
-         in out (ConstArgument (pure ty) l)
 
 instance OutputIr Variable where
     out :: Variable -> Text
@@ -242,6 +249,8 @@ instance OutputIr Lit where
         LitBool False -> "0"
         LitNull -> "null"
         LitArrNull -> "{ ptr null, i64 0}"
+        LitAnonStruct args -> "{ " <> intercalate ", " (map out args) <> " }"
+        LitFuncNull -> [i|{ptr null, ptr null}|]
 
 instance OutputIr Type where
     out :: Type -> Text
@@ -257,6 +266,7 @@ instance OutputIr Type where
         FunPtr t ts -> out t <> "(" <> out ts <> ")*"
         CustomType t -> "%" <> t
         RawPtr t -> out t <> "*"
+        Closure t -> "{ " <> out t <> ", ptr }"
 
 instance OutputIr [Type] where
     out :: [Type] -> Text

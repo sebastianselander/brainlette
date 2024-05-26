@@ -1,17 +1,13 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Frontend.Parser.TypeParser where
 
 import Control.Arrow ((>>>))
 import Data.Text (Text, unpack)
-import Data.Tuple.Extra (uncurry3)
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
 import Text.Parsec hiding (lower, string, upper)
 import Text.Parsec.Expr (Operator (Postfix), buildExpressionParser)
-import Utils (flat3)
 
 primType :: Text -> Parser Type
 primType t = (\(i, _) -> TVar i (IdD i t)) <$> info (reserved (unpack t))
@@ -51,23 +47,33 @@ custom = uncurry TVar <$> info (uncurry IdD <$> info (upper <|> lower))
 atomicType :: Parser Type
 atomicType =
     choice
-        [ try boolean
-        , try int
-        , try double
-        , try string
-        , try void
+        [ boolean
+        , int
+        , double
+        , string
+        , void
         , custom
         ]
 
 atom :: Parser Type
 atom =
     choice
-        [ try (parens typ)
+        [ parens typ
         , atomicType
         ]
 
 funTy :: Parser Type
-funTy = uncurry3 Fun . flat3 <$> info ((,) <$> atom <*> parens (commaSep typ))
+funTy = do
+    (info, (argumentTypes, returnType)) <- info $ do
+        reserved "fn"
+        argumentTypes <- parens (commaSep typ1)
+        reservedOp "->"
+        returnType <- typ
+        return (argumentTypes, returnType)
+    return $ Fun info returnType argumentTypes
+
+typ1 :: Parser Type
+typ1 = choice [try postfixTypes, atom]
 
 typ :: Parser Type
-typ = choice [try funTy, try postfixTypes, atom]
+typ = choice [funTy, typ1]

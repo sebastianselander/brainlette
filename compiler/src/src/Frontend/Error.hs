@@ -90,7 +90,7 @@ data FEError
         -- | The source code information of the error
         SynInfo
         -- | The function missing return
-        Par.Id
+        Par.Function
     | -- | Constructor for an expression that is not a statement
       NotStatement
         -- | The source code information of the error
@@ -102,7 +102,7 @@ data FEError
         -- | The source code information of the error
         SynInfo
         -- | The expression that has an invalid amount of arguments
-        Par.Id
+        Par.Expr
         -- | Expected amount of arguments
         Int
         -- | Given amount of arguments
@@ -236,7 +236,7 @@ instance Report Type where
         Void -> "void"
         Boolean -> "boolean"
         TVar id -> report id
-        Fun rt argTys -> report rt <> parens (report argTys)
+        Fun rt argTys -> "fn" <> parens (report argTys) <> " -> " <> report rt
         Pointer ty -> report ty <> "*"
         Array ty -> report ty <> "[]"
 
@@ -308,7 +308,7 @@ instance Report FEError where
         BreakNotInLoop info ->
             [i|break outside loop\n#{sourceCode info}\n#{sourceLine info}:#{sourceColumn info}|]
         UnreachableStatement info -> pretty $ combine (oneLine info) [i|unreachable statement|]
-        MissingReturn info name -> pretty $ combine (oneLine info) [i|missing return in function #{report name}|]
+        MissingReturn info (Par.Fn _ _ name _ _) -> pretty $ combine (oneLine info) [i|missing return in function #{report name}|]
         NotStatement info _ -> pretty $ combine info [i|The expression is not a statement|]
         ArgumentMismatch info name expected given ->
             pretty $
@@ -340,7 +340,7 @@ oneLine :: SynInfo -> SynInfo
 oneLine info = info {sourceCode = takeWhile (/= '\n') info.sourceCode}
 
 errMissingRet :: Par.TopDef -> Text
-errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
+errMissingRet (Par.FnDef _ (Par.Fn info _ _ _ stmts)) = case stmts of
     [] ->
         "missing return in function "
             <> takeWhile (/= '\n') info.sourceCode
@@ -358,13 +358,18 @@ errMissingRet (Par.FnDef info _ _ _ stmts) = case stmts of
             <> "\nexpected\n  a return statement"
 errMissingRet _ = error "Front end ERROR: Should not happen"
 
+instance Report Par.Expr where
+    report = \case
+        _ -> "REPORT EXPRESSION"
+    
+
 instance Report Par.Id where
     report (Par.Id _ Nothing name) = name
     report (Par.Id _ (Just n) name) = n <> "::" <> name
 
 instance Report Par.TopDef where
     report = \case
-        Par.FnDef _ _ name _ _ -> report name
+        Par.FnDef _ (Par.Fn _ _ name _ _) -> report name
         Par.StructDef _ name _ -> report name
         Par.TypeDef _ _ name -> report name
         Par.Use _ name -> report name

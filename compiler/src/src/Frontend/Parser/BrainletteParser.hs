@@ -87,6 +87,7 @@ instance HasInfo Stmt where
     hasInfo (SExp a _) = a
     hasInfo (Break a) = a
     hasInfo (ForEach a _ _ _) = a
+    hasInfo (SFn _ func) = hasInfo func
 
 instance HasInfo Item where
     hasInfo (NoInit a _) = a
@@ -96,9 +97,13 @@ instance HasInfo Arg where
     hasInfo (Argument a _ _) = a
 
 instance HasInfo TopDef where
-    hasInfo (FnDef a _ _ _ _) = a
+    hasInfo (FnDef _ func) = hasInfo func
     hasInfo (StructDef a _ _) = a
     hasInfo (TypeDef a _ _) = a
 
 instance HasInfo Prog where
     hasInfo (Program a _) = a
+
+instance HasInfo Function where
+    hasInfo (Fn a _ _ _ _) = a
+

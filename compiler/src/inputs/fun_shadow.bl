@@ -1,0 +1,13 @@
+void func() {
+    printString("Hello 1");
+}
+
+int main() {
+    void func() {
+        printString("Hello 2");
+    }
+
+    func();
+
+    return 0;
+}

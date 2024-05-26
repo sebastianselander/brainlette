@@ -52,15 +52,20 @@ type Type = Type' SynInfo
 
 type Id = Id' SynInfo
 
+type Function = Function' SynInfo
+
 data Prog' a = Program a [TopDef' a]
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data TopDef' a
-    = FnDef a (Type' a) (Id' a) [Arg' a] [Stmt' a]
+    = FnDef a (Function' a)
     | StructDef a (Id' a) [Arg' a]
     | TypeDef a (Id' a) (Id' a)
     | Use a (Id' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
+
+data Function' a = Fn a (Type' a) (Id' a) [Arg' a] [Stmt' a]
+    deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data)
 
 data Arg' a = Argument a (Type' a) (Id' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
@@ -83,6 +88,7 @@ data Stmt' a
     | ForEach a (Arg' a) (Expr' a) (Stmt' a)
     | Break a
     | SExp a (Expr' a)
+    | SFn a (Function' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data Type' a
@@ -109,7 +115,7 @@ data Expr' a
     | EDeref a (Expr' a) (Id' a)
     | EStructIndex a (Expr' a) (Id' a)
     | EIndex a (Expr' a) (Expr' a)
-    | EApp a (Id' a) [Expr' a]
+    | EApp a (Expr' a) [Expr' a]
     | Neg a (Expr' a)
     | Not a (Expr' a)
     | EMul a (Expr' a) (MulOp' a) (Expr' a)
@@ -117,6 +123,7 @@ data Expr' a
     | ERel a (Expr' a) (RelOp' a) (Expr' a)
     | EAnd a (Expr' a) (Expr' a)
     | EOr a (Expr' a) (Expr' a)
+    | ELam a [Arg' a] (Type' a) (Expr' a)
     deriving (Show, Eq, Ord, Functor, Traversable, Foldable, Data, Typeable)
 
 data AddOp' a
@@ -194,6 +201,12 @@ instance Pretty Expr where
                     xs -> concat xs
         EIndex _ e1 e2 -> pretty n $ unwords [pretty n e1, "[" <> pretty n e2 <> "]"]
         EStructIndex _ expr field -> pretty n $ concat [pretty n expr, ".", pretty n field]
+        ELam _ args ty expr ->
+            "\\("
+                <> intercalate ", " (fmap (pretty 0) args)
+                <> ") -> "
+                <> pretty 0 ty
+                <> pretty 0 expr
 
 instance Pretty Type where
     pretty n (String _) = replicate n " " <> "string"
@@ -202,7 +215,7 @@ instance Pretty Type where
     pretty n (Double _) = replicate n " " <> "double"
     pretty n (Boolean _) = replicate n " " <> "boolean"
     pretty n (TVar _ ident) = pretty n ident
-    pretty n (Fun _ ret args) = pretty n ret <> parenthesis n (intercalate ", " $ map (pretty n) args)
+    pretty _ (Fun _ ret args) = "fn(" <> intercalate ", " (map (pretty 0) args) <> ") -> " <> pretty 0 ret
     pretty n (Pointer _ ty) = pretty n ty <> "*"
     pretty n (Array _ ty) = pretty n ty <> "[]"
 
@@ -222,6 +235,16 @@ instance Pretty Stmt where
         ForEach _ arg expr stmt -> unlines ["for" <> parenthesis n (pretty n arg <> " : " <> pretty n expr), pretty n stmt]
         Break _ -> "break;"
         SExp _ expr -> semi n expr
+        SFn _ function -> pretty n function
+
+instance Pretty Function where
+    pretty n (Fn _ ty ident args stmts) =
+        unwords
+            [ pretty n ty
+            , pretty n ident
+            , parenthesis n $ commaSeparated n args
+            , "{\n" <> unlines (map (indent n) stmts) <> "}"
+            ]
 
 instance Pretty Item where
     pretty n = \case
@@ -240,13 +263,7 @@ instance Pretty TopDef where
             , unlines (map ((<> ";") . indent n) fields)
             , "};"
             ]
-    pretty n (FnDef _ ty ident args stmts) =
-        unwords
-            [ pretty n ty
-            , pretty n ident
-            , parenthesis n $ commaSeparated n args
-            , "{\n" <> unlines (map (indent n) stmts) <> "}"
-            ]
+    pretty n (FnDef _ function) = pretty n function
     pretty n (TypeDef _ t1 t2) =
         concat ["typedef struct ", pretty n t1, " *", pretty n t2, ";"]
     pretty _ (Use _ i) =

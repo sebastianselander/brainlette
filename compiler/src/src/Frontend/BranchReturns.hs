@@ -18,7 +18,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes
 import Prelude hiding (concat, takeWhile, unlines)
 
-data Env = Env {unreachables :: [Stmt], missingReturn :: [TopDef]}
+data Env = Env {unreachables :: [Stmt], missingReturn :: [Function]}
     deriving (Show)
 
 newtype Br a = Br {runBr :: StateT Env (ReaderT Bool (Except FEError)) a}
@@ -39,12 +39,10 @@ branchCheck p = case runExcept $
                 branchReturns p of
     Left err -> Left (report err)
     Right (Env [] []) -> Right p
-    Right (Env stmts topdefs) -> do
-        let getName (FnDef _ _ name _ _) = name
-            getName _ = error "Branch return check BUG: report"
+    Right (Env stmts funs) ->
         Left $
             concat (intersperse "\n\n" $ map (report . UnreachableStatement . hasInfo) stmts)
-                <> unlines (map (\def -> report $ MissingReturn (hasInfo def) (getName def)) topdefs)
+                <> unlines (map (\def -> report $ MissingReturn (hasInfo def) def) funs)
 
 quote :: Text -> Text
 quote s = "'" <> s <> "'"
@@ -56,7 +54,7 @@ unreachable s = do
     env <- get
     put (env {unreachables = s : env.unreachables})
 
-missingFn :: TopDef -> Br ()
+missingFn :: Function -> Br ()
 missingFn fn = do
     env <- get
     put (env {missingReturn = fn : env.missingReturn})
@@ -65,9 +63,12 @@ branchReturns :: Prog -> Br ()
 branchReturns (Program _ topdefs) = mapM_ breakDefs topdefs >> mapM_ retDefs topdefs
 
 breakDefs :: TopDef -> Br ()
-breakDefs (FnDef _ _ _ _ stmts) = mapM_ breaks stmts
+breakDefs (FnDef _ fn) = breakFn fn
 breakDefs (StructDef {}) = return ()
 breakDefs (TypeDef {}) = return ()
+
+breakFn :: Function -> Br ()
+breakFn (Fn _ _ _ _ stmts) = mapM_ breaks stmts
 
 breaks :: Stmt -> Br ()
 breaks = \case
@@ -87,16 +88,16 @@ breaks = \case
         b <- ask
         unless b $ throwError (BreakNotInLoop info)
     ForEach _ _ _ stmt -> local (const True) $ breaks stmt
+    SFn _ fn  -> breakFn fn
 
-retDefs :: TopDef -> Br ()
-retDefs (StructDef {}) = return ()
-retDefs (TypeDef {}) = return ()
-retDefs self@(FnDef _ ty _ _ stmts) =
+retFn :: Function -> Br ()
+retFn self@(Fn _ ty _ _ stmts) =
     case ty of
         Void _ -> void $ returns stmts
-        _ -> returns stmts >>= \case
-            True -> return ()
-            False -> missingFn self
+        _ ->
+            returns stmts >>= \case
+                True -> return ()
+                False -> missingFn self
   where
     returns :: [Stmt] -> Br Bool
     returns [] = return False
@@ -105,6 +106,11 @@ retDefs self@(FnDef _ ty _ _ stmts) =
         if b
             then maybe (return ()) unreachable (listToMaybe xs) >> return True
             else returns xs
+
+retDefs :: TopDef -> Br ()
+retDefs (StructDef {}) = return ()
+retDefs (TypeDef {}) = return ()
+retDefs (FnDef _ fn) = retFn fn
 
 returnsStmt :: Stmt -> Br Bool
 returnsStmt = \case
@@ -130,6 +136,7 @@ returnsStmt = \case
     ForEach {} -> return False
     SExp _ _ -> return False
     Break _ -> return False
+    SFn _ _ -> return False
 
 always :: Expr -> Bool
 always e = case interpret e of
@@ -218,6 +225,7 @@ interpret = \case
             _ -> Nothing
     EStructIndex {} -> Nothing
     EIndex {} -> Nothing
+    ELam {} -> Nothing
 
 relOp :: RelOp -> ((Ord a) => a -> a -> Bool)
 relOp (LTH _) = (<)

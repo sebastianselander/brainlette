@@ -27,6 +27,7 @@ import Frontend.Parser.BrainletteParser (hasInfo)
 import Frontend.Parser.ParserTypes qualified as Par
 import Frontend.Tc.Types qualified as Tc
 import Utils (apN)
+import Frontend.Parser.ParserTypes (SynInfo(NoInfo))
 
 tc :: Par.Prog -> Either Text Tc.Prog
 tc p =
@@ -47,7 +48,7 @@ data Env = Env
     deriving (Show, Eq, Ord)
 
 data Ctx = Ctx
-    { defStack :: [Par.TopDef]
+    { defStack :: [Par.Function]
     , exprStack :: [Par.Expr]
     , subtypes :: Map Tc.Type [Tc.Type]
     , typedefGraph :: Map Tc.Type Tc.Type
@@ -81,15 +82,18 @@ infDef = \case
                 _ -> return ()
         mapM_ checkVoid args
         return $ Tc.StructDef (convert name) (convert args)
-    def@(Par.FnDef info rt name args block) -> do
-        rt' <- typeExist info rt
+    Par.FnDef _ fn -> Tc.FnDef <$> infFn fn
+
+infFn :: Par.Function -> TcM Tc.Function
+infFn self@(Par.Fn info returnType name args block) = do
+        rt' <- typeExist info returnType
         let name' = convert name
         let fnType = Tc.Fun rt' (map typeOf args)
         insertFunc name' fnType
-        block' <- pushDef def $ do
+        block' <- pushDef self $ do
             mapM_ (insertArg name) args
             mapMaybeM (tcStmt rt') block
-        return (Tc.FnDef rt' name' (convert args) block')
+        return (Tc.Fn rt' name' (convert args) block')
 
 tcStmt :: Tc.Type -> Par.Stmt -> TcM (Maybe Tc.Stmt)
 tcStmt retTy = go
@@ -206,6 +210,7 @@ tcStmt retTy = go
         Par.SExp _ expr@(Par.EApp {}) -> Just . Tc.SExp <$> infExpr expr
         Par.SExp info expr -> throwError (NotStatement info expr)
         Par.Break _ -> return $ Just Tc.Break
+        Par.SFn _ fn -> Just . Tc.SFn <$> infFn fn
 
 typeExist :: Par.SynInfo -> Par.Type -> TcM Tc.Type
 typeExist info ty = do
@@ -336,20 +341,20 @@ infExpr e = pushExpr e $ case e of
                     | ty1 == ty2 && not (isPointer ty1) -> throwError (NotRelational info l)
                     | otherwise -> throwError (TypeMismatch info ty1 [ty2])
         return (Tc.Boolean, Tc.ERel (ty, l') (convert op) (ty, r'))
-    Par.EApp p ident exprs -> do
-        ty <- getVar ident
-        case ty of
+    Par.EApp p l exprs -> do
+        (lty, l') <- infExpr l
+        case lty of
             Tc.Fun rt argtys -> do
                 let infos = map hasInfo exprs
                 exprs' <- mapM infExpr exprs
                 let expecteds = length argtys
                     givens = length exprs'
                 unless (expecteds == givens) $
-                    throwError (ArgumentMismatch p ident expecteds givens)
+                    throwError (ArgumentMismatch p l expecteds givens)
                 let infoTys = zip3 infos argtys (map typeOf exprs')
                 mapM_ (uncurry3 unify) infoTys
-                return (rt, Tc.EApp (convert ident) exprs')
-            _else -> throwError (ExpectedFn p ty)
+                return (rt, Tc.EApp (lty, l') exprs')
+            _else -> throwError (ExpectedFn p lty)
     Par.EIndex info l r -> do
         l' <- infExpr l
         case typeOf l' of
@@ -372,6 +377,12 @@ infExpr e = pushExpr e $ case e of
                     Nothing -> throwError $ UnboundField info field
                     Just ty -> return ty
                 return (ty', Tc.StructIndex expr (convert field))
+    Par.ELam info args ty expr -> do
+        args <- mapM (insertArg (Par.IdD NoInfo "lambda")) args
+        (exprTy, expr) <- infExpr expr
+        ty <- unify info (convert ty) exprTy
+        return (Tc.Fun ty (fmap typeOf args), Tc.ELam args ty (ty, expr))
+
 
 isPointer :: Tc.Type -> Bool
 isPointer (Tc.Pointer _) = True
@@ -423,7 +434,7 @@ addDefs (Par.Program _ defs) =
                         Map.insert (Tc.TVar $ convert name) fields ctx.structs
                     }
                 )
-        Par.FnDef _ ty name args _ ->
+        Par.FnDef _ (Par.Fn _ ty name args _) ->
             ( env
                 { functions =
                     Map.insert
@@ -473,12 +484,14 @@ getVar i@(Par.Id _ _ _i) = do
 doesVariableExist :: Tc.Id -> TcM Bool
 doesVariableExist name = gets (Map.member name . variables)
 
-insertArg :: Par.Id -> Par.Arg -> TcM ()
+insertArg :: Par.Id -> Par.Arg -> TcM Tc.Arg
 insertArg ident (Par.Argument info (Par.Void _) _) =
     throwError $ VoidParameter info ident
 insertArg _ (Par.Argument info ty name) = do
     ty <- typeExist info ty
-    insertVar (convert name) ty
+    let name' = convert name
+    insertVar name' ty
+    return (Tc.Argument ty name')
 
 insertVar :: Tc.Id -> Tc.Type -> TcM ()
 insertVar name typ =
@@ -560,6 +573,9 @@ getSubtypes expected =
 class TypeOf a where
     typeOf :: a -> Tc.Type
 
+instance TypeOf Tc.Arg where
+    typeOf (Tc.Argument ty _) = ty
+
 instance TypeOf Tc.Expr where
     typeOf (t, _) = t
 
@@ -569,5 +585,5 @@ instance TypeOf Par.Arg where
 pushExpr :: (MonadReader Ctx m) => Par.Expr -> m a -> m a
 pushExpr e = local $ \s -> s {exprStack = e : s.exprStack}
 
-pushDef :: (MonadReader Ctx m) => Par.TopDef -> m a -> m a
+pushDef :: (MonadReader Ctx m) => Par.Function -> m a -> m a
 pushDef d = local $ \s -> s {defStack = d : s.defStack}

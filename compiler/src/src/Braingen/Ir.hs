@@ -25,6 +25,8 @@ data Env = Env
     { instructions :: DList Stmt
     , labelCounter :: Integer
     , varCounter :: Int
+    , functions :: Set B.Id
+    , lifteds :: Set B.Id
     }
     deriving (Show)
 
@@ -34,29 +36,29 @@ data BraingenError
 type BgM = State Env
 
 -- | Pump those wrinkles 🧠
-braingen :: B.Prog -> Text
-braingen = out . braingenProg
+braingen :: B.Prog -> Set Text -> Set B.Id -> Text
+braingen prg lifteds toplevels = out (braingenProg prg lifteds toplevels)
 
-braingenProg :: B.Prog -> Ir
-braingenProg (B.Program tp) = do
-    Ir (map braingenTopDef tp)
+braingenProg :: B.Prog -> Set Text -> Set B.Id -> Ir
+braingenProg (B.Program tp) lifteds ids = do
+    Ir (map (braingenTopDef lifteds ids) tp)
 
-braingenTopDef :: B.TopDef -> TopDef
-braingenTopDef def = case def of
+braingenTopDef :: Set Text -> Set B.Id -> B.TopDef -> TopDef
+braingenTopDef lifteds ids def = case def of
     B.StringGlobal name string -> ConstantString name string
     B.StructDef (B.Id n) fields -> Type n . map braingenType $ fields
-    B.FnDef rt (B.Id i) a s -> do
+    B.FnDef isTop rt (B.Id i) a s -> do
         let ret = braingenType rt
         let args = map (appendArgName "arg" . braingenArg) a
         let argStmts = concatFor a argToStmts
-        let stmts = braingenStmts s
+        let stmts = braingenStmts lifteds ids s
         let stmts' =
                 stmts
                     ++ case rt of
                         B.Void -> [RetVoid, Unreachable]
                         _ -> [Unreachable]
 
-        Define ret i args Nothing (argStmts <> stmts')
+        Define isTop ret i args Nothing (argStmts <> stmts')
   where
     argToStmts = \case
         B.Argument t (B.Id n) ->
@@ -68,21 +70,60 @@ braingenTopDef def = case def of
                 (Variable n)
             ]
 
-braingenStmts :: [B.Stmt] -> [Stmt]
-braingenStmts =
+variableConstructor :: B.Id -> Text -> BgM Variable
+variableConstructor name txt =
+    gets (Set.member name . functions) >>= \case
+        True -> return $ ConstVariable txt
+        False -> return $ Variable txt
+
+braingenStmts :: Set Text -> Set B.Id -> [B.Stmt] -> [Stmt]
+braingenStmts lifteds toplevels =
     mapM_ (braingenStm Nothing)
-        >>> flip runState (Env mempty 0 0)
+        >>> flip
+            runState
+            ( Env
+                mempty
+                0
+                0
+                ( Set.fromList
+                    ( fmap
+                        B.Id
+                        [ "printInt"
+                        , "printDouble"
+                        , "printString"
+                        , "readInt"
+                        , "readDouble"
+                        , "readString"
+                        , "checkBound$Internal"
+                        ]
+                    )
+                    <> toplevels
+                )
+                (Set.map B.Id lifteds)
+            )
         >>> \(_, e) -> toList (instructions e)
 
 braingenStm :: Maybe Text -> B.Stmt -> BgM ()
 braingenStm breakpoint stmt = case stmt of
+    B.LoadSelf (funTy, B.Id functionName) (closTy, B.Id closName) -> do
+        closTy <- return $ braingenType closTy
+        funTy <- return $ braingenType funTy
+        closName <- return $ Variable closName
+        functionName <- return $ ConstVariable functionName
+        alloca closName closTy
+        function <- getTempVariable
+        frees <- getTempVariable
+        getElementPtrIndirect function closTy (Argument (Just Ptr) closName) (ConstArgument (Just I32) (LitInt 0))
+        getElementPtrIndirect frees closTy (Argument (Just Ptr) closName) (ConstArgument (Just I32) (LitInt 1))
+        store (Argument (Just funTy) functionName) function
+        store (Argument (Just Ptr) (Variable "$captures$.arg")) frees
     B.BStmt block -> do
         mapM_ (braingenStm breakpoint) block
     B.Decl t (B.Id i) -> do
         alloca (Variable i) (braingenType t)
     B.Ass _ (B.LVar (B.Id a)) expr@(t, _) -> do
         argument <- case expr of
-            (_, B.ELit l) -> return (ConstArgumentAuto (lit l))
+            (ty, B.ELit l) -> return (ConstArgument (Just (braingenType ty)) (lit l))
             _ -> do
                 result <- braingenExpr expr
                 return (Argument (pure $ braingenType t) result)
@@ -116,7 +157,6 @@ braingenStm breakpoint stmt = case stmt of
         e <- case e of
             (_, B.EVar (B.Id v)) -> return (Variable v)
             _ -> braingenExpr e
-        -- e <- braingenExpr e
         ptr <- getTempVariable
         getElementPtr
             ptr
@@ -177,15 +217,32 @@ braingenStm breakpoint stmt = case stmt of
                 Nothing ->
                     error "break outside loop, report as INSERT BUG HERE :)"
         jump bp
+    B.ExtractFree ty ind (B.Id id) -> do
+        freePtr <- getTempVariable
+        getElementPtr
+            freePtr
+            Ptr
+            (Argument (Just Ptr) (Variable "$captures$.arg"))
+            (ConstArgument (Just I64) (LitInt $ fromIntegral ind))
+        indirect <- getTempVariable
+        load indirect Ptr freePtr
+        value <- getTempVariable
+        load value (braingenType ty) indirect
+        store (Argument (Just $ braingenType ty) value) (Variable id)
 
 braingenExpr :: B.Expr -> BgM Variable
-braingenExpr ogExpression@(ty, e) = case e of
+braingenExpr (ty, e) = case e of
     B.EGlobalVar (B.Id ident) -> do
         return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
-        var <- getTempVariable
-        load var (braingenType ty) (Variable ident)
-        return var
+    --TODO: Check if variable is toplevelfun in BgM, if so, load it first (I think)
+        gets (Set.member (B.Id ident) . lifteds) >>= \case
+            True -> return (ConstVariable ident)
+            False -> do
+                var <- getTempVariable
+                ident <- variableConstructor (B.Id ident) ident
+                load var (braingenType ty) ident
+                return var
     B.ELit lit -> braingenLit lit
     B.Neg e -> do
         var <- braingenExpr e
@@ -212,14 +269,27 @@ braingenExpr ogExpression@(ty, e) = case e of
             (Argument Nothing exprVar)
             (ConstArgument Nothing (LitBool False))
         return var
-    B.EApp (B.Id func) args -> do
+    B.EApp (tye, expr) args -> do
+        -- TODO: Wrap all toplevel functions in structs, before calling a top
+        -- level functions load it on to the stack
+        comment $ thow expr
+        funcStruct <- braingenExpr (tye, expr)
+        (func, freeArgs) <- do
+                    func <- getTempVariable
+                    extractValue func (braingenType tye) funcStruct 0
+
+                    freeArgs <- getTempVariable
+                    extractValue freeArgs (braingenType tye) funcStruct 1
+                    return (func, freeArgs)
+
         args <-
-            mapM
-                ( \e@(t, _) ->
-                    Argument (Just $ braingenType t) <$> braingenExpr e
-                )
-                args
-        case ty of
+            (Argument (Just Ptr) freeArgs :)
+                <$> mapM
+                    ( \e@(t, _) ->
+                        Argument (Just $ braingenType t) <$> braingenExpr e
+                    )
+                    args
+        var <- case ty of
             B.Void -> do
                 voidCall Nothing Nothing (braingenType ty) func args
                 return (error "CODEGEN: tried referencing void variable")
@@ -227,6 +297,8 @@ braingenExpr ogExpression@(ty, e) = case e of
                 result <- getTempVariable
                 call result Nothing Nothing (braingenType ty) func args
                 return result
+        comment "EApp end"
+        return var
     B.EAdd e1 op e2 -> do
         let t = braingenType ty
         r1 <- braingenExpr e1
@@ -280,10 +352,12 @@ braingenExpr ogExpression@(ty, e) = case e of
                     (Argument Nothing right)
                 return var
             B.Pointer _ -> do
-                -- if op == B.EQU
-                --     then call var Nothing Nothing I1 "ptrEq" [Argument (Just Ptr) left, Argument (Just Ptr) right]
-                --     else iCmp var (iRelOp op) I64 (Argument Nothing left) (Argument Nothing right)
-                iCmp var (iRelOp op) Ptr (Argument Nothing left) (Argument Nothing right)
+                iCmp
+                    var
+                    (iRelOp op)
+                    Ptr
+                    (Argument Nothing left)
+                    (Argument Nothing right)
                 return var
             ty ->
                 error $
@@ -312,7 +386,9 @@ braingenExpr ogExpression@(ty, e) = case e of
         load temp (braingenType ty) var
         return temp
     B.StructInit True vals -> do
-        sizeVar <- braingenExpr (mkLitIntE (sum (map (sizeOf . braingenType . fst) vals)))
+        sizeVar <-
+            braingenExpr
+                (mkLitIntE (sum (map (sizeOf . braingenType . fst) vals)))
         var1 <- getTempVariable
         malloc var1 sizeVar
 
@@ -358,9 +434,81 @@ braingenExpr ogExpression@(ty, e) = case e of
     B.StructIndex e@(ty, _) i -> do
         e <- braingenExpr e
         var <- getTempVariable
-        -- getElementPtr var (braingenType ty) (Argument (Just Ptr) e) (ConstArgument (Just I64) (LitInt (fromIntegral i)))
         extractValue var (braingenType ty) e (fromIntegral i)
         return var
+    B.ClosureLit expr@(funTy, _) exprs -> do
+        let closTy = braingenType ty
+
+        var <- getTempVariable
+        alloca var closTy
+
+        -- fix pointer
+        ptrToFunc <- getTempVariable
+        getElementPtrIndirect
+            ptrToFunc
+            closTy
+            (Argument (Just Ptr) var)
+            (ConstArgument (Just I32) (LitInt 0))
+        func <- braingenExpr expr
+        store (Argument (Just $ braingenType funTy) func) ptrToFunc
+
+        -- fix argSet
+        let arrayLength = sizeOf Ptr * fromIntegral (length exprs)
+        arr <- getTempVariable
+        arrayLength <- braingenExpr (B.Int, B.ELit $ B.LitInt arrayLength)
+        malloc arr arrayLength
+        ptrToArr <- getTempVariable
+        getElementPtrIndirect
+            ptrToArr
+            closTy
+            (Argument (Just Ptr) var)
+            (ConstArgument (Just I32) (LitInt 1))
+        store (Argument (Just Ptr) arr) ptrToArr
+
+        forM_ (zip [0 ..] exprs) $ \(ind, expr@(eTy, _)) -> do
+            eTy <- return $ braingenType eTy
+            let typeSize = sizeOf eTy
+            value <- braingenExpr expr
+            comment $ thow ind <> ": " <> thow value
+
+            valueIndex <- getTempVariable
+            getElementPtr
+                valueIndex
+                Ptr
+                (Argument (Just Ptr) arr)
+                (ConstArgument (Just I64) (LitInt ind))
+
+            typeSize <- braingenExpr (B.Int, B.ELit $ B.LitInt typeSize)
+
+            valuePtr <- getTempVariable
+            malloc valuePtr typeSize
+
+            store (Argument (Just eTy) value) valuePtr
+
+            store (Argument (Just Ptr) valuePtr) valueIndex
+
+        res <- getTempVariable
+        load res closTy var
+        return res
+
+-- vars <- mapM braingenExpr exprs
+-- let types = map (braingenType . fst) exprs
+-- var <- getTempVariable
+-- alloca var (AnonStruct types)
+-- forM_
+-- (zip3 [0 ..] types vars)
+-- \$ \(index, typ, value) -> do
+-- ptr <- getTempVariable
+-- GetElementPtr Variable Type Argument Argument
+-- getElementPtr
+-- ptr
+-- (RawPtr typ)
+-- (Argument (Just . RawPtr $ AnonStruct types) var)
+-- (ConstArgument (Just I32) (LitInt index))
+-- store (Argument (Just typ) value) ptr
+-- res <- getTempVariable
+-- load res (braingenType ty) var
+-- return res
 
 mkLitIntE :: Integer -> B.Expr
 mkLitIntE n = (B.Int, B.ELit $ B.LitInt n)
@@ -455,6 +603,13 @@ braingenLit = \case
         load var ty intermediate
         return var
     B.LitArrNull -> error "TODO: `braingenLit` LitArrNul"
+    B.LitFuncNull -> do
+        var <- getTempVariable
+        alloca var (Closure Ptr)
+        store (ConstArgument (pure $ Closure Ptr) LitFuncNull) var
+        loaded <- getTempVariable
+        load loaded (Closure Ptr) var
+        return loaded
 
 lit :: B.Lit -> Lit
 lit = \case
@@ -464,6 +619,7 @@ lit = \case
     B.LitString _ -> error "CODEGEN BUG: String literal still exist"
     B.LitNull -> LitNull
     B.LitArrNull -> LitArrNull
+    B.LitFuncNull -> LitFuncNull
 
 -- | Push a statement onto the state
 output :: Stmt -> BgM ()
@@ -515,6 +671,7 @@ braingenType = \case
         let ret = braingenType t
         let args = map braingenType ts
         FunPtr ret args
+    B.Closure t -> Closure (braingenType t)
 
 -- | Append a text to argument name
 appendArgName :: Text -> Argument -> Argument
@@ -589,6 +746,7 @@ sizeOf = \case
     Array _ _ -> sizeOf Ptr
     CustomType "Array$Internal" -> 16
     CustomType _ -> 8
+    Closure ty -> sizeOf ty + sizeOf Ptr
 
 typeOf :: B.Expr -> B.Type
 typeOf (ty, _) = ty
