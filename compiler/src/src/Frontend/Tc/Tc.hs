@@ -83,6 +83,7 @@ infDef = \case
         mapM_ checkVoid args
         return $ Tc.StructDef (convert name) (convert args)
     Par.FnDef _ fn -> Tc.FnDef <$> infFn fn
+    Par.Use _ _ -> error "Typechecker: use should not exist"
 
 infFn :: Par.Function -> TcM Tc.Function
 infFn self@(Par.Fn info returnType name args block) = do
@@ -233,6 +234,7 @@ typeExist info ty = do
         Tc.Void -> return True
         Tc.Pointer ty -> go ty
         Tc.Array ty -> go ty
+        Tc.Closure ty -> go ty
 
 tcExpr :: Tc.Type -> Par.Expr -> TcM Tc.Expr
 tcExpr ty e = do
@@ -444,6 +446,7 @@ addDefs (Par.Program _ defs) =
                 }
             , ctx
             )
+        Par.Use _ _ -> error "Typechecker: use should not exist"
 
 lookupFunc :: Par.Id -> TcM (Maybe Tc.Type)
 lookupFunc i =
