@@ -12,8 +12,6 @@ extra-doc-files: CHANGELOG.md
 common warnings
   ghc-options: -Wall -Wextra -Wno-name-shadowing
 
--- cpp-options: -DDEBUG
-
 library brainlette-lib
   import:           warnings
   exposed-modules:
@@ -75,6 +73,7 @@ executable brainlette
     , text                >=2.0.2  && <2.1
     , process             >=1.6.20  && <1.7
     , filepath            >=1.5.2.0 && <1.6
+    , optparse-applicative
 
   hs-source-dirs:     app
   default-language:   GHC2021
