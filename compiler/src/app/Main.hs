@@ -21,7 +21,6 @@ import Lifting.Lifter (lift)
 import Options.Applicative
 import Runtime (runtime)
 import System.Directory (doesFileExist)
-import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import System.FilePath (takeBaseName)
 import System.IO (stderr)
@@ -29,7 +28,7 @@ import System.Process (StdStream (..), createProcess, proc, std_out)
 import Utils (Pretty (..), thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
 
-newtype Options = Options {submissionMode :: Bool}
+data Options = Options {submissionMode :: Bool, input :: Maybe String}
     deriving (Show)
 
 options :: Parser Options
@@ -42,15 +41,15 @@ options = do
                 <> short 'n'
                 <> help "print errors"
             )
+    input <- optional $ argument str (metavar "<FILE>")
     return Options {..}
 
 main :: IO ()
 main = do
     options <- execParser (info options fullDesc)
-    args <- getArgs
-    (file, text) <- case args of
-        [] -> ("stdin",) <$> getContents
-        (file : _) -> do
+    (file, text) <- case options.input of
+        Nothing -> ("stdin",) <$> getContents
+        Just file -> do
             b <- doesFileExist file
             unless b $
                 ePutStrLn
