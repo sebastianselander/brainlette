@@ -6,7 +6,6 @@ module Main (main) where
 import BMM.TcToBmm (bmm)
 import Braingen.Ir (braingen)
 import Control.Monad (unless)
-import Data.Functor (void)
 import Data.Text (Text, unlines)
 import Data.Text.IO (getContents, hPutStrLn, putStrLn, readFile, writeFile)
 import Frontend.BranchReturns (branchCheck)
@@ -21,10 +20,8 @@ import System.Directory (doesFileExist)
 import System.Environment
 import System.Exit
 import System.IO (stderr)
-import System.Process (createProcess, proc)
 import Utils (Pretty (..), thow)
 import Prelude hiding (getContents, putStrLn, readFile, unlines, writeFile)
-import System.FilePath (takeBaseName)
 
 main :: IO ()
 main = do
@@ -88,6 +85,7 @@ main = do
     ePutStrLn res'
 
     writeFile "output.ll" res'
+#if DEBUG
     void $
         createProcess $
             proc
@@ -97,6 +95,7 @@ main = do
                 , "-o"
                 , takeBaseName file
                 ]
+#endif
     putStrLn res'
     ok
 

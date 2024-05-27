@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Runtime (runtime) where
@@ -5,6 +6,7 @@ module Runtime (runtime) where
 import Data.String.Interpolate
 import Data.Text (Text)
 
+#if DEBUG
 runtime :: Text
 runtime =
   [i|
@@ -108,3 +110,7 @@ IfError:
 }
 
 |]
+#else
+runtime :: Text
+runtime = [i||]
+#endif
