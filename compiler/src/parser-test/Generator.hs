@@ -7,7 +7,7 @@ import Data.Text
 import Test.QuickCheck
 
 newtype PType = PType Text
-    deriving (Show, Read, Eq, Ord)
+    deriving (Show, Eq, Ord)
 
 mkPointer :: PType -> PType
 mkPointer (PType t) = PType $ '*' `cons` t

@@ -13,7 +13,7 @@ import Data.Text (Text, intercalate, pack)
 import Utils (Pretty (..), thow)
 
 newtype Prog = Program [TopDef]
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Prog where
     pretty :: Int -> Prog -> Text
@@ -23,7 +23,7 @@ data TopDef
     = FnDef Function
     | StructDef Id [Arg]
     | TypeDef Type Id
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty TopDef where
     pretty :: Int -> TopDef -> Text
@@ -35,7 +35,7 @@ instance Pretty TopDef where
         TypeDef t id -> [i|typedef #{pretty 0 id} = #{pretty 0 t}|]
 
 data Function = Fn Type Id [Arg] [Stmt]
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Function where
     pretty :: Int -> Function -> Text
@@ -45,14 +45,14 @@ instance Pretty Function where
          in [i|\ESC[91mfunction\ESC[0m #{pretty 1 id} (#{commaSeparated 0 args}) -> #{pretty 0 t} {\n#{st'}\n#{gap}}|]
 
 data Arg = Argument Type Id
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Arg where
     pretty :: Int -> Arg -> Text
     pretty _ (Argument t id) = [i|#{pretty 0 t} #{pretty 0 id}|]
 
 data LValue = LVar Id | LDeref Expr Id | LIndex Expr Expr | LStructIndex Expr Id
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty LValue where
     pretty :: Int -> LValue -> Text
@@ -78,7 +78,7 @@ data Stmt
     | SExp Expr
     | SFn Function
     | Break
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Stmt where
     pretty :: Int -> Stmt -> Text
@@ -108,7 +108,7 @@ instance Pretty Stmt where
 #{pretty (n + 1) body}|]
 
 data Item = NoInit Id | Init Id Expr
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Item where
     pretty _ = \case
@@ -126,7 +126,7 @@ data Type
     | Pointer Type
     | Array Type
     | Closure Type
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Type where
     pretty :: Int -> Type -> Text
@@ -168,7 +168,7 @@ data Expr'
     | EOr Expr Expr
     | EIndex Expr Expr
     | ELam [Arg] Type Expr
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Expr' where
     pretty :: Int -> Expr' -> Text
@@ -198,7 +198,7 @@ data Lit
     | LitBool Bool
     | LitString Text
     | LitNull
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty Lit where
     pretty :: Int -> Lit -> Text
@@ -210,7 +210,7 @@ instance Pretty Lit where
         LitNull -> "null"
 
 data AddOp = Plus | Minus
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty AddOp where
     pretty :: Int -> AddOp -> Text
@@ -219,7 +219,7 @@ instance Pretty AddOp where
         Minus -> "-"
 
 data MulOp = Times | Div | Mod
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty MulOp where
     pretty :: Int -> MulOp -> Text
@@ -229,7 +229,7 @@ instance Pretty MulOp where
         Mod -> "%"
 
 data RelOp = LTH | LE | GTH | GE | EQU | NE
-    deriving (Eq, Ord, Show, Read, Data)
+    deriving (Eq, Ord, Show, Data)
 
 instance Pretty RelOp where
     pretty :: Int -> RelOp -> Text
@@ -242,7 +242,7 @@ instance Pretty RelOp where
         NE -> "!="
 
 newtype Id = Id Text
-    deriving (Eq, Ord, Show, Read, IsString, Data)
+    deriving (Eq, Ord, Show, IsString, Data)
 
 instance Pretty Id where
     pretty _ (Id id) = indent 0 ("\ESC[93m" <> id <> "\ESC[0m")
