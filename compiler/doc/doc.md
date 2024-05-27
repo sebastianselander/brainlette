@@ -1,4 +1,9 @@
-# Brainlette the javalette compiler
+# The Javalette compiler
+
+## testsuite/good/shadowedfunction
+We consider failing this test acceptable as we have implemented higher-order
+functions. If we were to implement a fix then it would not be possible to
+shadow functions, which in our opinion is reasonable.
 
 ## Using the compiler
 The compiler is used by either providing the path to a source file or text
@@ -51,6 +56,7 @@ STMT ::= ";"
        | "if" "(" EXPR ")" STMT "else" STMT
        | "while" "(" EXPR ")" STMT
        | "for" "(" ARG ":" EXPR ")" STMT
+       | "for" "(" STMT EXPR STMT ")" STMT
        | "break" ";"
        | EXPR ";"
        | FUNCTION ";"
