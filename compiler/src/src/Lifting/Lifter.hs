@@ -130,10 +130,10 @@ liftFn (Tc.Fn returnType name args stmts) = do
                 returnType
                 name
                 newArgs
-                ( LoadSelf (funTy, name) (newTy, functionVariable )
+                ( LoadSelf (funTy, name) (newTy, functionVariable)
                     : map declArg frees
-                    <> declExtract frees
-                    <> stmts
+                        <> declExtract frees
+                        <> stmts
                 )
     env <- get
     put
@@ -300,7 +300,6 @@ liftExpr (ty, expr) = do
             (Id lambdaName) <- freshVar
             (stmts, name) <- liftFn (Tc.Fn retTy (Tc.Id lambdaName) args [Tc.Ret expr])
             return (ELiftedVar name, stmts)
-
 
 nameOf' :: Tc.Arg -> Tc.Id
 nameOf' (Tc.Argument _ name) = name
