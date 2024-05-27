@@ -1,7 +1,6 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Main (main) where
 
@@ -42,7 +41,7 @@ options = do
                 <> help "print errors"
             )
     input <- optional $ argument str (metavar "<FILE>")
-    return Options {..}
+    return Options {input, submissionMode}
 
 main :: IO ()
 main = do
