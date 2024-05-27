@@ -110,8 +110,16 @@ braingenStm breakpoint stmt = case stmt of
         alloca closName closTy
         function <- getTempVariable
         frees <- getTempVariable
-        getElementPtrIndirect function closTy (Argument (Just Ptr) closName) (ConstArgument (Just I32) (LitInt 0))
-        getElementPtrIndirect frees closTy (Argument (Just Ptr) closName) (ConstArgument (Just I32) (LitInt 1))
+        getElementPtrIndirect
+            function
+            closTy
+            (Argument (Just Ptr) closName)
+            (ConstArgument (Just I32) (LitInt 0))
+        getElementPtrIndirect
+            frees
+            closTy
+            (Argument (Just Ptr) closName)
+            (ConstArgument (Just I32) (LitInt 1))
         store (Argument (Just funTy) functionName) function
         store (Argument (Just Ptr) (Variable "$captures$.arg")) frees
     B.BStmt block -> do
@@ -232,7 +240,7 @@ braingenExpr (ty, e) = case e of
     B.EGlobalVar (B.Id ident) -> do
         return (ConstVariable ident)
     B.EVar (B.Id ident) -> do
-    --TODO: Check if variable is toplevelfun in BgM, if so, load it first (I think)
+        -- TODO: Check if variable is toplevelfun in BgM, if so, load it first (I think)
         gets (Set.member (B.Id ident) . lifteds) >>= \case
             True -> return (ConstVariable ident)
             False -> do
@@ -269,15 +277,14 @@ braingenExpr (ty, e) = case e of
     B.EApp (tye, expr) args -> do
         -- TODO: Wrap all toplevel functions in structs, before calling a top
         -- level functions load it on to the stack
-        comment $ thow expr
         funcStruct <- braingenExpr (tye, expr)
         (func, freeArgs) <- do
-                    func <- getTempVariable
-                    extractValue func (braingenType tye) funcStruct 0
+            func <- getTempVariable
+            extractValue func (braingenType tye) funcStruct 0
 
-                    freeArgs <- getTempVariable
-                    extractValue freeArgs (braingenType tye) funcStruct 1
-                    return (func, freeArgs)
+            freeArgs <- getTempVariable
+            extractValue freeArgs (braingenType tye) funcStruct 1
+            return (func, freeArgs)
 
         args <-
             (Argument (Just Ptr) freeArgs :)
@@ -286,7 +293,7 @@ braingenExpr (ty, e) = case e of
                         Argument (Just $ braingenType t) <$> braingenExpr e
                     )
                     args
-        var <- case ty of
+        case ty of
             B.Void -> do
                 voidCall Nothing Nothing (braingenType ty) func args
                 return (error "CODEGEN: tried referencing void variable")
@@ -294,8 +301,6 @@ braingenExpr (ty, e) = case e of
                 result <- getTempVariable
                 call result Nothing Nothing (braingenType ty) func args
                 return result
-        comment "EApp end"
-        return var
     B.EAdd e1 op e2 -> do
         let t = braingenType ty
         r1 <- braingenExpr e1
@@ -466,7 +471,6 @@ braingenExpr (ty, e) = case e of
             eTy <- return $ braingenType eTy
             let typeSize = sizeOf eTy
             value <- braingenExpr expr
-            comment $ thow ind <> ": " <> thow value
 
             valueIndex <- getTempVariable
             getElementPtr
