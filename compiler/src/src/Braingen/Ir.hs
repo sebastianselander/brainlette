@@ -178,11 +178,11 @@ braingenStm breakpoint stmt = case stmt of
         br result lTrue lFalse
         -- if true
         label lTrue
-        mapM_ (braingenStm (Just lDone)) s1
+        mapM_ (braingenStm breakpoint) s1
         jump lDone
         -- if false
         label lFalse
-        mapM_ (braingenStm (Just lDone)) s2
+        mapM_ (braingenStm breakpoint) s2
         jump lDone
         -- if done
         label lDone
