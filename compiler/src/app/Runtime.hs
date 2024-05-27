@@ -7,6 +7,7 @@ import Data.String.Interpolate
 import Data.Text (Text)
 
 runtime :: Text
+#if DEBUG
 runtime =
   [i|
 
@@ -86,7 +87,6 @@ entry:	%res = alloca double
 }
 
 @readString = constant {ptr, ptr} { ptr @readString$og, ptr null}
-
 define ptr @readString$og (ptr %unused) {
   %stdin = call ptr @fdopen(i32 0, ptr @fdopen_mode)
   %string_pointer = alloca ptr
@@ -110,3 +110,28 @@ IfError:
 }
 
 |]
+#else
+runtime = [i|
+%Array$Internal = type { ptr, i64 }
+
+declare ptr @malloc(i64)
+
+@readDouble = external global {ptr, ptr}
+declare double @readDouble$og (ptr)
+
+@readInt = external global {ptr, ptr}
+declare i64 @readInt$og (ptr)
+
+@readeclaredString = external global {ptr, ptr}
+declare ptr @readString$og (ptr)
+
+@printString = external global {ptr, ptr}
+declare void @printString$og (ptr, i8*)
+
+@printDouble = external global {ptr, ptr}
+declare void @printDouble$og (ptr, double)
+
+@printInt = external global {ptr, ptr}
+declare void @printInt$og(ptr, i64)
+|]
+#endif
