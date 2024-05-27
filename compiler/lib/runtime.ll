@@ -1,8 +1,8 @@
 target triple = "x86_64-pc-linux-gnu"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 declare i32 @printf(ptr, ...)
-@.empty_string = constant [1 x i8] c"\\00"
-@out_of_bounds$Internal = constant [23 x i8] c"index out of bounds: \\0A\\00"
+@.empty_string = constant [1 x i8] c"\00"
+@out_of_bounds$Internal = constant [23 x i8] c"index out of bounds: \0A\00"
 declare i32 @exit(i32)
 declare i64 @getline(ptr, ptr, ptr)
 declare ptr @fdopen(i32, ptr)
@@ -10,7 +10,7 @@ declare i64 @strlen(ptr)
 declare i32 @puts(ptr)
 declare i32 @scanf(ptr, ...)
 declare ptr @malloc(i64)
-@fdopen_mode = constant [2 x i8] c"r\\00"
+@fdopen_mode = constant [2 x i8] c"r\00"
 
 %Array$Internal = type { ptr, i64 }
 
@@ -31,7 +31,7 @@ good:
 }
 
 @printInt = constant {ptr, ptr} {ptr @printInt$og, ptr null}
-@dnl = internal constant [4 x i8] c"%d\\0A\\00"
+@dnl = internal constant [4 x i8] c"%d\0A\00"
 define void @printInt$og(ptr %unused ,i32 %x) {
 entry: %t0 = getelementptr [4 x i8], [4 x i8]* @dnl, i32 0, i32 0
 	call i32 (i8*, ...) @printf(i8* %t0, i32 %x)
@@ -39,7 +39,7 @@ entry: %t0 = getelementptr [4 x i8], [4 x i8]* @dnl, i32 0, i32 0
 }
 
 @printDouble = constant {ptr, ptr} { ptr @printDouble$og, ptr null}
-@fnl = internal constant [6 x i8] c"%.1f\\0A\\00"
+@fnl = internal constant [6 x i8] c"%.1f\0A\00"
 define void @printDouble$og(ptr %unused, double %x) {
 entry: %t0 = getelementptr [6 x i8], [6 x i8]* @fnl, i32 0, i32 0
 	call i32 (i8*, ...) @printf(i8* %t0, double %x)
@@ -54,7 +54,7 @@ entry:  call i32 @puts(i8* %s)
 }
 
 @readInt = constant {ptr, ptr} { ptr @readInt$og, ptr null}
-@d = internal constant [3 x i8] c"%d\\00"
+@d = internal constant [3 x i8] c"%d\00"
 define i32 @readInt$og(ptr %unused) {
 entry:	%res = alloca i32
         %t1 = getelementptr [3 x i8], [3 x i8]* @d, i32 0, i32 0
@@ -64,7 +64,7 @@ entry:	%res = alloca i32
 }
 
 @readDouble = constant {ptr, ptr} { ptr @readDouble$og, ptr null}
-@lf = internal constant [4 x i8] c"%lf\\00"
+@lf = internal constant [4 x i8] c"%lf\00"
 define double @readDouble$og(ptr %unused) {
 entry:	%res = alloca double
         %t1 = getelementptr [4 x i8], [4 x i8]* @lf, i32 0, i32 0
