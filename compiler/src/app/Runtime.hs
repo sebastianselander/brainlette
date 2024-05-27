@@ -6,7 +6,6 @@ module Runtime (runtime) where
 import Data.String.Interpolate
 import Data.Text (Text)
 
-#if DEBUG
 runtime :: Text
 runtime =
   [i|
@@ -85,6 +84,7 @@ entry:	%res = alloca double
 	%t2 = load double, double* %res
 	ret double %t2
 }
+
 @readString = constant {ptr, ptr} { ptr @readString$og, ptr null}
 
 define ptr @readString$og (ptr %unused) {
@@ -110,7 +110,3 @@ IfError:
 }
 
 |]
-#else
-runtime :: Text
-runtime = [i||]
-#endif
