@@ -89,6 +89,7 @@ instance HasInfo Stmt where
     hasInfo (Break a) = a
     hasInfo (ForEach a _ _ _) = a
     hasInfo (SFn _ func) = hasInfo func
+    hasInfo (ForI a _ _ _ _) = a
 
 instance HasInfo Item where
     hasInfo (NoInit a _) = a
