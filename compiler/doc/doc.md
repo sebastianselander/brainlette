@@ -9,6 +9,9 @@ The output of the compiler consists of two things, a file called `output.ll`
 which is the file containing LLVM-Ir code and, an executable which matches the
 name of the file compiled which is an executable compiled by clang.
 
+The compiler comes with one optional argument `[-n|--normal]` which, if used,
+displays eventual front end errors in a pretty way.
+
 ## Javalette specification
 
 The following is a rough BNF spec of our compiler. Do note that it is not valid
