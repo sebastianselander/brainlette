@@ -131,6 +131,7 @@ fixStmts mod = \case
     P.Break i -> P.Break i
     P.SExp i e -> P.SExp i (fixExpr mod e)
     P.SFn i fn -> P.SFn i (fixFn mod fn)
+    P.ForI i s1 e s2 body -> P.ForI i (fixStmts mod s1) (fixExpr mod e) (fixStmts mod s2) (fixStmts mod body)
 
 fixExpr :: Text -> P.Expr -> P.Expr
 fixExpr mod = \case

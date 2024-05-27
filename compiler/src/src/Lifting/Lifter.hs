@@ -210,6 +210,13 @@ liftStmts = concatMapM go
                         expr
                         (BStmt stmts2)
                 )
+        Tc.ForI s1 e s2 body -> do
+            s1 <- liftStmts (return s1)
+            (e, extraStmts) <- liftExpr e
+            s2 <- liftStmts (return s2)
+            body <- liftStmts (return body)
+            return (extraStmts `snoc` ForI (BStmt s1) e (BStmt s2) (BStmt body))
+
         Tc.SExp e -> do
             (e, stmts) <- liftExpr e
             return (stmts `snoc` SExp e)

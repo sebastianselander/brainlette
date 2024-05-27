@@ -74,6 +74,7 @@ data Stmt
     | CondElse Expr Stmt Stmt
     | While Expr Stmt
     | ForEach Arg Expr Stmt
+    | ForI Stmt Expr Stmt Stmt
     | SExp Expr
     | Break
     | ExtractFree Type Int Id
@@ -107,6 +108,8 @@ instance Pretty Stmt where
                 [i|#{pretty 0 t} #{pretty 0 id} = [#{intercalate ", " $ map (pretty 0) (NonEmpty.toList exprs)}]|]
             ExtractFree t int name -> [i|#{pretty 0 t} #{pretty 0 name} = #{pretty 0 (Id "$captures$")}[#{int}]|]
             LoadSelf (_, fn) (_, name) -> "self-load {" <> pretty n fn <> "} to {" <> pretty n name <> "}"
+            ForI s1 e s2 body -> [i|for (#{pretty 0 s1} #{pretty 0 e}; #{pretty n s2})
+#{pretty (n + 1) body}|]
 
 data Item = NoInit Id | Init Id Expr
     deriving (Eq, Ord, Show, Read, Data)

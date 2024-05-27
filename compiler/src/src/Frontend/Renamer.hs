@@ -48,7 +48,7 @@ initEnv =
 rename :: Prog -> Either Text (Prog, Set Text)
 rename p = case runExcept $ flip runStateT initEnv $ runRm $ rnProg p of
     Left err -> Left $ report err
-    Right (res, Env { toplevelFuns = toplevelFuns}) -> return (res, toplevelFuns)
+    Right (res, Env {toplevelFuns = toplevelFuns}) -> return (res, toplevelFuns)
 
 rnProg :: Prog -> RnM Prog
 rnProg (Program i defs) = mapM_ addDef defs >> Program i <$> mapM rnDef defs
@@ -181,16 +181,24 @@ rnStmt = \case
             <*> newBlock (rnStmt stmt2)
     While info expr stmt -> While info <$> rnExpr expr <*> newBlock (rnStmt stmt)
     ForEach info arg expr stmt -> do
-        expr <- rnExpr expr
-        (arg, stmt) <- newBlock $ do
+        (arg, expr, stmt) <- newBlock $ do
             arg <- rnArg arg
+            expr <- rnExpr expr
             stmt <- rnStmt stmt
-            return (arg, stmt)
+            return (arg, expr, stmt)
         return (ForEach info arg expr stmt)
     Break info -> return (Break info)
     SExp info expr -> SExp info <$> rnExpr expr
     -- TODO: I'm not sure if shadowing functions is allowed or possible
     SFn info func -> SFn info <$> rnFunc func
+    ForI info s1 e s2 body -> do
+        newBlock $ do
+            s1 <- rnStmt s1
+            e <- rnExpr e
+            s2 <- rnStmt s2 
+            body <- newBlock $ rnStmt body
+            return (ForI info s1 e s2 body)
+
 
 rnItem :: Item -> RnM Item
 rnItem = \case

@@ -86,6 +86,7 @@ data Stmt' a
     | CondElse a (Expr' a) (Stmt' a) (Stmt' a)
     | While a (Expr' a) (Stmt' a)
     | ForEach a (Arg' a) (Expr' a) (Stmt' a)
+    | ForI a (Stmt' a) (Expr' a) (Stmt' a) (Stmt' a)
     | Break a
     | SExp a (Expr' a)
     | SFn a (Function' a)
@@ -236,6 +237,7 @@ instance Pretty Stmt where
         Break _ -> "break;"
         SExp _ expr -> semi n expr
         SFn _ function -> pretty n function
+        ForI _ s1 e s2 body -> unlines ["for" <> parenthesis n (pretty n s1 <> pretty n e <> "; " <> pretty n s2), pretty (n + 1) body]
 
 instance Pretty Function where
     pretty n (Fn _ ty ident args stmts) =

@@ -212,6 +212,12 @@ tcStmt retTy = go
         Par.SExp info expr -> throwError (NotStatement info expr)
         Par.Break _ -> return $ Just Tc.Break
         Par.SFn _ fn -> Just . Tc.SFn <$> infFn fn
+        Par.ForI _ s1 e s2 body -> do
+            s1 <- fromMaybe (Tc.BStmt []) <$> go s1
+            e <- tcExpr Tc.Boolean e
+            s2 <- fromMaybe (Tc.BStmt []) <$> go s2
+            body <- fromMaybe (Tc.BStmt []) <$> go body
+            return . Just $ Tc.ForI s1 e s2 body
 
 typeExist :: Par.SynInfo -> Par.Type -> TcM Tc.Type
 typeExist info ty = do

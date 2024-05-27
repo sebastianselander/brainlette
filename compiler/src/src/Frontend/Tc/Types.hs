@@ -74,6 +74,7 @@ data Stmt
     | CondElse Expr Stmt Stmt
     | While Expr Stmt
     | ForEach Arg Expr Stmt
+    | ForI Stmt Expr Stmt Stmt
     | SExp Expr
     | SFn Function
     | Break
@@ -100,9 +101,11 @@ instance Pretty Stmt where
             Decr t v -> [i|(#{pretty 0 t} #{pretty 0 v}) = #{pretty 0 v} - 1|]
             Cond e s -> [i|if (#{pretty 0 e})\n#{pretty n s}|]
             ForEach a e s ->
-                [i|foreach (#{pretty 0 a} : #{pretty 0 e})
+                [i|for (#{pretty 0 a} : #{pretty 0 e})
 #{pretty (n + 1) s}|]
             SFn f -> pretty n f
+            ForI s1 e s2 body -> [i|for (#{pretty 0 s1} #{pretty 0 e}; #{pretty n s2})
+#{pretty (n + 1) body}|]
 
 data Item = NoInit Id | Init Id Expr
     deriving (Eq, Ord, Show, Read, Data)

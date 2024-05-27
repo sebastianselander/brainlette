@@ -87,6 +87,7 @@ breaks = \case
         unless b $ throwError (BreakNotInLoop info)
     ForEach _ _ _ stmt -> local (const True) $ breaks stmt
     SFn _ fn  -> breakFn fn
+    ForI _ _ _ _ stmt -> local (const True) $ breaks stmt
 
 retFn :: Function -> Br ()
 retFn self@(Fn _ ty _ _ stmts) =
@@ -136,6 +137,7 @@ returnsStmt = \case
     SExp _ _ -> return False
     Break _ -> return False
     SFn _ _ -> return False
+    ForI {} -> return False
 
 always :: Expr -> Bool
 always e = case interpret e of

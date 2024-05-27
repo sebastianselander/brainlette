@@ -186,6 +186,12 @@ bmmStmts s = flip concatMapM s $ \case
         ty <- bmmType ty
         id <- bmmId id
         return [ExtractFree ty ind id]
+    Tc.ForI s1 expr s2 body -> do
+        s1 <- bmmStmts [s1]
+        expr <- bmmExpr expr
+        s2 <- bmmStmts [s2]
+        body <- bmmStmts [body]
+        return (s1 <> [Loop expr (body <> s2)])
 
 arrayAllocs :: NonEmpty Tc.Expr -> Tc.Type -> Id -> Maybe Id -> [Stmt] -> Bmm (Id, [Stmt])
 arrayAllocs (expr :| []) ty name1 name2 stmts = arrayAlloc ty (Just name1) name2 expr stmts

@@ -1,16 +1,17 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Frontend.Parser.StmtParser (stmt, function) where
 
+import Frontend.Parser.ArgumentParser (arg)
 import Frontend.Parser.ExprParser
 import Frontend.Parser.Language
 import Frontend.Parser.ParserTypes
 import Frontend.Parser.TypeParser
-import Text.Parsec (try, (<|>), optionMaybe)
+import Text.Parsec (optionMaybe, try, (<|>))
 import Text.Parsec.Combinator (choice)
 import Text.ParserCombinators.Parsec (many)
 import Prelude hiding (break, id, init)
-import Frontend.Parser.ArgumentParser (arg)
 
 -- Items
 
@@ -35,7 +36,7 @@ stmt =
     choice
         [ SFn NoInfo <$> try function
         , while
-        , foreach
+        , for
         , ifOptionalElse
         , blk
         , ret <* semicolon
@@ -81,7 +82,7 @@ decr = uncurry Decr <$> info (id <* reservedOp "--")
 
 ret :: Parser Stmt
 ret = do
-    (info,f) <- info $ do
+    (info, f) <- info $ do
         (reserved "return" *> optionMaybe expr) >>= \case
             Nothing -> return VRet
             Just e -> return $ flip Ret e
@@ -108,13 +109,22 @@ while = do
         return (e, s)
     return (While i e s)
 
-foreach :: Parser Stmt
-foreach = do
-    (i, (a, e, s)) <- info $ do
-        (arg, expr) <- reserved "for" *> parens ((,) <$> arg <* reservedOp ":" <*> expr)
+for :: Parser Stmt
+for = do
+    (i, (loopStuff, body)) <- info $ do
+        reserved "for"
+        loopStuff <-
+            parens
+                ( choice
+                    [ Left <$> ((,) <$> try (arg <* reservedOp ":") <*> expr)
+                    , Right <$> ((,,) <$> ((ass <|> decl) <* semicolon) <*> expr <* semicolon <*> (try incr <|> try decr <|> ass))
+                    ]
+                )
         s <- stmt
-        return (arg, expr, s)
-    return $ ForEach i a e s
+        return (loopStuff, s)
+    case loopStuff of
+        Left (arg, expr) -> return (ForEach i arg expr body)
+        Right (s1, e, s2) -> return (ForI i s1 e s2 body)
 
 sexp :: Parser Stmt
 sexp = uncurry SExp <$> info expr
