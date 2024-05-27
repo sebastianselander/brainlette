@@ -107,7 +107,7 @@ main = do
     res <- return $ braingen res lifteds funs
 
     ePutStrLn options "\n--- LLVM IR output ---"
-    let res' = unlines [runtime, res]
+    let res' = unlines [runtime options.submissionMode, res]
     ePutStrLn options res'
 
     writeFile "output.ll" res'

@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Runtime (runtime) where
@@ -6,11 +5,9 @@ module Runtime (runtime) where
 import Data.String.Interpolate
 import Data.Text (Text)
 
-runtime :: Text
-#if DEBUG
-runtime =
+runtime :: Bool -> Text
+runtime False =
   [i|
-
 target triple = "x86_64-pc-linux-gnu"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 declare i32 @printf(ptr, ...)
@@ -110,8 +107,8 @@ IfError:
 }
 
 |]
-#else
-runtime = [i|
+runtime True =
+  [i|
 %Array$Internal = type { ptr, i64 }
 
 declare ptr @malloc(i64)
@@ -134,4 +131,3 @@ declare void @printDouble$og (ptr, double)
 @printInt = external global {ptr, ptr}
 declare void @printInt$og(ptr, i64)
 |]
-#endif
