@@ -3,11 +3,7 @@ DOC=doc/
 SRC=src/
 JLC=../jlc
 
-all:
-	rm $(JLC); cabal clean && cabal install --installdir=. --overwrite-policy=always && cp ./brainlette $(JLC)
+all: clean
+	cabal install --installdir=. --overwrite-policy=always && cp ./brainlette $(JLC) && rm ./brainlette
 clean:
-	cabal clean
-	rm $(JLC)
-	rm output.ll
-	rm output.bmm
-	rm output
+	cabal clean; rm -f $(JLC); rm -f output.ll; rm -f output.bmm
