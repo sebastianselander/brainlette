@@ -1,0 +1,8 @@
+int main() {
+    int i;
+    for (y = 0; i < 25; i++) {
+        if (i == 12) break;
+        printInt(i);
+    }
+    return 0;
+}
