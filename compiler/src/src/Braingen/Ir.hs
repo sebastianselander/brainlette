@@ -16,7 +16,7 @@ import Data.DList hiding (foldr, map)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text, toTitle)
-import Utils (concatFor, thow)
+import Utils (compilerPrims, concatFor, thow)
 import Prelude hiding (takeWhile)
 
 $(gen "Stmt")
@@ -83,16 +83,7 @@ braingenStmts lifteds toplevels =
                 0
                 0
                 ( Set.fromList
-                    ( fmap
-                        B.Id
-                        [ "printInt"
-                        , "printDouble"
-                        , "printString"
-                        , "readInt"
-                        , "readDouble"
-                        , "readString"
-                        , "checkBound$Internal"
-                        ]
+                    ( fmap B.Id ("checkBound$Internal" : compilerPrims)
                     )
                     <> toplevels
                 )
