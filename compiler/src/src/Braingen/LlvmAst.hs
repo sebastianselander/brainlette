@@ -1,6 +1,5 @@
 module Braingen.LlvmAst where
 
-import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import Utils (Toplevel)
 
